@@ -1,0 +1,269 @@
+<script>
+function onLoad(){
+
+$treads = '';
+$tits = '';
+$beforeturn = '';
+$afterturn1 = '';
+$afterturn2 = '';
+$afterturn2a = '';
+function onLoad(){
+$floor_h = jQuery("#input_4_4").val();
+$spinglass = jQuery("#input_4_170 ").val();
+$height = parseFloat($floor_h.replace(/,/g, ''));
+var $adj = parseFloat($height / 0.90040404);
+var $widthadj = parseFloat(jQuery("#input_4_5").val());
+var $width = ($widthadj + 30);
+var $topriser = ($width + 12);
+var $going = parseFloat(jQuery("#input_4_7").val());
+var $modifier =  0; 
+$risers = Math.ceil($adj / $going);
+var $regcheck = Math.ceil($height / $risers);
+if ($regcheck > 220) { $modifier = 1; }
+if (($going < 220) || ($going > 250)) { jQuery('#input_22_7').css({ 'color': 'red' }); } else { jQuery('#input_22_7').css({ 'color': 'inherit' }); } 
+
+$treads = parseFloat($risers + $modifier);
+$tits = jQuery("#input_4_81").val();
+var $direction = jQuery("#input_4_72").val();
+$beforeturn = jQuery("#input_4_73").val();
+$afterturn1 = jQuery("#input_4_76").val();
+if (($tits == 1) && ($afterturn1 == 0)) { alert('Please use Half Landing Configuration!'); $afterturn1 = 1; 
+jQuery('#field_4_76 .instruction').css({ 'color': 'red' });
+jQuery('#input_4_76').val($afterturn1); }
+$afterturn2 = $risers - ($tits * 2) - $beforeturn - $afterturn1;
+$afterturn2a = parseFloat(($risers - ($tits * 2) - $beforeturn - $afterturn1) - 1);
+jQuery('#input_4_80').val($afterturn2a);
+$tl = false;
+$tr = false;
+$br = false;
+$bl = false;
+$f1to_box1 = false;
+$f2bo_box1 = false;
+$boxcorner1_r = false;
+$f2to_box2 = false;
+$boxcorner2_l = false;
+$f3bo_box2 = false;
+$fr = jQuery("#input_4_105").val();
+$fl = jQuery("#input_4_50").val();
+$insbal = false;
+$bal_l = false;
+$bal_r = false;
+$bal2_l = false;
+$bal2_r = false;
+$bal3_l = false;
+$bal3_r = false;
+$turntop = false;
+$turnside = false;
+$turn2top = false;
+$turn2side = false;
+
+if (jQuery("#choice_4_44_1").is(":checked")) {
+        $tl = true;
+     }
+if (jQuery("#choice_4_44_2").is(":checked")) { 
+        $tr = true;
+      }    
+if (jQuery("#choice_4_45_1").is(":checked")) {
+$bl = true;  
+        } 
+if (jQuery("#choice_4_45_2").is(":checked")) {
+    $br = true; 
+       }    
+if (jQuery("#choice_4_77_1").is(":checked")) {   
+    switch($direction) {
+        case 'left':
+        $f2bo_box1 = true;
+        break;
+        case 'right':
+        $boxcorner1_r = true;
+        break; }
+     }   
+if (jQuery("#choice_4_77_2").is(":checked")) {
+    $f1to_box1 = true; }  
+if (jQuery("#choice_4_77_3").is(":checked")) {
+
+    switch($direction) {
+        case 'left':
+        $boxcorner1_r = true; 
+        break;
+        case 'right':
+        $f2bo_box1 = true;
+        break; }
+    } 
+
+if (jQuery("#choice_4_78_1").is(":checked")) {
+    switch($direction) {
+        case 'left':
+        $boxcorner2_l = true;
+        break;
+        case 'right':
+        $f2to_box2 = true;
+        break; }
+}
+if (jQuery("#choice_4_78_2").is(":checked")) {
+    switch($direction) {
+        case 'left':
+        $f2to_box2 = true;
+        break;
+        case 'right':
+        $boxcorner2_l = true;
+        break; }
+}
+if (jQuery("#choice_4_78_3").is(":checked")) {
+    $f3bo_box2 = true;
+}
+
+if ($spinglass == "Spindles") {
+
+    $insbal = true;
+    switch($direction) {
+        case 'left':
+        //Flight1
+if (($f1to_box1 == true) && ($br == true)) {
+        $bal_r = true;
+}
+if ($bl == true) {
+        $bal_l = true;
+}
+//Flight2
+if (($f2bo_box1 == true) && ($f2to_box2 == true)) {
+        $bal2_r = true;
+}
+//Flight3
+if (($f3bo_box2 == true) && ($tr == true)) {
+        $bal3_r = true;
+}
+if ($tl == true) {
+        $bal3_l = true;
+}
+//Box
+if (($boxcorner1_r == true) && ($f2bo_box1 == true)) {
+    $turn2top = true;
+}
+if (($boxcorner1_r == true) && ($f1to_box1 == true)) {
+    $turn2side = true;
+}
+//Box2
+if (($boxcorner2_l == true) && ($f2to_box2 == true)) {
+    $turntop = true;
+}
+if (($boxcorner2_l == true) && ($f3bo_box2 == true)) {
+    $turnside = true;
+}
+        break;
+        case 'right':
+//Flight1
+    if ($br == true) {
+            $bal_l = true;
+    }
+    if (($f1to_box1 == true) && ($bl == true)) {
+            $bal_r = true;
+    }
+//Flight2
+    
+    if (($boxcorner1_r == true) && ($boxcorner2_l == true)) {
+            $bal2_r = true;
+    }
+
+//Flight3
+if (($f3bo_box2 == true) && ($tl == true)) {
+        $bal3_r = true;
+}
+if ($tr == true) {
+        $bal3_l = true;
+}
+
+    //Box
+if (($f2bo_box1 == true) && ($boxcorner1_r == true)) {
+    $turn2top = true;
+}
+if (($f2bo_box1 == true) && ($f1to_box1 == true)) {
+    $turn2side = true;
+}
+//Box2
+if (($f2to_box2 == true) && ($boxcorner2_l == true)) {
+    $turntop = true;
+}
+if (($f2to_box2 == true) && ($f3bo_box2 == true)) {
+    $turnside = true;
+}
+        break;
+    }
+}
+var halfturnStairsConfig = {
+                    type: 'halfturn',
+                    direction: $direction,
+                    backgroundColor : '#dbdbdb',
+                    font: 'Varela Round',
+                    treadHeight: $going, // in millimeters
+                    flight1Treads : {
+                        amount : $beforeturn,
+                        width : $width, // in millimeters
+                        fillColor : '#d3cece', //optional
+                        strokeColor : '#2f2f2f', //optional
+                        textColor : '#2f2f2f' //optional
+                    },
+                    turn1TreadsAmount : $tits,
+                    flight2Treads : {
+                        maxAmount : 6,
+                        amount : $afterturn1,
+                        width : $topriser, // in millimeters
+                        fillColor : '#d3cece', //optional
+                        strokeColor : '#2f2f2f', //optional
+                        textColor : '#2f2f2f' //optional
+                    },
+                    turn2TreadsAmount : $tits,
+                    flight3Treads : {
+                        amount : $afterturn2a,
+                        width : $width, // in millimeters
+                        fillColor : '#d3cece', //optional
+                        strokeColor : '#2f2f2f', //optional
+                        textColor : '#2f2f2f' //optional
+                    },
+                    posts : {
+                        flight1BottomLeft : $bl, //optional: default false
+                        flight1BottomRight : $br, //optional: default false
+                        turn1TopLeft : $f2bo_box1, //optional: default false
+                        turn1TopRight : $boxcorner1_r, //optional: default false
+                        turn1Bottom : $f1to_box1, // for outside post. inside bottom post is not optional
+                        turn2TopLeft : $boxcorner2_l, //optional: default false
+                        turn2TopRight : $f2to_box2, //optional: default false
+                        turn2Bottom : $f3bo_box2, // for outside post. inside bottom post is not optional
+                        flight3Left : $tr, //optional: default false
+                        flight3Right : $tl, //optional: default false
+                        fillColor : '#aba7a7', //optional
+                        strokeColor : '#2f2f2f', //optional
+                        textColor : '#2f2f2f' //optional
+                    },
+                    ballustrades : {
+                        flight1Outside: $bal_r, //optional: default false
+                        flight1Inside: $bal_l, //optional: default false
+                        flight2Outside: $bal2_r, //optional: default false
+                        flight2Inside: $insbal, //optional: default false
+                        flight3Outside: $bal3_r, //optional: default false
+                        flight3Inside: $bal3_l, //optional: default false
+                        turn1Top: $turntop, //optional: default false
+                        turn1Side: $turnside, //optional: default false
+                        turn2Top: $turn2top, //optional: default false
+                        turn2Side: $turn2side, //optional: default false
+                        primaryFillColor : '#aba7a7', //optional
+                        secondaryFillColor : '#eeeeee', //optional
+                        strokeColor : '#2f2f2f', //optional
+                    },
+                    featureTread : {
+                        left : $fl, //0: none 1: curtail 2: bullnose 3: double going curtail plus single curtail 4: double going curtail plus bullnose
+                        right : $fr, //0: none 1: curtail 2: bullnose 3: double going curtail plus single curtail 4: double going curtail plus bullnose
+                    },
+                    minHeight : 220,  // in millimeters
+                    maxHeight : 250,  // in millimeters
+                    minWidth : 800, // in millimeters
+                    maxWidth : 1200  // in millimeters
+                }
+                var canvas = document.getElementById("canvas");
+                Stairs.init(canvas,halfturnStairsConfig);
+            }
+onLoad();
+jQuery('#gform_4 :input').change(function(){
+  onLoad();
+});
+</script>

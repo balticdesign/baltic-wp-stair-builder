@@ -1,0 +1,14 @@
+# Composer
+/vendor/mpdf/mpdf/tmp/
+/vendor/mpdf/mpdf/graph_cache/
+/vendor/mpdf/mpdf/ttfontdata/
+
+# macOS / editor cruft
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# WP / misc
+*.log

@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		1.0.0
+Version:		1.1.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -102,7 +102,7 @@ require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 require plugin_dir_path( __FILE__ ) . 'includes/class-baltic-cpt.php';
 require plugin_dir_path( __FILE__ ) . 'includes/class-stairbuilder-form.php';
 require plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-options.php';
-
+require_once plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-pricing-settings.php';
 
 function custom_plugin_init() {
 	add_filter('woocommerce_locate_template', 'custom_woocommerce_locate_template', 10, 3);

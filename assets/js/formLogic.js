@@ -77,13 +77,27 @@ function getDeliveryPrice() {
   });
 }
 
-function addSBtoCart() {
-  const price = $total;
-  const formDataArray = jQuery('#stairbuild').serializeArray();
-  const newelIds = getNewelIds();
-  const capIds = getCapIds();
+function readPriceFromDOM(selector) {
+  const txt = (jQuery(selector).text() || '').replace(/[£,\s]/g, '');
+  const n = parseFloat(txt);
+  return isNaN(n) ? 0 : n;
+}
 
-  // Remove any :price suffix from values before submitting
+function submitStairLead() {
+  const name = (jQuery('#contact_name').val() || '').trim();
+  const email = (jQuery('#contact_email').val() || '').trim();
+  const phone = (jQuery('#contact_phone').val() || '').trim();
+  const $err = jQuery('#sb-submit-error');
+  $err.hide().text('');
+
+  if (!name || !email) {
+    $err.text('Please enter your name and email to receive your quote.').show();
+    return;
+  }
+
+  const formDataArray = jQuery('#stairbuild').serializeArray()
+    .filter(f => f.name !== 'contact_name' && f.name !== 'contact_email' && f.name !== 'contact_phone');
+
   formDataArray.forEach(field => {
     const colonIndex = field.value.indexOf(':');
     if (colonIndex !== -1) {
@@ -92,30 +106,42 @@ function addSBtoCart() {
   });
   const formData = jQuery.param(formDataArray);
 
-  const canvas = document.getElementById("canvas");
-  const dataUrl = canvas ? canvas.toDataURL("image/png") : '';
+  const canvas = document.getElementById('canvas');
+  const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
+
+  const price = readPriceFromDOM('#priceCalc');
+  const vat   = readPriceFromDOM('#vat');
+  const total = readPriceFromDOM('#total');
+
+  const $btn = jQuery('#sbbuybtn');
+  const originalLabel = $btn.text();
+  $btn.prop('disabled', true).text('Generating quote…');
 
   jQuery.ajax({
     url: stairBuilderVars.ajax_url,
     method: 'POST',
     data: {
-      action: 'custom_add_to_cart',
-      product_id: 7024,
-      custom_price: price,
+      action: 'baltic_stair_submit_lead',
+      contact_name: name,
+      contact_email: email,
+      contact_phone: phone,
       custom_meta: formData,
-      newel_product_ids: newelIds,
-      cap_product_ids: capIds,
       canvas_image: dataUrl,
+      price, vat, total,
       security: stairBuilderVars.nonce
     },
     success(response) {
-      if (response.success) {
-        jQuery(document.body).trigger('wc_update_cart');
-        jQuery(document.body).trigger('wc_fragment_refresh');
-        window.location.href = stairBuilderVars.cart_url;
-      } else {
-        console.log("Failed to add product to cart");
+      if (response && response.success && response.data && response.data.redirect_url) {
+        window.location.href = response.data.redirect_url;
+        return;
       }
+      const msg = (response && response.data && response.data.message) || 'Sorry, something went wrong submitting your quote. Please try again.';
+      $err.text(msg).show();
+      $btn.prop('disabled', false).text(originalLabel);
+    },
+    error() {
+      $err.text('Network error — please try again.').show();
+      $btn.prop('disabled', false).text(originalLabel);
     }
   });
 }
@@ -185,10 +211,10 @@ jQuery(document).ready(function () {
     getDeliveryPrice();
   });
 
-  // Cart add
+  // Lead submission (replaces legacy WC add-to-cart)
   jQuery('#sbbuybtn').click(function (e) {
     e.preventDefault();
-    addSBtoCart();
+    submitStairLead();
   });
 
   // All oak/pine bulk set
@@ -202,10 +228,6 @@ jQuery(document).ready(function () {
     setMaterial("Pine");
     calculateTotalPrice();
   });
-});
-
-jQuery(document.body).on('wc_fragments_loaded', function () {
-  console.log("Cart fragments loaded");
 });
 
 jQuery('#feature_tread').on('change', getFeaturedStepCosts);

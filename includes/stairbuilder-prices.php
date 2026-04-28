@@ -1,8 +1,8 @@
 <?php 
 
 //STRINGS
- $pine_string = get_field('pine_string_price', 'option');
- $oak_string = get_field('oak_string_price', 'option');
+ $pine_string = stairbuilder_get_option('pine_string_price');
+ $oak_string = stairbuilder_get_option('oak_string_price');
 
  $stringer_options = []; // Initialize an empty array to hold tread options
 
@@ -52,10 +52,10 @@ endif;
 
 
  //RISERS
- $mdf_riser = get_field('mdf_riser_price', 'option');
- $pine_riser = get_field('pine_riser_price', 'option');
- $oak_riser = get_field('oak_riser_price', 'option');
- $solid_oak_riser = get_field('solid_oak_riser_price', 'option');
+ $mdf_riser = stairbuilder_get_option('mdf_riser_price');
+ $pine_riser = stairbuilder_get_option('pine_riser_price');
+ $oak_riser = stairbuilder_get_option('oak_riser_price');
+ $solid_oak_riser = stairbuilder_get_option('solid_oak_riser_price');
 
  $riser_options = []; // Initialize an empty array to hold tread options
 
@@ -79,73 +79,73 @@ if (have_rows('riser_types', 'option')):
   endwhile;
 endif;
 
-$width_mp = get_field('width_mp', 'option');
+$width_mp = stairbuilder_get_option('width_mp');
 
-$setup_fee = get_field('setup_fee', 'option');
+$setup_fee = stairbuilder_get_option('setup_fee');
 
-$mdf_bullnose_price = get_field('mdf_bullnose_price', 'option');
+$mdf_bullnose_price = stairbuilder_get_option('mdf_bullnose_price');
 
-$ply_bullnose_price = get_field('ply_bullnose_price', 'option');
+$ply_bullnose_price = stairbuilder_get_option('ply_bullnose_price');
 
-$pine_bullnose_price = get_field('pine_bullnose_price', 'option');
+$pine_bullnose_price = stairbuilder_get_option('pine_bullnose_price');
 
-$oak_bullnose_price = get_field('oak_bullnose_price', 'option');
+$oak_bullnose_price = stairbuilder_get_option('oak_bullnose_price');
 
-$mdf_curtail_price = get_field('mdf_curtail_price', 'option');
+$mdf_curtail_price = stairbuilder_get_option('mdf_curtail_price');
 
-$ply_curtail_price = get_field('ply_curtail_price', 'option');
+$ply_curtail_price = stairbuilder_get_option('ply_curtail_price');
 
-$pine_curtail_price = get_field('pine_curtail_price', 'option');
+$pine_curtail_price = stairbuilder_get_option('pine_curtail_price');
 
-$oak_curtail_price = get_field('oak_curtail_price', 'option');
+$oak_curtail_price = stairbuilder_get_option('oak_curtail_price');
 
-$mdf_dbl_curtail_price = get_field('mdf_dbl_curtail_price', 'option');
+$mdf_dbl_curtail_price = stairbuilder_get_option('mdf_dbl_curtail_price');
 
-$ply_dbl_curtail_price = get_field('ply_dbl_curtail_price', 'option');
+$ply_dbl_curtail_price = stairbuilder_get_option('ply_dbl_curtail_price');
 
-$pine_dbl_curtail_price = get_field('pine_dbl_curtail_price', 'option');
+$pine_dbl_curtail_price = stairbuilder_get_option('pine_dbl_curtail_price');
 
-$oak_dcb_curtail_price = get_field('oak_dcb_curtail_price', 'option');
+$oak_dcb_curtail_price = stairbuilder_get_option('oak_dcb_curtail_price');
 
-$mdf_dcb_curtail_price = get_field('mdf_dcb_curtail_price', 'option');
+$mdf_dcb_curtail_price = stairbuilder_get_option('mdf_dcb_curtail_price');
 
-$ply_dcb_curtail_price = get_field('ply_dcb_curtail_price', 'option');
+$ply_dcb_curtail_price = stairbuilder_get_option('ply_dcb_curtail_price');
 
-$pine_dcb_curtail_price = get_field('pine_dcb_curtail_price', 'option');
+$pine_dcb_curtail_price = stairbuilder_get_option('pine_dcb_curtail_price');
 
-$oak_dcb_curtail_price = get_field('oak_dcb_curtail_price', 'option');
+$oak_dcb_curtail_price = stairbuilder_get_option('oak_dcb_curtail_price');
 
-$two_man_delivery_price = get_field('two_man_delivery_price', 'option');
+$two_man_delivery_price = stairbuilder_get_option('two_man_delivery_price');
 
-$part_assembled_price = get_field('part_assembled_price', 'option');
+$part_assembled_price = stairbuilder_get_option('part_assembled_price');
 
-$fixing_kit_price = get_field('fixing_kit_price', 'option');
+$fixing_kit_price = stairbuilder_get_option('fixing_kit_price');
 
-$extra_packaging_price = get_field('extra_packaging_price', 'option');
+$extra_packaging_price = stairbuilder_get_option('extra_packaging_price');
 
-$cut_string_price = get_field('cut_string_price', 'option');
+$cut_string_price = stairbuilder_get_option('cut_string_price');
 
 //NEWEL CAPS
-// $pine_pyramid = get_field('pine_pyramid_cap_price', 'option');
-// $oak_pyramid = get_field('oak_pyramid_cap_price', 'option');
-// $pine_ball = get_field('pine_ball_cap_price', 'option');
-// $oak_ball = get_field('oak_ball_cap_price', 'option');
+// $pine_pyramid = stairbuilder_get_option('pine_pyramid_cap_price');
+// $oak_pyramid = stairbuilder_get_option('oak_pyramid_cap_price');
+// $pine_ball = stairbuilder_get_option('pine_ball_cap_price');
+// $oak_ball = stairbuilder_get_option('oak_ball_cap_price');
 
 //SPINDLES
-// $pine_spindle = get_field('pine_spindle_price', 'option');
-// $oak_spindle = get_field('oak_spindle_price', 'option');
+// $pine_spindle = stairbuilder_get_option('pine_spindle_price');
+// $oak_spindle = stairbuilder_get_option('oak_spindle_price');
 
 //HANDRAILS
-// $pine_crwn_hand_price = get_field('pine_crwn_hand_price', 'option');
-// $oak_crwn_hand_price = get_field('oak_crwn_hand_price', 'option');
-// $pine_hdr_hand_price = get_field('pine_hdr_hand_price', 'option');
-// $oak_hdr_hand_price = get_field('oak_hdr_hand_price', 'option');
-//$pine_handrail = get_field('pine_ballustrade_price', 'option');
-//$oak_handrail = get_field('oak_ballustrade_price', 'option');
+// $pine_crwn_hand_price = stairbuilder_get_option('pine_crwn_hand_price');
+// $oak_crwn_hand_price = stairbuilder_get_option('oak_crwn_hand_price');
+// $pine_hdr_hand_price = stairbuilder_get_option('pine_hdr_hand_price');
+// $oak_hdr_hand_price = stairbuilder_get_option('oak_hdr_hand_price');
+//$pine_handrail = stairbuilder_get_option('pine_ballustrade_price');
+//$oak_handrail = stairbuilder_get_option('oak_ballustrade_price');
 
 //HANDRAILS
-$pine_baserail = get_field('pine_baserail_price', 'option');
-$oak_baserail = get_field('oak_baserail_price', 'option');
+$pine_baserail = stairbuilder_get_option('pine_baserail_price');
+$oak_baserail = stairbuilder_get_option('oak_baserail_price');
 
 
 

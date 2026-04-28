@@ -12,3 +12,11 @@
 
 # WP / misc
 *.log
+# Vendor library metadata that shouldn't be in our repo
+vendor/**/.github/
+vendor/**/.gitignore
+vendor/**/.travis.yml
+vendor/**/.gitlab-ci.yml
+vendor/**/.editorconfig
+# Local reference files (not committed)
+_reference/

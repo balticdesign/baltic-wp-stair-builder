@@ -1,8 +1,11 @@
 <?php require_once  (plugin_dir_path( __FILE__ ) . '../includes/stairbuilder-prices.php');
 global $post;
-  
-// Get the ACF field value for stair_type
-$stair_type = get_field('staircase_type', $post->ID);
+
+// Page-level staircase_type stays ACF-bound (per-page meta, out of options scope).
+// Defensive guard so the template doesn't fatal if ACF is deactivated.
+$stair_type = function_exists('get_field') && isset($post->ID)
+  ? get_field('staircase_type', $post->ID)
+  : '';
 $fields = []; // array of ACF field names
 $direction = false;
 $flight2 = false;
@@ -32,13 +35,16 @@ if ($stair_type === 'half') {
 $bonuslogic = "";
 if($fields) {
 foreach ($fields as $field) {
-  $value = get_field($field, 'option');
+  $value = stairbuilder_get_option($field);
   $bonuslogic .= "<input type=\"hidden\" id=\"$field\" value=\"$value\">";
 }
 }
 ?>
 
-<div class="form-wrapper">
+<div class="bd-stairbuilder-layout">
+  <div id="canvas-container" class="sb-canvas-container">
+    <canvas id="canvas" width="558" height="556"></canvas>
+  </div>
   <form id="stairbuild" method="post">
     <div class="form-tabs">
   <div class="form-tab"><!--- Measurments -->
@@ -442,25 +448,43 @@ foreach ($fields as $field) {
       </div>
   </div>
 </div>
+<div id="contact" class="form-tab"><!--- Contact / Lead capture -->
+    <input type="radio" class="form-chk" id="chck5" name="rd">
+    <label class="tab-label" for="chck5">Your Details</label>
+    <div class="tab-content">
+      <div class="form-row">
+        <label for="contact_name">Name *</label>
+        <input type="text" id="contact_name" name="contact_name" required>
+      </div>
+      <div class="form-row">
+        <label for="contact_email">Email *</label>
+        <input type="email" id="contact_email" name="contact_email" required>
+      </div>
+      <div class="form-row">
+        <label for="contact_phone">Phone</label>
+        <input type="tel" id="contact_phone" name="contact_phone">
+      </div>
+      <p class="contact-note"><small>We'll email your PDF quote to the address above and follow up to discuss your project.</small></p>
+    </div>
+</div>
 <div class="form-tab">
         <input type="radio" class="form-chk" id="rd5" name="rd">
         <label for="rd5" class="tab-close">Close others &times;</label>
       </div>
 </div><!--- form-tabs -->
-<div class="form-row">
-    <div class="breakout">
-    <div id="pricetotal">
-    <h4>Quote</h4>
-    <span id="priceCalc" class="price">£0.00</span>
-    <h4>VAT</h4>  
-    <span id="vat" class="price">£0.00</span>
-    <h4>Total Price</h4>    
-    <span id="total" class="price">£0.00</span>
-</div>
-      <input id="sbbuybtn" class="sb-buynow" type="submit" value="Add to Cart">
-    </div>
-</div>
   </form>
+  <div class="breakout">
+    <div id="pricetotal">
+      <h4>Quote</h4>
+      <span id="priceCalc" class="price">£0.00</span>
+      <h4>VAT</h4>
+      <span id="vat" class="price">£0.00</span>
+      <h4>Total Price</h4>
+      <span id="total" class="price">£0.00</span>
+    </div>
+    <button id="sbbuybtn" class="sb-buynow" type="button">Get Free Quote</button>
+    <p id="sb-submit-error" class="sb-submit-error" style="display:none;"></p>
+  </div>
   <div class="mm_breakout">
     <h4>Floor to floor</h4>
     <span id="floor" class="msmnt">00</span>
@@ -472,5 +496,5 @@ foreach ($fields as $field) {
     <span id="scwidth" class="msmnt">00</span>
     <h4>Angle</h4>
     <span id="angl" class="msmnt">00 &deg;</span>
-    </div>
-</div>
+  </div>
+</div><!-- /.bd-stairbuilder-layout -->

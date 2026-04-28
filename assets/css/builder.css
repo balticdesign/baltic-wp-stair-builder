@@ -1,6 +1,6 @@
-.form-wrapper {
-    margin-top:20px;
-}
+@charset "UTF-8";
+
+/* .form-wrapper removed in v1.4.1 — markup restructured to bd-stairbuilder-layout. */
 
 input.form-chk {
     position: absolute;
@@ -32,7 +32,7 @@ input.form-chk {
     background: #463f3f;
   }
   .tab-label::after {
-    content: "❯";
+    content: "\276F";
     width: 1em;
     height: 1em;
     text-align: center;
@@ -103,8 +103,9 @@ input.form-chk {
   }
  .sb-buynow { padding:10px; background: #057d2c; border-radius: 6px; margin-top:10px; border:none; color:#ffffff; cursor: pointer;  }
  .sb-buynow:hover { background: #03521d; } 
- .breakout { background-color:#292003; border-radius:8px; margin-top:10px; padding:15px; color:#ffffff; position:relative; position:fixed; bottom:20px; right:20px;}
- .mm_breakout { background-color:#5a300d; border-radius:8px; margin-top:10px; padding:15px; color:#ffffff; position:relative; position:fixed; bottom:350px; right:20px;}
+ /* .breakout / .mm_breakout positioning + colours moved to layout.css under
+    .bd-stairbuilder-layout scope (v1.4.1). The stand-alone fixed-bottom-right
+    rules they had here conflicted with the floating-panel layout. */
  .rdbuttons {
   display: grid;
   grid-template-columns: repeat(2,1fr);

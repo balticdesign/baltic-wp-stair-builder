@@ -1,0 +1,229 @@
+/*
+ * Baltic Stairbuilder — floating-panel layout (v1.4.1)
+ *
+ * All selectors scoped under .bd-stairbuilder-layout. Panels are viewport-
+ * fixed overlays; canvas-container is a relative full-viewport block whose
+ * content area is shrunk via padding driven by CSS variables. When a panel
+ * collapses, its offset variable goes to 0, the padding shrinks, and the
+ * canvas inside grows. A ResizeObserver in layout.js syncs the canvas
+ * bitmap width to its rendered width and re-runs window.onLoad() to redraw.
+ */
+
+.bd-stairbuilder-layout {
+  --bd-form-width: 360px;
+  --bd-side-width: 320px;
+  --bd-handle-bg: #154782;
+  --bd-handle-fg: #ffffff;
+  --bd-panel-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  --bd-transition: 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  position: relative;
+  font-family: inherit;
+}
+
+/* ------------ Canvas container (in document flow, square, centred) ------------
+ * Selectors here are intentionally NOT scoped to .bd-stairbuilder-layout so
+ * the rules still apply after layout.js lifts #canvas-container out of the
+ * wrapper (the wrapper is hoisted to <body>; the canvas stays in flow). */
+#canvas-container {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  aspect-ratio: 1 / 1;
+  margin: 40px auto;
+}
+
+#canvas-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ------------ Form panel (fixed, left, vertically centred) ------------ */
+.bd-stairbuilder-layout #stairbuild {
+  position: fixed;
+  left: 0;
+  top: calc(50% + 40px);
+  right: auto;
+  bottom: auto;
+  width: var(--bd-form-width);
+  max-height: 90vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 16px 16px 24px;
+  background: #ffffff;
+  box-shadow: var(--bd-panel-shadow);
+  box-sizing: border-box;
+  z-index: 100;
+  transform: translateY(-50%) translateX(0);
+  transition: transform var(--bd-transition);
+}
+.bd-stairbuilder-layout.is-form-collapsed #stairbuild { transform: translateY(-50%) translateX(-100%); }
+
+/* ------------ Measurements panel (fixed, right top, below header) ------------ */
+.bd-stairbuilder-layout .mm_breakout {
+  position: fixed;
+  top: calc(var(--wp-admin-bar-height, 0px) + 100px);
+  right: 0;
+  bottom: auto;
+  left: auto;
+  width: var(--bd-side-width);
+  max-height: 70vh;
+  margin: 0;
+  padding: 16px 20px;
+  background-color: #5a300d;
+  color: #ffffff;
+  border-radius: 8px 0 0 8px;
+  box-shadow: var(--bd-panel-shadow);
+  box-sizing: border-box;
+  z-index: 100;
+  transform: translateX(0);
+  transition: transform var(--bd-transition);
+}
+.bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout { transform: translateX(100%); }
+
+/* ------------ Quote panel (fixed, right bottom) — overrides builder.css ------------ */
+.bd-stairbuilder-layout .breakout {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  top: auto;
+  left: auto;
+  width: var(--bd-side-width);
+  margin: 0;
+  padding: 16px 20px;
+  background-color: #292003;
+  color: #ffffff;
+  border-radius: 8px 0 0 0;
+  box-shadow: var(--bd-panel-shadow);
+  box-sizing: border-box;
+  z-index: 100;
+  transform: translateX(0);
+  transition: transform var(--bd-transition);
+}
+.bd-stairbuilder-layout.is-quote-collapsed .breakout { transform: translateX(100%); }
+
+/* ------------ Close X (injected by JS) ------------ */
+.bd-stairbuilder-layout .bd-panel-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+.bd-stairbuilder-layout #stairbuild .bd-panel-close {
+  background: rgba(0, 0, 0, 0.06);
+  color: #333;
+}
+.bd-stairbuilder-layout .bd-panel-close:hover { filter: brightness(1.2); }
+
+/* ------------ Side handles (visible when panel collapsed) ------------ */
+.bd-stairbuilder-layout .bd-handle {
+  position: fixed;
+  z-index: 90;
+  background: var(--bd-handle-bg);
+  color: var(--bd-handle-fg);
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 12px 10px;
+  box-shadow: var(--bd-panel-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--bd-transition);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.bd-stairbuilder-layout .bd-handle--form {
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+.bd-stairbuilder-layout .bd-handle--measurements {
+  right: 0;
+  top: 80px;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.bd-stairbuilder-layout .bd-handle--quote {
+  right: 0;
+  bottom: 80px;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.bd-stairbuilder-layout.is-form-collapsed .bd-handle--form,
+.bd-stairbuilder-layout.is-measurements-collapsed .bd-handle--measurements,
+.bd-stairbuilder-layout.is-quote-collapsed .bd-handle--quote {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ------------ Mobile FABs (hidden on desktop) ------------ */
+.bd-stairbuilder-layout .bd-fab {
+  display: none;
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bd-handle-bg);
+  color: var(--bd-handle-fg);
+  font-size: 20px;
+  line-height: 56px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--bd-panel-shadow);
+  z-index: 110;
+}
+.bd-stairbuilder-layout .bd-fab--form         { left: 16px;  bottom: 16px; }
+.bd-stairbuilder-layout .bd-fab--measurements { right: 16px; bottom: 88px; }
+.bd-stairbuilder-layout .bd-fab--quote        { right: 16px; bottom: 16px; }
+
+/* ------------ Mobile (< 768px): bottom-sheet drawers ------------ */
+@media (max-width: 767px) {
+  .bd-stairbuilder-layout {
+    overflow: hidden;
+  }
+
+  .bd-stairbuilder-layout .bd-handle { display: none; }
+  .bd-stairbuilder-layout .bd-fab { display: block; }
+
+  .bd-stairbuilder-layout #stairbuild,
+  .bd-stairbuilder-layout .mm_breakout,
+  .bd-stairbuilder-layout .breakout {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: 100%;
+    height: auto;
+    max-height: 80vh;
+    overflow-y: auto;
+    border-radius: 12px 12px 0 0;
+    transform: translateY(0);
+  }
+  .bd-stairbuilder-layout.is-form-collapsed         #stairbuild  { transform: translateY(100%); }
+  .bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout { transform: translateY(100%); }
+  .bd-stairbuilder-layout.is-quote-collapsed        .breakout    { transform: translateY(100%); }
+}
+
+/* WordPress admin bar height — exposed as a CSS var so .mm_breakout can
+ * defensively offset itself beneath it. */
+body.admin-bar { --wp-admin-bar-height: 32px; }
+@media screen and (max-width: 782px) {
+  body.admin-bar { --wp-admin-bar-height: 46px; }
+}

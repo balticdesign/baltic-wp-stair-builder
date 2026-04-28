@@ -1,7 +1,3 @@
-const toggleButton = document.getElementById("goto3d");
-let is3DLoaded = false;
-let is3DView = false;
-let simulator;
 let wasFour = false;
 
 // Hide featured steps on load
@@ -120,9 +116,6 @@ function grabFormValues() {
 
 window.grabFormValues = grabFormValues; // Expose globally if needed
 
-// Use the shared 3D value extractor
-BuilderUtils.grab3dValues();
-
 function bonuslogic() {
   const materials = grab3dValues();
   const string_material = materials.stringer_material;
@@ -169,26 +162,26 @@ function onLoad(changedElement = null) {
     flight1Treads: {
       amount: variables.beforeturn,
       width: variables.width,
-      fillColor: acf_colours.treads_fill,
-      strokeColor: acf_colours.treads_outline,
-      textColor: acf_colours.treads_text
+      fillColor: bd_diagram_colours.treads_fill,
+      strokeColor: bd_diagram_colours.treads_outline,
+      textColor: bd_diagram_colours.treads_text
     },
     turn1TreadsAmount: variables.tits,
     flight2Treads: {
       maxAmount: 6,
       amount: variables.afterturn1,
       width: variables.width2,
-      fillColor: acf_colours.treads_fill,
-      strokeColor: acf_colours.treads_outline,
-      textColor: acf_colours.treads_text
+      fillColor: bd_diagram_colours.treads_fill,
+      strokeColor: bd_diagram_colours.treads_outline,
+      textColor: bd_diagram_colours.treads_text
     },
     turn2TreadsAmount: variables.tits2,
     flight3Treads: {
       amount: variables.afterturn2,
       width: variables.width3,
-      fillColor: acf_colours.treads_fill,
-      strokeColor: acf_colours.treads_outline,
-      textColor: acf_colours.treads_text
+      fillColor: bd_diagram_colours.treads_fill,
+      strokeColor: bd_diagram_colours.treads_outline,
+      textColor: bd_diagram_colours.treads_text
     },
     posts: {
       flight1BottomLeft: variables.bl,
@@ -201,9 +194,9 @@ function onLoad(changedElement = null) {
       turn2Bottom: variables.f3bo,
       flight3Left: variables.tl,
       flight3Right: variables.tr,
-      fillColor: acf_colours.posts_fill,
-      strokeColor: acf_colours.posts_outline,
-      textColor: acf_colours.posts_text
+      fillColor: bd_diagram_colours.posts_fill,
+      strokeColor: bd_diagram_colours.posts_outline,
+      textColor: bd_diagram_colours.posts_text
     },
     ballustrades: {
       flight1Outside: variables.bal_r,
@@ -216,9 +209,9 @@ function onLoad(changedElement = null) {
       turn1Side: variables.turn2side,
       turn2Top: variables.turntop,
       turn2Side: variables.turnside,
-      primaryFillColor: acf_colours.stringer_fill,
-      secondaryFillColor: acf_colours.spindles,
-      strokeColor: acf_colours.stringer_outline
+      primaryFillColor: bd_diagram_colours.stringer_fill,
+      secondaryFillColor: bd_diagram_colours.spindles,
+      strokeColor: bd_diagram_colours.stringer_outline
     },
     featureTread: {
       left: variables.fl,
@@ -233,113 +226,6 @@ function onLoad(changedElement = null) {
   Stairs.init(canvas, halfturnStairsConfig);
 }
 
-// 3D DRAW FUNCTION
-function drawHalfTurn() {
-  const variables = grabFormValues();
-  const variables3d = grab3dValues();
-  jQuery("#risers").val(variables.treads);
-  const going = variables.going;
-  const directiona = variables.direction ? variables.direction.toUpperCase() : '';
-  simulator.drawHalfTurn({
-    stair_width: variables.width,
-    floor_height: variables.height,
-    stair_going: going,
-    stair_riser: variables.riserh,
-    direction: directiona,
-    section1: {
-      num: variables.beforeturn,
-      width: variables.width,
-      caps: {
-        type: variables.newel_cap,
-        material: variables3d.cap_material,
-        direction: { left: variables.bl, right: variables.br }
-      },
-      post: {
-        type: variables.newel_style,
-        material: variables3d.post_material,
-        direction: { left: variables.bl, right: variables.br }
-      },
-      handrails: {
-        type: variables.spin_style,
-        material: variables3d.spin_material,
-        baseMaterial: variables3d.stringer_material,
-        direction: { left: variables.bal_l, right: variables.bal_r }
-      }
-    },
-    section2: {
-      num: variables.afterturn1,
-      width: variables.width2,
-      caps: {
-        type: variables.newel_cap,
-        material: variables3d.cap_material,
-        direction: { left: variables.f2bo, right: variables.f2to }
-      },
-      post: {
-        type: variables.newel_style,
-        material: variables3d.post_material,
-        direction: { left: true, right: variables.f2to }
-      },
-      handrails: {
-        type: variables.spin_style,
-        material: variables3d.spin_material,
-        baseMaterial: variables3d.stringer_material,
-        direction: { left: variables.bal2_l, right: variables.bal2_r }
-      }
-    },
-    section3: {
-      num: variables.afterturn2,
-      width: variables.width3,
-      caps: {
-        type: variables.newel_cap,
-        material: variables3d.cap_material,
-        direction: { left: variables.tl, right: variables.tr }
-      },
-      post: {
-        type: variables.newel_style,
-        material: variables3d.post_material,
-        direction: { left: variables.tl, right: variables.tr }
-      },
-      handrails: {
-        type: variables.spin_style,
-        material: variables3d.spin_material,
-        baseMaterial: variables3d.stringer_material,
-        direction: { left: variables.bal3_l, right: variables.bal3_r }
-      }
-    },
-    box1: {
-      tnum: variables.tits,
-      post: {
-        direction: {
-          bottom: variables.f1to,
-          top: variables.f2bo,
-          corner: variables.boxcorner
-        }
-      },
-      handrails: {
-        type: variables.spin_style,
-        material: variables3d.spin_material,
-        baseMaterial: variables3d.stringer_material,
-        direction: { left: variables.turntop, right: variables.turnside }
-      }
-    },
-    box2: {
-      tnum: variables.tits2,
-      post: {
-        direction: {
-          bottom: variables.f2to,
-          top: variables.f3bo,
-          corner: variables.boxcorner2
-        }
-      },
-      handrails: {
-        direction: { left: variables.turn2top, right: variables.turn2side }
-      }
-    },
-    construct: variables3d.construction_type,
-    feature: variables3d.featured_step
-  });
-}
-
 // UI and event handling
 jQuery(document).ready(function () {
   jQuery('#floor-height').val(2600);
@@ -349,84 +235,11 @@ jQuery(document).ready(function () {
   jQuery('#stair-width3').val(800);
   jQuery('#custom').hide();
 
-  if (toggleButton) {
-    toggleButton.addEventListener("click", (event) => {
-      event.preventDefault();
-      const canvasContainer = document.getElementById("canvas-container");
-      if (!canvasContainer) {
-        console.warn("Canvas container not found - 3D functionality disabled");
-        return;
-      }
-      if (!is3DLoaded) {
-        const script = document.createElement("script");
-        script.src = pluginDirUrl + "assets/js/stair_min.js?v=" + Date.now();
-        script.onload = () => {
-          is3DLoaded = true;
-          toggleView();
-        };
-        document.body.appendChild(script);
-      } else {
-        toggleView();
-        is3DLoaded = false;
-      }
-    });
-
-    function toggleView() {
-      const canvasContainer = document.getElementById("canvas-container");
-      if (!canvasContainer) {
-        console.warn("Canvas container not found - cannot toggle 3D view");
-        return;
-      }
-      if (is3DView) {
-        toggleButton.textContent = "Switch to 3D";
-        const builderWrap = document.getElementById("builder-wrap");
-        const innerWrap = builderWrap.querySelector(".ct-section-inner-wrap");
-        let canvas3D = document.getElementById("canvas3D");
-        if (canvas3D) canvas3D.parentNode.removeChild(canvas3D);
-
-        let canvas = document.getElementById("canvas");
-        if (!canvas) {
-          canvas = document.createElement("canvas");
-          canvas.id = "canvas";
-          canvas.width = 558;
-          canvas.height = 556;
-          builderWrap.insertBefore(canvas, builderWrap.firstChild);
-          canvasContainer.appendChild(canvas);
-        }
-        canvas.style.display = "block";
-        innerWrap.style.padding = "75px auto !important";
-        onLoad();
-        is3DView = false;
-      } else {
-        toggleButton.textContent = "Switch to 2D";
-        let canvas = document.getElementById("canvas");
-        if (canvas) canvas.parentNode.removeChild(canvas);
-
-        let canvas3D = document.createElement("canvas");
-        canvas3D.id = "canvas3D";
-        canvasContainer.appendChild(canvas3D);
-
-        simulator = new STAIR.StairSimulator(canvas3D);
-        simulator.on('started', () => drawHalfTurn());
-        simulator.setSize(window.innerWidth, window.innerHeight);
-
-        const builderWrap = document.getElementById("builder-wrap");
-        const innerWrap = builderWrap.querySelector(".ct-section-inner-wrap");
-        innerWrap.style.padding = "0";
-        is3DView = true;
-      }
-    }
-  }
-
-  if (!is3DView) onLoad();
+  onLoad();
 
   jQuery('#stairbuild').on('change', ':input', function () {
     const changedElement = jQuery(this).attr('id');
     jQuery("#treadat2").val(grabFormValues().afterturn2);
-    if (!is3DLoaded) {
-      onLoad(changedElement);
-    } else {
-      drawHalfTurn();
-    }
+    onLoad(changedElement);
   });
 });

@@ -1,8 +1,3 @@
-const toggleButton = document.getElementById("goto3d");
-let is3DLoaded = false;
-let is3DView = false;
-let simulator;
-
 // Hide featured steps on load
 jQuery('#left-featured-step').hide();
 jQuery('#right-featured-step').hide();
@@ -78,9 +73,6 @@ function grabFormValues() {
 // Expose for other scripts if needed
 window.grabFormValues = grabFormValues;
 
-// Use shared 3D value extractor
-BuilderUtils.grab3dValues();
-
 // MAIN 2D RENDER FUNCTION
 function onLoad(changedElement = null) {
   const variables = grabFormValues();
@@ -110,25 +102,25 @@ function onLoad(changedElement = null) {
       amount: RiserNo,
       width: width,
       height: going,
-      fillColor: acf_colours.treads_fill,
-      strokeColor: acf_colours.treads_outline,
-      textColor: acf_colours.treads_text
+      fillColor: bd_diagram_colours.treads_fill,
+      strokeColor: bd_diagram_colours.treads_outline,
+      textColor: bd_diagram_colours.treads_text
     },
     posts: {
       topLeft: variables.tl,
       topRight: variables.tr,
       bottomLeft: variables.bl,
       bottomRight: variables.br,
-      fillColor: acf_colours.posts_fill,
-      strokeColor: acf_colours.posts_outline,
-      textColor: acf_colours.posts_text
+      fillColor: bd_diagram_colours.posts_fill,
+      strokeColor: bd_diagram_colours.posts_outline,
+      textColor: bd_diagram_colours.posts_text
     },
     ballustrades: {
       left: variables.bal_l,
       right: variables.bal_r,
-      primaryFillColor: acf_colours.stringer_fill,
-      secondaryFillColor: acf_colours.spindles,
-      strokeColor: acf_colours.stringer_outline
+      primaryFillColor: bd_diagram_colours.stringer_fill,
+      secondaryFillColor: bd_diagram_colours.spindles,
+      strokeColor: bd_diagram_colours.stringer_outline
     },
     featureTread: {
       left: variables.fl,
@@ -144,142 +136,17 @@ function onLoad(changedElement = null) {
   Stairs.init(canvas, regularStairsConfig);
 }
 
-// 3D DRAW FUNCTION
-function drawStraightFlight() {
-  const variables = grabFormValues();
-  const variables3d = grab3dValues();
-
-  const { going, height, width } = variables;
-  const { selectedRiserHeight, numberOfStairs } =
-    BuilderUtils.getStaircaseConfig(going, height);
-
-  simulator.drawStraightFlight({
-    stair_width: width,
-    floor_height: height,
-    stair_going: going,
-    stair_riser: selectedRiserHeight,
-    post: {
-      direction: {
-        leftTop: variables.tl,
-        leftBottom: variables.bl,
-        rightTop: variables.tr,
-        rightBottom: variables.br,
-      },
-      type: variables.newel_style,
-      material: variables3d.post_material,
-    },
-    caps: {
-      direction: {
-        leftTop: true,
-        leftBottom: true,
-        rightTop: true,
-        rightBottom: true,
-      },
-      type: variables.newel_cap,
-      material: variables3d.cap_material,
-    },
-    handrails: {
-      direction: {
-        left: variables.bal_l,
-        right: variables.bal_r,
-      },
-      type: variables.spin_style,
-      material: variables3d.spin_material,
-      baseMaterial: variables3d.stringer_material,
-    },
-    construct: variables3d.construction_type,
-    feature: variables3d.featured_step
-  });
-}
-
-// VIEW TOGGLING AND INITIALISATION
+// INITIALISATION
 jQuery(document).ready(function () {
   jQuery('#floor-height').val(2600);
   jQuery('#going').val(grabFormValues().going);
   jQuery('#stair-width').val(800);
   jQuery('#custom').hide();
 
-  if (toggleButton) {
-    toggleButton.addEventListener("click", (event) => {
-      event.preventDefault();
-      const canvasContainer = document.getElementById("canvas-container");
-      if (!canvasContainer) {
-        console.warn("Canvas container not found - 3D functionality disabled");
-        return;
-      }
-
-      if (!is3DLoaded) {
-        const script = document.createElement("script");
-        script.src = pluginDirUrl + "assets/js/stair_min.js?v=" + Date.now();
-        script.onload = () => {
-          is3DLoaded = true;
-          toggleView();
-        };
-        document.body.appendChild(script);
-      } else {
-        toggleView();
-        is3DLoaded = false;
-      }
-    });
-
-    function toggleView() {
-      const canvasContainer = document.getElementById("canvas-container");
-      if (!canvasContainer) {
-        console.warn("Canvas container not found - cannot toggle 3D view");
-        return;
-      }
-
-      if (is3DView) {
-        toggleButton.textContent = "Switch to 3D";
-        const builderWrap = document.getElementById("builder-wrap");
-        const innerWrap = builderWrap.querySelector(".ct-section-inner-wrap");
-        let canvas3D = document.getElementById("canvas3D");
-        if (canvas3D) canvas3D.parentNode.removeChild(canvas3D);
-
-        let canvas = document.getElementById("canvas");
-        if (!canvas) {
-          canvas = document.createElement("canvas");
-          canvas.id = "canvas";
-          canvas.width = 558;
-          canvas.height = 556;
-          builderWrap.insertBefore(canvas, builderWrap.firstChild);
-          canvasContainer.appendChild(canvas);
-        }
-        canvas.style.display = "block";
-        innerWrap.style.padding = "75px auto !important";
-        onLoad();
-        is3DView = false;
-      } else {
-        toggleButton.textContent = "Switch to 2D";
-        let canvas = document.getElementById("canvas");
-        if (canvas) canvas.parentNode.removeChild(canvas);
-
-        let canvas3D = document.createElement("canvas");
-        canvas3D.id = "canvas3D";
-        canvasContainer.appendChild(canvas3D);
-
-        const vpWidth = 0.98 * document.documentElement.clientWidth;
-        const vpHeight = 0.98 * document.documentElement.clientHeight;
-        simulator = new STAIR.StairSimulator(canvas3D);
-        simulator.on('started', () => drawStraightFlight());
-        simulator.setSize(vpWidth, vpHeight);
-
-        const builderWrap = document.getElementById("builder-wrap");
-        const innerWrap = builderWrap.querySelector(".ct-section-inner-wrap");
-        innerWrap.style.padding = "0";
-        is3DView = true;
-      }
-    }
-  }
-
-  if (!is3DView) onLoad();
+  onLoad();
 
   jQuery('#stairbuild').on('change', ':input', function () {
     const changedElement = jQuery(this).attr('id');
-    if (!is3DLoaded) {
-      onLoad(changedElement);
-    } else {
-      drawStraightFlight();
-    }
+    onLoad(changedElement);
   });
 });

@@ -23,11 +23,13 @@
     quote:        'stairbuilder_panel_quote'
   };
 
-  // Original Canvas.js dimensions — preserved as the canvas's intrinsic
-  // aspect ratio so the staircase drawing (proportioned for these
-  // dimensions) renders without empty space above or below.
-  const CANVAS_RATIO_W = 568;
-  const CANVAS_RATIO_H = 506;
+  // Canvas sizing — single source of truth shared with the CSS rule on
+  // #canvas-container. CANVAS_RATIO_W:H preserves the original Canvas.js
+  // proportions so the staircase drawing (proportioned for these
+  // dimensions) renders without empty space.
+  const CANVAS_MAX_WIDTH = 1200;
+  const CANVAS_RATIO_W   = 568;
+  const CANVAS_RATIO_H   = 506;
 
   const PANEL_TARGETS = {
     form:         '#stairbuild',
@@ -151,11 +153,11 @@
       const container = document.getElementById('canvas-container');
       if (!c || !container) return;
 
-      // Width-driven sizing: pick the rendered container width (capped at
-      // 800px), then derive height from the original CANVAS_RATIO_W:H
-      // ratio. Belt-and-braces with the CSS aspect-ratio rule on
-      // #canvas-container.
-      const w = Math.min(container.clientWidth || 800, 800);
+      // Width-driven sizing: pick the rendered container width (capped
+      // at CANVAS_MAX_WIDTH), then derive height from the original
+      // CANVAS_RATIO_W:H ratio. Belt-and-braces with the CSS
+      // aspect-ratio rule on #canvas-container.
+      const w = Math.min(container.clientWidth || CANVAS_MAX_WIDTH, CANVAS_MAX_WIDTH);
       if (!w) return;
       const h = Math.round(w * (CANVAS_RATIO_H / CANVAS_RATIO_W));
 

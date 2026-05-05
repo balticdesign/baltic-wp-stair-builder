@@ -28,8 +28,8 @@
 #canvas-container {
   position: relative;
   width: 100%;
-  max-width: 800px;
-  aspect-ratio: 568 / 506;   /* original Canvas.js dimensions */
+  max-width: 1200px;          /* was 800; lifted so panels-off actually frees space */
+  aspect-ratio: 568 / 506;    /* original Canvas.js dimensions */
   margin: 40px auto;
 }
 

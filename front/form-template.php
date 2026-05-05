@@ -1,12 +1,13 @@
 <?php require_once  (plugin_dir_path( __FILE__ ) . '../includes/stairbuilder-prices.php');
 global $post;
 
-// Page-level staircase_type stays ACF-bound (per-page meta, out of options scope).
-// Defensive guard so the template doesn't fatal if ACF is deactivated.
-$stair_type = function_exists('get_field') && isset($post->ID)
-  ? get_field('staircase_type', $post->ID)
-  : '';
-$fields = []; // array of ACF field names
+// Resolved by Stairbuilder_Plugin::generate_shortcode() before this template is included.
+$stair_type = Stairbuilder_Plugin::$current_stair_type;
+if ( ! $stair_type ) {
+  // Defensive fallback if template is ever included outside the shortcode flow.
+  $stair_type = Stairbuilder_Plugin::DEFAULT_TYPE;
+}
+$fields = []; // bonus-logic option keys, populated per stair type below
 $direction = false;
 $flight2 = false;
 $flight3 = false;

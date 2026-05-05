@@ -1,61 +1,71 @@
-<?php 
-// Define the plugin class
+<?php
+/**
+ * Stairbuilder shortcode handler.
+ *
+ * Usage:
+ *   [stairbuilder_form stair_type="straight"]
+ *   [stairbuilder_form stair_type="quarter"]
+ *   [stairbuilder_form stair_type="half"]
+ *
+ * `stair_type` defaults to "straight" if omitted or invalid.
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 class Stairbuilder_Plugin {
-  
-    // Define the constructor method
+
+    const ALLOWED_TYPES = array( 'straight', 'quarter', 'half' );
+    const DEFAULT_TYPE  = 'straight';
+
+    // Resolved staircase type for the current shortcode render. Populated by
+    // generate_shortcode() and consumed by the form template.
+    public static $current_stair_type = '';
+
     public function __construct() {
-      // Add the shortcode
-      add_shortcode( 'stairbuilder_form', array( $this, 'generate_shortcode' ) );
+        add_shortcode( 'stairbuilder_form', array( $this, 'generate_shortcode' ) );
     }
-    
-    // Define a method to generate the shortcode
-    public function generate_shortcode() {
-     
-      // Get the form data
-      $form_data = $this->get_form_data();
-      
-      // Generate the shortcode
-      ob_start();
-      include( plugin_dir_path( __FILE__ ) . '../front/form-template.php' );
-      $output = ob_get_clean();
-      return $output;
+
+    /**
+     * Resolve the staircase type from shortcode attributes, with a temporary
+     * backwards-compat fallback to the legacy ACF field.
+     */
+    public static function resolve_stair_type( $atts, $page_id = 0 ) {
+        $atts = shortcode_atts(
+            array( 'stair_type' => '' ),
+            is_array( $atts ) ? $atts : array(),
+            'stairbuilder_form'
+        );
+
+        $type = sanitize_key( $atts['stair_type'] );
+
+        // BC: if no shortcode attribute provided, try the legacy ACF field.
+        // Remove this fallback once all client sites have updated their shortcodes.
+        if ( ! $type && function_exists( 'get_field' ) && $page_id ) {
+            $legacy = get_field( 'staircase_type', $page_id );
+            if ( is_string( $legacy ) ) {
+                $type = sanitize_key( $legacy );
+            }
+        }
+
+        if ( ! in_array( $type, self::ALLOWED_TYPES, true ) ) {
+            $type = self::DEFAULT_TYPE;
+        }
+
+        return $type;
     }
-    
-    // Define a method to get the form data
-    private function get_form_data() {
-      // Define the form data
-      $form_data = array(
-        'step_width' => '',
-        'step_depth' => '',
-        'stair_type' => '',
-      );
-      
-      // Set the form data if it's been submitted
-      if ( isset( $_POST['step_width'] ) ) {
-        $form_data['step_width'] = sanitize_text_field( $_POST['step_width'] );
-      }
-      if ( isset( $_POST['step_depth'] ) ) {
-        $form_data['step_depth'] = sanitize_text_field( $_POST['step_depth'] );
-      }
-      if ( isset( $_POST['stair_type'] ) ) {
-        $form_data['stair_type'] = sanitize_text_field( $_POST['stair_type'] );
-      }
-      
-      return $form_data;
+
+    public function generate_shortcode( $atts = array(), $content = '', $tag = '' ) {
+        global $post;
+        $page_id = isset( $post->ID ) ? (int) $post->ID : 0;
+
+        self::$current_stair_type = self::resolve_stair_type( $atts, $page_id );
+
+        ob_start();
+        include plugin_dir_path( __FILE__ ) . '../front/form-template.php';
+        return ob_get_clean();
     }
-    
-    // Define a method to process the form data
-    public function process_form_data() {
-      // Process the form data
-      $form_data = $this->get_form_data();
-      
-      $step_width = $form_data['step_width'];
-      $step_depth = $form_data['step_depth'];
-      $stair_type = $form_data['stair_type'];
-      
-      // Do something with the form data
-    }
-  }
-  
-  // Instantiate the plugin class
-  $stairbuilder_plugin = new Stairbuilder_Plugin();
+}
+
+new Stairbuilder_Plugin();

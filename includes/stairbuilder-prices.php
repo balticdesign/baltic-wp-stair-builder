@@ -1,83 +1,65 @@
-<?php 
+<?php
+/**
+ * Page-render price helpers. Run at the top of form-template.php to expose
+ * pricing values and material-option arrays as local PHP variables. All
+ * lookups go through stairbuilder_get_option() — no ACF.
+ */
 
-//STRINGS
- $pine_string = stairbuilder_get_option('pine_string_price');
- $oak_string = stairbuilder_get_option('oak_string_price');
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
- $stringer_options = []; // Initialize an empty array to hold tread options
+if ( ! function_exists( 'bd_stairbuilder_normalise_repeater' ) ) {
+    function bd_stairbuilder_normalise_repeater( $rows, $name_key, $code_key, $value_key ) {
+        $out = array();
+        if ( ! is_array( $rows ) ) {
+            return $out;
+        }
+        foreach ( $rows as $row ) {
+            if ( ! is_array( $row ) ) {
+                continue;
+            }
+            $out[] = array(
+                'name'  => isset( $row[ $name_key ] )  ? $row[ $name_key ]  : '',
+                'code'  => isset( $row[ $code_key ] )  ? $row[ $code_key ]  : '',
+                'value' => isset( $row[ $value_key ] ) ? $row[ $value_key ] : 0,
+            );
+        }
+        return $out;
+    }
+}
 
-// Check if the repeater field has rows of data
-if (have_rows('stringer_types', 'option')):
+// STRINGS
+$pine_string = stairbuilder_get_option( 'pine_string_price' );
+$oak_string  = stairbuilder_get_option( 'oak_string_price' );
 
-  // Loop through the rows of data
-  while (have_rows('stringer_types', 'option')) : the_row();
+$stringer_options = bd_stairbuilder_normalise_repeater(
+    stairbuilder_get_option( 'stringer_types', array() ),
+    'stringer_name',
+    'stringer_code',
+    'stringer_value'
+);
 
-    // Retrieve sub field values
-    $stringer_name = get_sub_field('stringer_name');
-    $stringer_code = get_sub_field('stringer_code');
-    $stringer_value = get_sub_field('stringer_value');
+// TREADS
+$tread_options = bd_stairbuilder_normalise_repeater(
+    stairbuilder_get_option( 'tread_types', array() ),
+    'tread_name',
+    'tread_code',
+    'tread_value'
+);
 
-    // Append the name and value to the tread options array
-    $stringer_options[] = [
-      'name' => $stringer_name,
-      'code' => $stringer_code,
-      'value' => $stringer_value
-  ];
-  endwhile;
-endif;
+// RISERS — scalar legacy keys ($*_riser) appear unused in form-template.php; flagged for review/removal.
+$mdf_riser       = stairbuilder_get_option( 'mdf_riser_price' );
+$pine_riser      = stairbuilder_get_option( 'pine_riser_price' );
+$oak_riser       = stairbuilder_get_option( 'oak_riser_price' );
+$solid_oak_riser = stairbuilder_get_option( 'solid_oak_riser_price' );
 
- //TREADS
- $tread_options = []; // Initialize an empty array to hold tread options
-
-// Check if the repeater field has rows of data
-if (have_rows('tread_types', 'option')):
-
-  // Loop through the rows of data
-  while (have_rows('tread_types', 'option')) : the_row();
-
-    // Retrieve sub field values
-    $tread_name = get_sub_field('tread_name');
-    $tread_code = get_sub_field('tread_code');
-    $tread_value = get_sub_field('tread_value');
-
-    // Append the name and value to the tread options array
-    $tread_options[] = [
-      'name' => $tread_name,
-      'code' => $tread_code,
-      'value' => $tread_value
-  ];
-
-  endwhile;
-endif;
-
-
- //RISERS
- $mdf_riser = stairbuilder_get_option('mdf_riser_price');
- $pine_riser = stairbuilder_get_option('pine_riser_price');
- $oak_riser = stairbuilder_get_option('oak_riser_price');
- $solid_oak_riser = stairbuilder_get_option('solid_oak_riser_price');
-
- $riser_options = []; // Initialize an empty array to hold tread options
-
-// Check if the repeater field has rows of data
-if (have_rows('riser_types', 'option')):
-
-  // Loop through the rows of data
-  while (have_rows('riser_types', 'option')) : the_row();
-
-    // Retrieve sub field values
-    $riser_name = get_sub_field('riser_name');
-    $riser_code = get_sub_field('riser_code');
-    $riser_value = get_sub_field('riser_value');
-
-    // Append the name and value to the tread options array
-    $riser_options[] = [
-      'name' => $riser_name,
-      'code' => $riser_code,
-      'value' => $riser_value
-  ];
-  endwhile;
-endif;
+$riser_options = bd_stairbuilder_normalise_repeater(
+    stairbuilder_get_option( 'riser_types', array() ),
+    'riser_name',
+    'riser_code',
+    'riser_value'
+);
 
 $width_mp = stairbuilder_get_option('width_mp');
 

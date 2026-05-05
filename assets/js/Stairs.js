@@ -178,7 +178,7 @@ Stairs.setRegularStairsOptions = function(config){
     }
     //Canvas height should fit number of treads. Feature tread is StairConstants.FEATURE_TREAD_HEIGHT bigger than regular tread
     Stairs.maxHeight = (Stairs.options.treads.height * (Stairs.options.treads.amount - 1)) + Stairs.options.treads.height * StairConstants.FEATURE_TREAD_HEIGHT;
-    // canvas.height is owned by layout.js (square container); do not overwrite here.
+    // canvas.height is owned by layout.js (568:506 container); do not overwrite here.
 }
 
 
@@ -262,7 +262,7 @@ Stairs.setQuarterturnStairsOptions = function(config){
 
     //Canvas height should fit number of treads. Feature tread is StairConstants.FEATURE_TREAD_HEIGHT bigger than regular tread
     Stairs.maxHeight = (Stairs.options.treadHeight * (Stairs.options.flight1Treads.amount)) + Stairs.options.treadHeight * StairConstants.FEATURE_TREAD_HEIGHT + Stairs.options.flight2Treads.width;
-    // canvas.height is owned by layout.js (square container); do not overwrite here.
+    // canvas.height is owned by layout.js (568:506 container); do not overwrite here.
 }
 
 Stairs.setHalfturnStairsOptions = function(config){
@@ -362,7 +362,7 @@ Stairs.setHalfturnStairsOptions = function(config){
     Stairs.maxHeight = Stairs.options.treadHeight * Math.max(Stairs.options.flight1Treads.amount,Stairs.options.flight3Treads.amount) + Stairs.options.treadHeight * StairConstants.FEATURE_TREAD_HEIGHT + Stairs.options.flight2Treads.width;
     Stairs.maxHeight1 = Stairs.options.treadHeight * (Stairs.options.flight1Treads.amount) + Stairs.options.treadHeight * StairConstants.FEATURE_TREAD_HEIGHT + Stairs.options.flight2Treads.width;
     Stairs.maxHeight2 = Stairs.options.treadHeight * (Stairs.options.flight3Treads.amount + 1) + Stairs.options.flight2Treads.width;
-    // canvas.height is owned by layout.js (square container); do not overwrite here.
+    // canvas.height is owned by layout.js (568:506 container); do not overwrite here.
 
     if(Stairs.options.flight2Treads.amount == 0 ){
         if(Stairs.options.turn1TreadsAmount == 1 && Stairs.options.turn2TreadsAmount == 1){
@@ -467,7 +467,7 @@ Stairs.setDoubleturnStairsOptions = function(config){
 
     //Canvas height should fit number of treads. Feature tread is StairConstants.FEATURE_TREAD_HEIGHT bigger than regular tread
     Stairs.maxHeight = (Stairs.options.treadHeight * (Stairs.options.flight1Treads.amount)) + Stairs.options.treadHeight * StairConstants.FEATURE_TREAD_HEIGHT + Stairs.options.flight2Treads.width;
-    // canvas.height is owned by layout.js (square container); do not overwrite here.
+    // canvas.height is owned by layout.js (568:506 container); do not overwrite here.
 }
 
 Stairs.linearConversion = function(originalValue,oldMin,oldMax,newMin,newMax){

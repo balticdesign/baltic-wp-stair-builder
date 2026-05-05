@@ -29,7 +29,7 @@
   position: relative;
   width: 100%;
   max-width: 800px;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 568 / 506;   /* original Canvas.js dimensions */
   margin: 40px auto;
 }
 

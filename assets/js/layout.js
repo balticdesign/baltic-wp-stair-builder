@@ -23,6 +23,12 @@
     quote:        'stairbuilder_panel_quote'
   };
 
+  // Original Canvas.js dimensions — preserved as the canvas's intrinsic
+  // aspect ratio so the staircase drawing (proportioned for these
+  // dimensions) renders without empty space above or below.
+  const CANVAS_RATIO_W = 568;
+  const CANVAS_RATIO_H = 506;
+
   const PANEL_TARGETS = {
     form:         '#stairbuild',
     measurements: '.mm_breakout',
@@ -144,14 +150,20 @@
       const c = document.getElementById('canvas');
       const container = document.getElementById('canvas-container');
       if (!c || !container) return;
-      // Force a square canvas (capped at 800px). Belt-and-braces with the
-      // CSS aspect-ratio: 1/1 rule on #canvas-container.
-      const size = Math.min(container.clientWidth || 800, container.clientHeight || 800, 800);
-      if (!size) return;
-      container.style.height = size + 'px';
-      if (c.width === size && c.height === size) return;
-      c.width = size;
-      c.height = size;
+
+      // Width-driven sizing: pick the rendered container width (capped at
+      // 800px), then derive height from the original CANVAS_RATIO_W:H
+      // ratio. Belt-and-braces with the CSS aspect-ratio rule on
+      // #canvas-container.
+      const w = Math.min(container.clientWidth || 800, 800);
+      if (!w) return;
+      const h = Math.round(w * (CANVAS_RATIO_H / CANVAS_RATIO_W));
+
+      container.style.height = h + 'px';
+      if (c.width === w && c.height === h) return;
+      c.width = w;
+      c.height = h;
+
       // Trigger Stairs.js redraw via the existing change-handler in the
       // flight scripts (which is bound to inputs inside #stairbuild).
       const checked = document.querySelector('#stairbuild input[name="rd"]:checked');

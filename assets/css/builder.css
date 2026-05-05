@@ -170,3 +170,123 @@ input.form-chk {
 .chkboxbttn { display: flex; flex-direction:row; justify-content: space-evenly; }
 
 .pcode input { height:60px;  }
+/* ---------------------------------------------------------------- *
+ * v1.6.1 — readability + layout tweaks
+ * ---------------------------------------------------------------- */
+
+/* Bug fix: breakout info-box <h4> labels were unreadable (dark on dark). */
+.bd-stairbuilder-layout .mm_breakout h4,
+.bd-stairbuilder-layout .breakout h4 {
+    color: #fff;
+}
+
+/* Tighten spacing under sub-section headings. */
+.bd-stairbuilder-layout h5 {
+    margin-bottom: 5px;
+}
+
+/* Form-row labels: full-width, capitalised, vertically aligned. */
+#stairbuild .form-row label {
+    width: 100%;
+    text-transform: capitalize;
+    vertical-align: middle;
+}
+
+/* Three-column custom-section layout: equal thirds with a soft border. */
+#custom .form-col {
+    display: flex;
+    flex-direction: column;
+    width: 33.33%;
+    box-sizing: border-box;
+    padding: 5px;
+    border: 1px solid #edeaea;
+}
+
+/* Custom-section labels: smaller, left-aligned, tight line-height. */
+#custom .form-col label {
+    font-size: 0.8em;
+    display: block;
+    text-align: left;
+    text-transform: capitalize;
+    line-height: 1.2;
+}
+
+/* Custom-section rows lay out horizontally (overrides any column default). */
+#custom .form-row {
+    flex-direction: row;
+}
+
+/* Checkboxes inside #custom rows shouldn't stretch to label width. */
+#custom .form-row input[type="checkbox"] {
+    width: 14px;
+    margin-top: 5px;
+}
+
+/* ---------------------------------------------------------------- *
+ * v1.6.1 — left form panel: contained, distinct from page background
+ * ---------------------------------------------------------------- */
+
+/* Panel surface: white-ish card, rounded, soft warm-grey border + shadow. */
+.bd-stairbuilder-layout #stairbuild {
+    background: #ffffff;
+    border: 1px solid #e5dfd2;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(90, 48, 13, 0.08);
+    overflow: hidden;
+}
+
+/* Inner scroll surface: thin scoped scrollbar, only visible when needed. */
+.bd-stairbuilder-layout #stairbuild {
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #5a300d transparent;
+}
+.bd-stairbuilder-layout #stairbuild::-webkit-scrollbar {
+    width: 6px;
+}
+.bd-stairbuilder-layout #stairbuild::-webkit-scrollbar-track {
+    background: transparent;
+}
+.bd-stairbuilder-layout #stairbuild::-webkit-scrollbar-thumb {
+    background-color: #5a300d;
+    border-radius: 3px;
+}
+
+/* ---------------------------------------------------------------- *
+ * v1.6.1 — breakout box handles match their box backgrounds
+ * NOTE: hard-coded values; will become CSS custom properties in v1.7.0
+ * when the customisable colour-scheme feature lands.
+ * ---------------------------------------------------------------- */
+
+.bd-stairbuilder-layout .bd-handle--measurements {
+    background: #5a300d;
+    color: #fff;
+}
+
+.bd-stairbuilder-layout .bd-handle--quote {
+    background: #5a300d;
+    color: #fff;
+}
+
+.bd-stairbuilder-layout .bd-handle--form {
+    background: #97804a;
+    color: #fff;
+}
+
+/* ---------------------------------------------------------------- *
+ * v1.6.1 — pricing box buy-now button
+ * ---------------------------------------------------------------- */
+
+.sb-buynow {
+    background: #97804a;
+}
+
+/* ---------------------------------------------------------------- *
+ * v1.6.1 — admin pricing settings table tweak
+ * Scoped via .stairbuilder-pricing-wrap so it only affects the admin
+ * page even though it ships in the front-end stylesheet.
+ * ---------------------------------------------------------------- */
+
+.stairbuilder-pricing-wrap .form-table th {
+    padding-left: 10px;
+}

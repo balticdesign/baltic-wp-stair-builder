@@ -5,8 +5,11 @@ StairConstants.DEFAULT_FONT = "Arial";
 StairConstants.DEFAULT_BACKGROUND_COLOR = "#ffffff";
 
 //TREADS
-StairConstants.TREAD_MIN_HEIGHT_PXS = 30;
-StairConstants.TREAD_MAX_HEIGHT_PXS = 40;
+// Tread height as a proportion of canvas height. Original values were
+// 30/40 absolute pixels on a 506px canvas — preserve those defaults
+// proportionally so the drawing scales with the canvas.
+StairConstants.PROPORTION_TREAD_MIN_HEIGHT_TO_CANVAS_HEIGHT = 30 / 506;  // ≈ 0.0593
+StairConstants.PROPORTION_TREAD_MAX_HEIGHT_TO_CANVAS_HEIGHT = 40 / 506;  // ≈ 0.0790
 StairConstants.DEFAULT_TREAD_FILL_COLOR = '#e0d9c9';
 StairConstants.DEFAULT_TREAD_STROKE_COLOR = '#5e5a56';
 StairConstants.DEFAULT_TREAD_TEXT_COLOR = '#641616';
@@ -55,6 +58,16 @@ Stairs.StairTypeEnum = {
 
 Stairs.options = {}
 Stairs.options.treads = {}
+
+// Helpers — compute current tread height bounds from canvas height.
+// Use these instead of the old TREAD_MIN/MAX_HEIGHT_PXS constants so
+// the staircase scales with the canvas.
+Stairs.treadMinHeightPx = function () {
+    return Stairs.canvas.height * StairConstants.PROPORTION_TREAD_MIN_HEIGHT_TO_CANVAS_HEIGHT;
+};
+Stairs.treadMaxHeightPx = function () {
+    return Stairs.canvas.height * StairConstants.PROPORTION_TREAD_MAX_HEIGHT_TO_CANVAS_HEIGHT;
+};
 
 Stairs.debug = {}
 
@@ -149,7 +162,7 @@ Stairs.setRegularStairsOptions = function(config){
 
     //Treads
     Stairs.options.treads.width = Stairs.linearConversion(parseInt(config.treads.width), parseInt(config.minWidth), parseInt(config.maxWidth) * StairConstants.FEATURE_TREAD_WIDTH, Stairs.minWidthPx, Stairs.maxWidthPx);
-    Stairs.options.treads.height = Stairs.linearConversion(parseInt(config.treads.height), parseInt(config.minHeight), parseInt(config.maxHeight), StairConstants.TREAD_MIN_HEIGHT_PXS, StairConstants.TREAD_MAX_HEIGHT_PXS);
+    Stairs.options.treads.height = Stairs.linearConversion(parseInt(config.treads.height), parseInt(config.minHeight), parseInt(config.maxHeight), Stairs.treadMinHeightPx(), Stairs.treadMaxHeightPx());
 
     Stairs.options.treads.fillColor = config.treads.fillColor || StairConstants.DEFAULT_TREAD_FILL_COLOR;
     Stairs.options.treads.strokeColor = config.treads.strokeColor || StairConstants.DEFAULT_TREAD_STROKE_COLOR;
@@ -212,7 +225,7 @@ Stairs.setQuarterturnStairsOptions = function(config){
     maxTreadHeight = (Stairs.maxWidthPx - Stairs.options.flight1Treads.width) / (config.flight2Treads.maxAmount);
    
     // interpolate treadHeight
-    Stairs.options.treadHeight = Math.min(StairConstants.TREAD_MAX_HEIGHT_PXS, Stairs.linearConversion(parseInt(config.treadHeight), parseInt(config.minHeight), parseInt(config.maxHeight), minTreadHeight, maxTreadHeight));
+    Stairs.options.treadHeight = Math.min(Stairs.treadMaxHeightPx(), Stairs.linearConversion(parseInt(config.treadHeight), parseInt(config.minHeight), parseInt(config.maxHeight), minTreadHeight, maxTreadHeight));
 
     Stairs.options.flight1Treads.fillColor = config.flight1Treads.fillColor || StairConstants.DEFAULT_TREAD_FILL_COLOR;
     Stairs.options.flight1Treads.strokeColor = config.flight1Treads.strokeColor || StairConstants.DEFAULT_TREAD_STROKE_COLOR;
@@ -298,7 +311,7 @@ Stairs.setHalfturnStairsOptions = function(config){
     maxTreadHeight = (Stairs.maxWidthPx - Stairs.options.flight1Treads.width - Stairs.options.flight3Treads.width) / (config.flight2Treads.maxAmount);
 
     // interpolate treadHeight
-    Stairs.options.treadHeight = Math.min(StairConstants.TREAD_MAX_HEIGHT_PXS, Stairs.linearConversion(parseInt(config.treadHeight), parseInt(config.minHeight), parseInt(config.maxHeight), minTreadHeight, maxTreadHeight));
+    Stairs.options.treadHeight = Math.min(Stairs.treadMaxHeightPx(), Stairs.linearConversion(parseInt(config.treadHeight), parseInt(config.minHeight), parseInt(config.maxHeight), minTreadHeight, maxTreadHeight));
 
     Stairs.options.flight1Treads.fillColor = config.flight1Treads.fillColor || StairConstants.DEFAULT_TREAD_FILL_COLOR;
     Stairs.options.flight1Treads.strokeColor = config.flight1Treads.strokeColor || StairConstants.DEFAULT_TREAD_STROKE_COLOR;
@@ -414,7 +427,7 @@ Stairs.setDoubleturnStairsOptions = function(config){
     maxTreadHeight = (Stairs.maxWidthPx - Stairs.options.flight1Treads.width) / (config.flight2Treads.left.maxAmount + config.flight2Treads.right.maxAmount);
    
     // interpolate treadHeight
-    Stairs.options.treadHeight = Math.min(StairConstants.TREAD_MAX_HEIGHT_PXS, Stairs.linearConversion(parseInt(config.treadHeight), parseInt(config.minHeight), parseInt(config.maxHeight), minTreadHeight, maxTreadHeight));
+    Stairs.options.treadHeight = Math.min(Stairs.treadMaxHeightPx(), Stairs.linearConversion(parseInt(config.treadHeight), parseInt(config.minHeight), parseInt(config.maxHeight), minTreadHeight, maxTreadHeight));
 
     Stairs.options.flight1Treads.fillColor = config.flight1Treads.fillColor || StairConstants.DEFAULT_TREAD_FILL_COLOR;
     Stairs.options.flight1Treads.strokeColor = config.flight1Treads.strokeColor || StairConstants.DEFAULT_TREAD_STROKE_COLOR;

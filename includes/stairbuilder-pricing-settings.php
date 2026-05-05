@@ -665,7 +665,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				.stairbuilder-pricing-wrap tr.is-hidden { display: none; }
 				.stairbuilder-pricing-wrap .stairbuilder-repeater { margin-top: 8px; max-width: 720px; }
 				.stairbuilder-pricing-wrap .stairbuilder-repeater input { width: 100%; }
-				.stairbuilder-pricing-wrap .form-table th { width: 260px; }
+				.stairbuilder-pricing-wrap .form-table th { width: 260px; padding-left: 10px; }
 
 				/* Component rows — 3-column layout for toggle-bearing pricing items */
 				.stairbuilder-pricing-wrap .stairbuilder-components { display: flex; flex-direction: column; gap: 12px; }

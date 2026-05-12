@@ -239,6 +239,14 @@ jQuery(document).ready(function () {
 
   jQuery('#stairbuild').on('change', ':input', function () {
     const changedElement = jQuery(this).attr('id');
+    // Main width input acts as a uniform default — propagate to per-flight
+    // inputs so all flights stay in sync. Individual flights can still be
+    // overridden afterwards by editing #stair-width2 / #stair-width3 directly.
+    if (changedElement === 'stair-width') {
+      const v = jQuery(this).val();
+      jQuery('#stair-width2').val(v);
+      jQuery('#stair-width3').val(v);
+    }
     jQuery("#treadat2").val(grabFormValues().afterturn2);
     onLoad(changedElement);
   });

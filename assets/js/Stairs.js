@@ -4,12 +4,36 @@ StairConstants = {}
 StairConstants.DEFAULT_FONT = "Arial";
 StairConstants.DEFAULT_BACKGROUND_COLOR = "#ffffff";
 
+// Responsive sizing profiles for the staircase footprint inside the canvas.
+// Two profiles: "narrow" for mobile-class canvases, "wide" for desktop. The
+// active profile is chosen at draw time from Stairs.canvas.width so the
+// staircase reads at a comfortable size at any viewport.
+//
+// WIDTH_MIN / WIDTH_MAX govern the vertical-flight tread width for the
+// regular (straight) flight AND the flight1 width for quarter-turn /
+// half-turn — straight is treated as the standard, so the turn flights
+// inherit the same per-tread width.
+// TREAD_MIN_HEIGHT / TREAD_MAX_HEIGHT are regular-flight-only.
+// Overall canvas-span constants for the turn variants live in
+// PROPORTION_QUARTERTURN_* / PROPORTION_HALFTURN_* below.
+StairConstants.SIZING_PROFILES = {
+    narrow: {
+        TREAD_MIN_HEIGHT: 30 / 506,   // legacy value
+        TREAD_MAX_HEIGHT: 40 / 506,   // legacy value
+        WIDTH_MIN:        0.30,        // legacy value
+        WIDTH_MAX:        0.50         // legacy value
+    },
+    wide: {
+        TREAD_MIN_HEIGHT: 14 / 506,   // ≈ 47% of legacy
+        TREAD_MAX_HEIGHT: 20 / 506,   // ≈ 50% of legacy
+        WIDTH_MIN:        0.14,
+        WIDTH_MAX:        0.22
+    }
+};
+// Canvas width (px) at or above which the "wide" profile applies.
+StairConstants.SIZING_BREAKPOINT_PX = 600;
+
 //TREADS
-// Tread height as a proportion of canvas height. Original values were
-// 30/40 absolute pixels on a 506px canvas — preserve those defaults
-// proportionally so the drawing scales with the canvas.
-StairConstants.PROPORTION_TREAD_MIN_HEIGHT_TO_CANVAS_HEIGHT = 30 / 506;  // ≈ 0.0593
-StairConstants.PROPORTION_TREAD_MAX_HEIGHT_TO_CANVAS_HEIGHT = 40 / 506;  // ≈ 0.0790
 StairConstants.DEFAULT_TREAD_FILL_COLOR = '#e0d9c9';
 StairConstants.DEFAULT_TREAD_STROKE_COLOR = '#5e5a56';
 StairConstants.DEFAULT_TREAD_TEXT_COLOR = '#641616';
@@ -29,9 +53,7 @@ StairConstants.DEFAULT_BALLUSTRADE_SECONDARY_FILL_COLOR = '#b39f79';
 StairConstants.DEFAULT_BALLUSTRADE_STROKE_COLOR = '#5e5a56';
 
 //CANVAS
-//REGULAR
-StairConstants.PROPORTION_MIN_WIDTH_TO_CANVAS_WIDTH = 0.3;
-StairConstants.PROPORTION_MAX_WIDTH_TO_CANVAS_WIDTH = 0.5;
+// REGULAR width proportions live in StairConstants.SIZING_PROFILES above.
 
 //QUARTERTURN
 StairConstants.PROPORTION_QUARTERTURN_MIN_WIDTH_TO_CANVAS_WIDTH = 1;
@@ -59,14 +81,22 @@ Stairs.StairTypeEnum = {
 Stairs.options = {}
 Stairs.options.treads = {}
 
-// Helpers — compute current tread height bounds from canvas height.
-// Use these instead of the old TREAD_MIN/MAX_HEIGHT_PXS constants so
-// the staircase scales with the canvas.
+// Picks the active sizing profile from the live canvas width. Re-evaluated
+// on every draw so a resize across the breakpoint takes effect immediately.
+Stairs.getSizingProfile = function () {
+    var w = (Stairs.canvas && Stairs.canvas.width) || 0;
+    return (w >= StairConstants.SIZING_BREAKPOINT_PX)
+        ? StairConstants.SIZING_PROFILES.wide
+        : StairConstants.SIZING_PROFILES.narrow;
+};
+
+// Helpers — compute current tread height bounds from canvas height,
+// using the active sizing profile.
 Stairs.treadMinHeightPx = function () {
-    return Stairs.canvas.height * StairConstants.PROPORTION_TREAD_MIN_HEIGHT_TO_CANVAS_HEIGHT;
+    return Stairs.canvas.height * Stairs.getSizingProfile().TREAD_MIN_HEIGHT;
 };
 Stairs.treadMaxHeightPx = function () {
-    return Stairs.canvas.height * StairConstants.PROPORTION_TREAD_MAX_HEIGHT_TO_CANVAS_HEIGHT;
+    return Stairs.canvas.height * Stairs.getSizingProfile().TREAD_MAX_HEIGHT;
 };
 
 Stairs.debug = {}
@@ -157,8 +187,8 @@ Stairs.setRegularStairsOptions = function(config){
     
     Stairs.options.treads.amount = parseInt(config.treads.amount);
 
-    Stairs.minWidthPx = parseInt(Stairs.canvas.width * StairConstants.PROPORTION_MIN_WIDTH_TO_CANVAS_WIDTH);
-    Stairs.maxWidthPx = parseInt(Stairs.canvas.width * StairConstants.PROPORTION_MAX_WIDTH_TO_CANVAS_WIDTH);
+    Stairs.minWidthPx = parseInt(Stairs.canvas.width * Stairs.getSizingProfile().WIDTH_MIN);
+    Stairs.maxWidthPx = parseInt(Stairs.canvas.width * Stairs.getSizingProfile().WIDTH_MAX);
 
     //Treads
     Stairs.options.treads.width = Stairs.linearConversion(parseInt(config.treads.width), parseInt(config.minWidth), parseInt(config.maxWidth) * StairConstants.FEATURE_TREAD_WIDTH, Stairs.minWidthPx, Stairs.maxWidthPx);
@@ -192,6 +222,19 @@ Stairs.setRegularStairsOptions = function(config){
     //Canvas height should fit number of treads. Feature tread is StairConstants.FEATURE_TREAD_HEIGHT bigger than regular tread
     Stairs.maxHeight = (Stairs.options.treads.height * (Stairs.options.treads.amount - 1)) + Stairs.options.treads.height * StairConstants.FEATURE_TREAD_HEIGHT;
     // canvas.height is owned by layout.js (568:506 container); do not overwrite here.
+
+    // Belt-and-braces: scale tread height down to fit if the flight would
+    // overflow vertically (very tall floors with low going can push past
+    // the sizing profile's max). Preserves proportion, prevents bottom crop.
+    var availableHeight = Stairs.canvas.height
+        - StairConstants.TOP_MEASURE_TAG_START_Y
+        - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT;
+    if (Stairs.maxHeight > availableHeight && availableHeight > 0) {
+        var scale = availableHeight / Stairs.maxHeight;
+        Stairs.options.treads.height *= scale;
+        Stairs.maxHeight = (Stairs.options.treads.height * (Stairs.options.treads.amount - 1))
+            + Stairs.options.treads.height * StairConstants.FEATURE_TREAD_HEIGHT;
+    }
 }
 
 
@@ -208,9 +251,12 @@ Stairs.setQuarterturnStairsOptions = function(config){
     Stairs.printMMWidth = parseInt(config.flight1Treads.width) + parseInt(config.treadHeight) * parseInt(Math.max(config.flight2Treads.amount - 1, 0));
     Stairs.printMMHeight = parseInt(config.treadHeight) * parseInt(config.flight1Treads.amount) + parseInt(config.flight2Treads.width);
 
-    // max-min width of the first flight (vertical)
-    var minWidthFlight1 = StairConstants.PROPORTION_QUARTERTURN_FLIGHT1_MIN_WIDTH_TO_CANVAS_WIDTH * (Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH);
-    var maxWidthFlight1 = StairConstants.PROPORTION_QUARTERTURN_FLIGHT1_MAX_WIDTH_TO_CANVAS_WIDTH * (Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH);
+    // max-min width of the first flight (vertical). Matches the regular
+    // (straight) flight's tread width via the active sizing profile so the
+    // turn flight reads at the same scale as a straight flight.
+    var profile = Stairs.getSizingProfile();
+    var minWidthFlight1 = profile.WIDTH_MIN * (Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH);
+    var maxWidthFlight1 = profile.WIDTH_MAX * (Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH);
 
     // thread options for each flight
     Stairs.options.flight1Treads = {};
@@ -292,8 +338,11 @@ Stairs.setHalfturnStairsOptions = function(config){
     Stairs.printMMHeight2 = parseInt(config.treadHeight) * parseInt(config.flight3Treads.amount) + parseInt(config.flight2Treads.width);
     
     // treads
-    var minWidthFlight1 = StairConstants.PROPORTION_QUARTERTURN_FLIGHT1_MIN_WIDTH_TO_CANVAS_WIDTH * (Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH * 2);
-    var maxWidthFlight1 = StairConstants.PROPORTION_QUARTERTURN_FLIGHT1_MAX_WIDTH_TO_CANVAS_WIDTH * (Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH * 2);
+    // Match the regular (straight) flight tread width via the active sizing
+    // profile, the same approach used in setQuarterturnStairsOptions.
+    var profile = Stairs.getSizingProfile();
+    var minWidthFlight1 = profile.WIDTH_MIN * (Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH * 2);
+    var maxWidthFlight1 = profile.WIDTH_MAX * (Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH * 2);
 
     Stairs.options.flight1Treads = {};
     Stairs.options.flight2Treads = {};
@@ -2089,7 +2138,14 @@ Stairs.drawMeasures = function(context){
     context.save();
     var treads = Stairs.options.treads;
     var startingY = treads.height;
-    var bottom_measure_y_position = Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT;
+    // Hug the staircase bottom (+30px breathing room) rather than the canvas
+    // bottom, so the width measure stays visually attached to the lowest
+    // tread regardless of how small the staircase is inside the canvas.
+    // Clamped to the canvas-bottom margin as a safety floor.
+    var bottom_measure_y_position = Math.min(
+        Stairs.maxHeight + 30,
+        Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT
+    );
 
     context.fillStyle = Stairs.options.treads.textColor;
     context.strokeStyle = Stairs.options.treads.textColor;
@@ -2162,7 +2218,14 @@ Stairs.drawQuarterturnMeasures = function(context){
     var flight1Treads = Stairs.options.flight1Treads;
     var flight2Treads = Stairs.options.flight2Treads;
 
-    var bottom_measure_y_position = Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT;
+    // Hug the staircase bottom (+30px breathing room) rather than the canvas
+    // bottom, so the width measure stays visually attached to the lowest
+    // tread regardless of how small the staircase is inside the canvas.
+    // Clamped to the canvas-bottom margin as a safety floor.
+    var bottom_measure_y_position = Math.min(
+        Stairs.maxHeight + 30,
+        Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT
+    );
 
     var startX1 = Stairs.startX1;
     var startX2 = Stairs.startX2;
@@ -2250,7 +2313,14 @@ Stairs.drawHalfturnMeasures = function(context){
     var flight2Treads = Stairs.options.flight2Treads;
     var flight3Treads = Stairs.options.flight3Treads;
 
-    var bottom_measure_y_position = Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT;
+    // Hug the staircase bottom (+30px breathing room) rather than the canvas
+    // bottom, so the width measure stays visually attached to the lowest
+    // tread regardless of how small the staircase is inside the canvas.
+    // Clamped to the canvas-bottom margin as a safety floor.
+    var bottom_measure_y_position = Math.min(
+        Stairs.maxHeight + 30,
+        Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT
+    );
 
     var startX1 = Stairs.startX1;
     var startX2 = Stairs.startX2;
@@ -2361,7 +2431,14 @@ Stairs.drawHalfturnMeasures = function(context){
 
 Stairs.drawDoubleturnMeasures = function(context){
     context.save();
-    var bottom_measure_y_position = Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT;
+    // Hug the staircase bottom (+30px breathing room) rather than the canvas
+    // bottom, so the width measure stays visually attached to the lowest
+    // tread regardless of how small the staircase is inside the canvas.
+    // Clamped to the canvas-bottom margin as a safety floor.
+    var bottom_measure_y_position = Math.min(
+        Stairs.maxHeight + 30,
+        Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT
+    );
     var top_measure_y_position = StairConstants.TOP_MEASURE_TAG_START_Y;
 
     var startX1 = Stairs.startX1;

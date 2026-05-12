@@ -11,7 +11,7 @@ function grabFormValues() {
   const floor_h = jQuery("#floor-height").val();
   const nposts = BuilderUtils.getString("newel-posts");
   const spinglass = jQuery('input[name="ballustrades"]:checked').val();
-  const height = parseFloat((floor_h || '0').replace(/,/g, ''));
+  const height = parseFloat((floor_h || '2600').replace(/,/g, ''));
   const adj = height / 0.90040404;
   const width = parseFloat(jQuery("#stair-width").val()) || 800;
   let modifier = 0;

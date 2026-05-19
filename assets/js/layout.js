@@ -23,13 +23,13 @@
     quote:        'stairbuilder_panel_quote'
   };
 
-  // Canvas sizing — single source of truth shared with the CSS rule on
-  // #canvas-container. CANVAS_RATIO_W:H preserves the original Canvas.js
-  // proportions so the staircase drawing (proportioned for these
-  // dimensions) renders without empty space.
+  // Canvas sizing. 1.7.0+ owns container height in CSS (viewport model);
+  // the canvas bitmap matches the rendered container box and width still
+  // caps at CANVAS_MAX_WIDTH. CANVAS_RATIO_W/H kept as historical
+  // reference for the pre-1.7.0 aspect-ratio layout in case of revert.
   const CANVAS_MAX_WIDTH = 1200;
-  const CANVAS_RATIO_W   = 568;
-  const CANVAS_RATIO_H   = 506;
+  // const CANVAS_RATIO_W   = 568;
+  // const CANVAS_RATIO_H   = 506;
 
   const PANEL_TARGETS = {
     form:         '#stairbuild',
@@ -44,6 +44,11 @@
   };
 
   function readStoredState(panel) {
+    // 1.7.0: quote always defaults to 'open' on page load — it's the
+    // lead-gen entry point so a stale localStorage 'collapsed' from
+    // earlier sessions shouldn't hide it. Users can still collapse it
+    // via the tab in-session; that just doesn't persist for quote.
+    if (panel === 'quote') return 'open';
     try {
       const v = window.localStorage.getItem(STORAGE_KEYS[panel]);
       if (v === 'open' || v === 'collapsed') return v;
@@ -153,18 +158,19 @@
       const container = document.getElementById('canvas-container');
       if (!c || !container) return;
 
-      // Width-driven sizing: pick the rendered container width (capped
-      // at CANVAS_MAX_WIDTH), then derive height from the original
-      // CANVAS_RATIO_W:H ratio. Belt-and-braces with the CSS
-      // aspect-ratio rule on #canvas-container.
+      // Viewport-driven sizing (1.7.0+): the container's CSS rule owns
+      // height (min(70vh, 700px) with a 360px floor); we just match the
+      // canvas bitmap to the rendered box. Width still caps at
+      // CANVAS_MAX_WIDTH so high-DPI 4K monitors don't get an oversized
+      // bitmap.
       const w = Math.min(container.clientWidth || CANVAS_MAX_WIDTH, CANVAS_MAX_WIDTH);
-      if (!w) return;
-      const h = Math.round(w * (CANVAS_RATIO_H / CANVAS_RATIO_W));
+      const h = container.clientHeight;
+      if (!w || !h) return;
 
-      container.style.height = h + 'px';
       if (c.width === w && c.height === h) return;
       c.width = w;
       c.height = h;
+      // container.style.height is CSS-controlled — don't set it from JS.
 
       // Trigger Stairs.js redraw via the existing change-handler in the
       // flight scripts (which is bound to inputs inside #stairbuild).

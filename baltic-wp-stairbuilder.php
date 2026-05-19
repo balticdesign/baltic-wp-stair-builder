@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		1.6.4
+Version:		1.7.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '1.6.4' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '1.7.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -73,6 +73,10 @@ function custom_enqueue_files() {
 
 	wp_enqueue_script( 'builder-utils', plugin_dir_url( __FILE__ ) . 'assets/js/core/builderUtils.js', '', BALTIC_STAIRBUILDER_VERSION, true );
 	wp_enqueue_script( 'stairbuilder', plugin_dir_url( __FILE__ ) . 'assets/js/Stairs.js', 'builder-utils', BALTIC_STAIRBUILDER_VERSION, true );
+	// 1.7.0: pan/zoom input handler. Mutates Stairs.viewport — must load
+	// after Stairs.js (where viewport state is defined) and before the
+	// flight scripts (which trigger Stairs.init via form change handlers).
+	wp_enqueue_script( 'stairbuilder-viewport', plugin_dir_url( __FILE__ ) . 'assets/js/viewport.js', 'stairbuilder', BALTIC_STAIRBUILDER_VERSION, true );
 
 	$flight_script_handle = 'stairbuilder';
 

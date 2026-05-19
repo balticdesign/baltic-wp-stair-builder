@@ -24,10 +24,14 @@ StairConstants.SIZING_PROFILES = {
         WIDTH_MAX:        0.50         // legacy value
     },
     wide: {
-        TREAD_MIN_HEIGHT: 14 / 506,   // ≈ 47% of legacy
-        TREAD_MAX_HEIGHT: 20 / 506,   // ≈ 50% of legacy
-        WIDTH_MIN:        0.14,
-        WIDTH_MAX:        0.22
+        // 1.7.0: treads narrower per cell, taller per cell — yields a
+        // TKstairs-like portrait shape under the viewport transform's
+        // fit-to-viewport scaling. Default (800mm/240going) renders at
+        // ~11% canvas width × ~80% canvas height.
+        TREAD_MIN_HEIGHT: 22 / 506,
+        TREAD_MAX_HEIGHT: 32 / 506,
+        WIDTH_MIN:        0.12,
+        WIDTH_MAX:        0.20
     }
 };
 // Canvas width (px) at or above which the "wide" profile applies.
@@ -81,6 +85,24 @@ Stairs.StairTypeEnum = {
 Stairs.options = {}
 Stairs.options.treads = {}
 
+// Pan/zoom viewport state. Lives outside Stairs.options because options is
+// rebuilt from form values on every onLoad(); viewport must persist across
+// form-driven redraws so the user's zoom level survives input changes.
+// Reset (to fitZoom + zero pan) only when staircase type changes.
+Stairs.viewport = {
+    zoom:       1,
+    panX:       0,
+    panY:       0,
+    fitZoom:    1,
+    isDragging: false,
+    _lastType:  null
+};
+
+// Zoom clamps. Below 0.3 the staircase is unreadable; above 5 individual
+// tread lines disappear into pixel rounding.
+Stairs.ZOOM_MIN = 0.3;
+Stairs.ZOOM_MAX = 5;
+
 // Picks the active sizing profile from the live canvas width. Re-evaluated
 // on every draw so a resize across the breakpoint takes effect immediately.
 Stairs.getSizingProfile = function () {
@@ -99,10 +121,156 @@ Stairs.treadMaxHeightPx = function () {
     return Stairs.canvas.height * Stairs.getSizingProfile().TREAD_MAX_HEIGHT;
 };
 
+// Computes the zoom factor that scales the staircase's bounding box to
+// occupy TARGET_FILL of the limiting viewport dimension. Called from
+// Stairs.init() after per-type setup has populated maxHeight / widthPx.
+Stairs.computeFitZoom = function () {
+    var stairHeight, stairWidth;
+    // Per-profile fill targets.
+    //   Desktop (wide canvas): height target > 1.0 deliberately. The
+    //   staircase overflows the canvas vertically at initial fit — pan
+    //   to see clipped regions, double-click to reset. Without overflow
+    //   the diagram reads as undersized inside a tall canvas.
+    //   Mobile (narrow canvas): no overflow — pan is awkward on touch,
+    //   so fit-to-bounds and let the staircase fill horizontally.
+    var isWideCanvas = Stairs.canvas.width >= StairConstants.SIZING_BREAKPOINT_PX;
+    // Width bump (0.30 → 0.45) sized to ≈4 wheel-zoom notches (1.1^4 ≈ 1.46×)
+    // — width is the binding constraint for quarter/half-turn on desktop
+    // (their widthPx includes flight 1 + turn-flight tread + side tag),
+    // so this scales turns up without changing straight (height-bound).
+    var TARGET_FILL_WIDTH  = isWideCanvas ? 0.45 : 0.85;
+    var TARGET_FILL_HEIGHT = isWideCanvas ? 1.40 : 0.95;
+
+    switch (Stairs.options.type) {
+        case Stairs.StairTypeEnum.REGULAR:
+            // Full visible extent (matches applyViewportTransform): top
+            // tread number label hangs above maxHeight, bottom (w) measure
+            // label sits ~60px below. Use the whole span so fit-to-viewport
+            // keeps labels inside the canvas instead of clipping them.
+            stairHeight = Stairs.maxHeight + 60 + Stairs.options.treads.height;
+            stairWidth  = Stairs.options.treads.width;
+            break;
+        case Stairs.StairTypeEnum.QUARTERTURN:
+            stairHeight = Stairs.maxHeight;
+            stairWidth  = Stairs.widthPx;
+            break;
+        case Stairs.StairTypeEnum.HALFTURN:
+            stairHeight = Stairs.maxHeight1;
+            stairWidth  = Stairs.widthPx;
+            break;
+        case Stairs.StairTypeEnum.DOUBLETURN:
+            // Keep in sync with applyViewportTransform's DOUBLETURN case.
+            stairHeight = Stairs.maxHeight + StairConstants.DOUBLETURN_TOP_MEASURE_HEIGHT;
+            stairWidth  = Stairs.widthPx;
+            break;
+        default:
+            return 1;
+    }
+
+    if (!stairHeight || !stairWidth) return 1;
+
+    var fitByHeight = (Stairs.canvas.height * TARGET_FILL_HEIGHT) / stairHeight;
+    var fitByWidth  = (Stairs.canvas.width  * TARGET_FILL_WIDTH)  / stairWidth;
+    return Math.min(fitByHeight, fitByWidth);
+};
+
+// Applies pan/zoom transform to the canvas context. Centres the staircase's
+// local-space bounding box in the canvas, then applies user pan and zoom.
+// Uniform scale only (same factor on x and y) — guarantees no skew.
+// DO NOT change to scale(zx, zy) with different values; the skew-free
+// guarantee depends on that invariant.
+Stairs.applyViewportTransform = function (context) {
+    var stairWidth, stairHeight, stairOriginX, stairOriginY;
+
+    switch (Stairs.options.type) {
+        case Stairs.StairTypeEnum.REGULAR:
+            // Visual extent (not just staircase): top tread overhangs to
+            // about -treads.height in local y, bottom (w) measure label
+            // sits ~60px below maxHeight (label baseline + text descender +
+            // breathing). Using the full visible extent balances vertical
+            // padding around the diagram.
+            stairWidth   = Stairs.options.treads.width;
+            stairHeight  = Stairs.maxHeight + 60 + Stairs.options.treads.height;
+            stairOriginX = Stairs.centerX - stairWidth / 2;
+            stairOriginY = -Stairs.options.treads.height;
+            break;
+        case Stairs.StairTypeEnum.QUARTERTURN:
+            // widthPx is the exact local-space horizontal extent; maxHeight
+            // already includes the turn flight's vertical contribution.
+            // Direction matters: right-direction draws flight 1 anchored
+            // to local x=0 (via SIDE_MEASURE_TAG_WIDTH); left-direction
+            // draws flight 1 anchored to local x = canvas.width - flight1
+            // (i.e. right edge of canvas), with the turn flight extending
+            // leftward. The bounding-box origin has to match where the
+            // staircase actually lives or the centering will drift.
+            stairWidth   = Stairs.widthPx;
+            stairHeight  = Stairs.maxHeight;
+            stairOriginX = (Stairs.options.direction === 'left')
+                ? Stairs.canvas.width - Stairs.widthPx
+                : 0;
+            stairOriginY = 0;
+            break;
+        case Stairs.StairTypeEnum.HALFTURN:
+            stairWidth   = Stairs.widthPx;
+            stairHeight  = Stairs.maxHeight1;
+            stairOriginX = (Stairs.options.direction === 'left')
+                ? Stairs.canvas.width - Stairs.widthPx
+                : 0;
+            stairOriginY = 0;
+            break;
+        case Stairs.StairTypeEnum.DOUBLETURN:
+            // Double-turn has a top-measure label above the staircase that
+            // the legacy draw code reserved space for via a +20 Y translate.
+            // Now baked into the bounding box so fit-to-viewport doesn't
+            // clip the label.
+            stairWidth   = Stairs.widthPx;
+            stairHeight  = Stairs.maxHeight + StairConstants.DOUBLETURN_TOP_MEASURE_HEIGHT;
+            stairOriginX = 0;
+            stairOriginY = -StairConstants.DOUBLETURN_TOP_MEASURE_HEIGHT;
+            break;
+    }
+
+    // Centre shift: pull the staircase up by a constant 50px from where
+    // it would naturally centre. Applies to both profiles — empty space
+    // below the staircase reads better than empty space above. Mobile
+    // (narrow canvas) starts from a 42%-of-height bias before the shift;
+    // desktop starts from true centre.
+    var isWideCanvas = Stairs.canvas.width >= StairConstants.SIZING_BREAKPOINT_PX;
+    var canvasCentreX = Stairs.canvas.width / 2;
+    var canvasCentreY = (isWideCanvas
+        ? Stairs.canvas.height / 2
+        : Stairs.canvas.height * 0.42) - 50;
+    var stairCentreX  = stairOriginX + stairWidth / 2;
+    var stairCentreY  = stairOriginY + stairHeight / 2;
+
+    // Net translate = (canvas centre) - (stair centre × zoom) + user pan.
+    var tx = canvasCentreX - stairCentreX * Stairs.viewport.zoom + Stairs.viewport.panX;
+    var ty = canvasCentreY - stairCentreY * Stairs.viewport.zoom + Stairs.viewport.panY;
+
+    context.translate(tx, ty);
+    context.scale(Stairs.viewport.zoom, Stairs.viewport.zoom);
+};
+
 Stairs.debug = {}
 
 Stairs.init = function(canvas,config){
     Stairs.loadOptions(canvas,config);
+
+    // Type-change reset: when user toggles staircase type, zero pan and
+    // recompute fit zoom. Local flag (not a sentinel on viewport.zoom) so
+    // input handlers can't observe an intermediate "0" value mid-init.
+    var needsFitZoom = false;
+    if (Stairs.viewport._lastType !== Stairs.options.type) {
+        Stairs.viewport._lastType = Stairs.options.type;
+        Stairs.viewport.panX = 0;
+        Stairs.viewport.panY = 0;
+        needsFitZoom = true;
+    }
+    Stairs.viewport.fitZoom = Stairs.computeFitZoom();
+    if (needsFitZoom) {
+        Stairs.viewport.zoom = Stairs.viewport.fitZoom;
+    }
+
     Stairs.draw(canvas);
 }
 
@@ -552,24 +720,24 @@ Stairs.draw = function(canvas){
             var posts = Stairs.options.posts;
             var ballustrades = Stairs.options.ballustrades;
         
-            //Start fresh
+            // Background — outside viewport transform so the full canvas
+            // is cleared and filled regardless of zoom/pan.
             context.clearRect(0,0,canvas.width,canvas.height);
             context.save();
             context.fillStyle = Stairs.options.backgroundColor;
             context.fillRect(0,0,canvas.width,canvas.height);
             context.restore();
-        
+
+            // Viewport transform wraps the staircase draw calls.
+            context.save();
+            Stairs.applyViewportTransform(context);
             Stairs.drawMeasures(context);
             Stairs.drawTreads(context,y,treads);
             Stairs.drawBallustrades(context,treads,ballustrades);
             Stairs.drawPosts(context,treads,posts);
+            context.restore();
             break;
-        case Stairs.StairTypeEnum.QUARTERTURN: 
-            // translation to center (always draw the stair in the center)
-            var translateX = (Stairs.canvas.width - Stairs.widthPx) / 2;
-            if (Stairs.options.direction == 'left'){
-                translateX = -translateX;
-            }
+        case Stairs.StairTypeEnum.QUARTERTURN:
             var treads = {};
             treads.flight1Treads = Stairs.options.flight1Treads;
             treads.flight1Treads.height = Stairs.options.treadHeight;
@@ -578,7 +746,8 @@ Stairs.draw = function(canvas){
             var posts = Stairs.options.posts;
             var ballustrades = Stairs.options.ballustrades;
 
-            //Start fresh
+            // Background outside the viewport transform — clear/fill the
+            // full canvas regardless of zoom/pan.
             context.clearRect(0,0,canvas.width,canvas.height);
             context.save();
             context.fillStyle = Stairs.options.backgroundColor;
@@ -586,20 +755,14 @@ Stairs.draw = function(canvas){
             context.restore();
 
             context.save();
-            context.translate(translateX,0);
+            Stairs.applyViewportTransform(context);
             Stairs.drawTreads(context, y, treads);
             Stairs.drawBallustradeQuarterturn(context)
             Stairs.drawPostsQuarterturn(context,treads,posts);
             Stairs.drawQuarterturnMeasures(context);
             context.restore();
             break;
-        case Stairs.StairTypeEnum.HALFTURN: 
-            // translation to center (always draw the stair in the center)
-            var translateX = (Stairs.canvas.width - Stairs.widthPx) / 2;
-            if (Stairs.options.direction == 'left'){
-                translateX = -translateX;
-            }
-
+        case Stairs.StairTypeEnum.HALFTURN:
             var y = Stairs.maxHeight1;
             var treads = {};
             treads.flight1Treads = Stairs.options.flight1Treads;
@@ -610,27 +773,23 @@ Stairs.draw = function(canvas){
             treads.flight3Treads.height = Stairs.options.treadHeight;
             var posts = Stairs.options.posts;
             var ballustrades = Stairs.options.ballustrades;
-        
-            //Start fresh
+
+            // Background outside the viewport transform.
             context.clearRect(0,0,canvas.width,canvas.height);
             context.save();
             context.fillStyle = Stairs.options.backgroundColor;
             context.fillRect(0,0,canvas.width,canvas.height);
             context.restore();
-        
+
             context.save();
-            context.translate(translateX,0);
+            Stairs.applyViewportTransform(context);
             Stairs.drawTreads(context,y,treads);
             Stairs.drawBallustradeHalfturn(context)
             Stairs.drawPostsHalfturn(context);
             Stairs.drawHalfturnMeasures(context);
             context.restore();
             break;
-        case Stairs.StairTypeEnum.DOUBLETURN: 
-            // translation to center (always draw the stair in the center)
-            var leftRightDif = Stairs.options.flight2Treads.left.width - Stairs.options.flight2Treads.right.width;
-            var translateX = leftRightDif / 2;
-
+        case Stairs.StairTypeEnum.DOUBLETURN:
             var y = Stairs.maxHeight;
             var treads = {};
             treads.flight1Treads = Stairs.options.flight1Treads;
@@ -639,16 +798,24 @@ Stairs.draw = function(canvas){
             treads.flight2Treads.height = Stairs.options.treadHeight;
             var posts = Stairs.options.posts;
             var ballustrades = Stairs.options.ballustrades;
-        
-            //Start fresh
+
+            // Background outside the viewport transform.
             context.clearRect(0,0,canvas.width,canvas.height);
             context.save();
             context.fillStyle = Stairs.options.backgroundColor;
             context.fillRect(0,0,canvas.width,canvas.height);
             context.restore();
-        
+
+            // Note: the legacy code also translated by
+            // (flight2.left.width - flight2.right.width)/2 to balance the
+            // staircase when the two turn-flight widths differed. The
+            // viewport transform's centring uses the symmetric widthPx
+            // bounding box, so configurations with asymmetric flight2
+            // widths will sit off-centre by that delta — flagging here in
+            // case it shows up visually; can re-introduce as an offset
+            // inside applyViewportTransform if needed.
             context.save();
-            context.translate(translateX, StairConstants.DOUBLETURN_TOP_MEASURE_HEIGHT);
+            Stairs.applyViewportTransform(context);
             Stairs.drawTreads(context,y,treads);
             Stairs.drawBallustradeDoubleturn(context);
             Stairs.drawPostsDoubleturn(context);
@@ -1050,7 +1217,10 @@ Stairs.drawSingleFeatureTread = function (treads,context, x, y, width, height, t
 
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.font = 3*treads.height/10 + "px " + Stairs.options.font;
+    // Inverse-scale: keep tread-number labels at a constant ~13px on screen
+    // regardless of fitZoom / user zoom. Set in local space and the
+    // viewport transform's context.scale() cancels out to the target px.
+    context.font = (13 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.fillStyle = treads.textColor;
     context.fillText(tag, x + width/2, y + height/2 +1);
 
@@ -1115,10 +1285,11 @@ Stairs.drawDoubleFeatureTread = function (treads, context, x, y1, y2, width, hei
 
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.font = 3*treads.height/10 + "px " + Stairs.options.font;
+    // Inverse-scale tread numbers — see drawFeatureTread for the rationale.
+    context.font = (13 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.fillStyle = treads.textColor;
     context.fillText(tag, x + width/2, y1 + height1/2 +1);
-    
+
     //Then, draw the second tread
 
     context.fillStyle = treads.fillColor;
@@ -1171,7 +1342,8 @@ Stairs.drawRegularTread = function (treads, context, x, y, width, height, tag){
 
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.font = 3 * treads.height / 10 + "px " + Stairs.options.font;
+    // Inverse-scale tread numbers — see drawFeatureTread for the rationale.
+    context.font = (13 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.fillStyle = treads.textColor;
     context.fillText(tag, x + width/2, y + (height/2) + 1);
 
@@ -1182,7 +1354,8 @@ Stairs.drawTopTread = function (treads, context, x, y, width, height, tag){
     context.save();
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.font = 3*treads.height/10 + "px " + Stairs.options.font;
+    // Inverse-scale tread numbers — see drawFeatureTread for the rationale.
+    context.font = (13 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.fillStyle = treads.textColor;
     context.fillText(tag, x + width/2, y + height/2 +1);
     context.restore();
@@ -1194,7 +1367,8 @@ Stairs.drawTurnTread = function (treads, context, amount, x, y, width, height, t
     context.strokeStyle = treads.strokeColor;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.font =  3*treads.height/10 + "px " + Stairs.options.font;
+    // Inverse-scale tread numbers — see drawFeatureTread for the rationale.
+    context.font = (13 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.lineWidth = 1;
     context.clearRect(x, y, width, height);
     context.strokeRect(x,y,width,height);
@@ -2149,7 +2323,7 @@ Stairs.drawMeasures = function(context){
 
     context.fillStyle = Stairs.options.treads.textColor;
     context.strokeStyle = Stairs.options.treads.textColor;
-    context.lineWidth = 0.5;
+    context.lineWidth = 0.5 / Stairs.viewport.zoom;
 
     if(!Stairs.featureTreadEnabled){
         startingY += treads.height / 5;
@@ -2199,7 +2373,9 @@ Stairs.drawMeasures = function(context){
 
     //Measures text
     context.textBaseline = 'middle';
-    context.font = "12px " + Stairs.options.font;
+    // Inverse-scale by viewport zoom so the label renders at a constant
+    // ~12px on screen regardless of fitZoom / user zoom.
+    context.font = (16 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.textAlign = 'center';
     context.fillText("(w) " + Stairs.printMMWidth + "mm", Stairs.centerX, bottom_measure_y_position + 20);
     
@@ -2250,7 +2426,7 @@ Stairs.drawQuarterturnMeasures = function(context){
 
     context.fillStyle = Stairs.options.treads.textColor;
     context.strokeStyle = Stairs.options.treads.textColor;
-    context.lineWidth = 0.5;
+    context.lineWidth = 0.5 / Stairs.viewport.zoom;
 
     //Draw measure lines
 
@@ -2294,7 +2470,9 @@ Stairs.drawQuarterturnMeasures = function(context){
 
     //Measures text
     context.textBaseline = 'middle';
-    context.font = "12px " + Stairs.options.font;
+    // Inverse-scale by viewport zoom so the label renders at a constant
+    // ~12px on screen regardless of fitZoom / user zoom.
+    context.font = (16 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.textAlign = 'center';
     context.fillText("(b) " + Stairs.printMMWidth + "mm", (startX1 + endX)/2, bottom_measure_y_position + 20);
     
@@ -2345,7 +2523,7 @@ Stairs.drawHalfturnMeasures = function(context){
 
     context.fillStyle = Stairs.options.treads.textColor;
     context.strokeStyle = Stairs.options.treads.textColor;
-    context.lineWidth = 0.5;
+    context.lineWidth = 0.5 / Stairs.viewport.zoom;
 
     //Draw measure lines
 
@@ -2408,7 +2586,9 @@ Stairs.drawHalfturnMeasures = function(context){
 
     //Measures text
     context.textBaseline = 'middle';
-    context.font = "12px " + Stairs.options.font;
+    // Inverse-scale by viewport zoom so the label renders at a constant
+    // ~12px on screen regardless of fitZoom / user zoom.
+    context.font = (16 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.textAlign = 'center';
     context.fillText("(b) " + Stairs.printMMWidth + "mm", (startX1 + endX)/2, bottom_measure_y_position + 20);
     
@@ -2451,7 +2631,7 @@ Stairs.drawDoubleturnMeasures = function(context){
 
     context.fillStyle = Stairs.options.treads.textColor;
     context.strokeStyle = Stairs.options.treads.textColor;
-    context.lineWidth = 0.5;
+    context.lineWidth = 0.5 / Stairs.viewport.zoom;
 
     //Draw measure lines
 
@@ -2514,7 +2694,9 @@ Stairs.drawDoubleturnMeasures = function(context){
     
     //Measures text
     context.textBaseline = 'middle';
-    context.font = "12px " + Stairs.options.font;
+    // Inverse-scale by viewport zoom so the label renders at a constant
+    // ~12px on screen regardless of fitZoom / user zoom.
+    context.font = (16 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.textAlign = 'center';
 
     // top measure

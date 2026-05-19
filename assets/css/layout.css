@@ -29,7 +29,8 @@
   position: relative;
   width: 100%;
   max-width: 1200px;          /* was 800; lifted so panels-off actually frees space */
-  aspect-ratio: 568 / 506;    /* original Canvas.js dimensions */
+  height: min(70vh, 700px);   /* fixed viewport, never taller than 70% of screen */
+  min-height: 360px;          /* mobile-portrait floor */
   margin: 40px auto;
 }
 
@@ -214,7 +215,175 @@
   }
   .bd-stairbuilder-layout.is-form-collapsed         #stairbuild  { transform: translateY(100%); }
   .bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout { transform: translateY(100%); }
-  .bd-stairbuilder-layout.is-quote-collapsed        .breakout    { transform: translateY(100%); }
+
+  /* 1.7.0: quote panel is permanently pinned to the bottom on mobile —
+   * no slide-up drawer behaviour. Override the is-quote-collapsed
+   * translate so the FAB toggle can't hide it. */
+  .bd-stairbuilder-layout.is-quote-collapsed .breakout {
+    transform: translateY(0);
+  }
+
+  /* 1.7.0: condense quote panel into a single-row price + CTA strip on
+   * mobile. Headings, VAT line, and price-breakdown are hidden; the
+   * total reads large and sits next to the buy-now button. */
+  span#total {
+    font-size: 38px;
+    font-weight: 600;
+  }
+  div#pricetotal h4,
+  span#vat,
+  span#priceCalc {
+    display: none;
+  }
+  .bd-stairbuilder-layout .breakout {
+    display: flex;
+    justify-content: space-around;
+    align-content: center;
+    align-items: center;
+  }
+  .sb-buynow {
+    font-size: 22px;
+  }
+  .bd-stairbuilder-layout .breakout .bd-panel-close {
+    display: none;
+  }
+
+  /* 1.7.0: form panel becomes a left-side drawer on mobile (was a
+   * bottom-sheet). --bd-form-w is shared with .bd-fab--form so the
+   * tab can be anchored to the panel's right edge and track it. */
+  .bd-stairbuilder-layout #stairbuild {
+    --bd-form-w: min(85vw, 360px);
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    width: var(--bd-form-w);
+    max-width: var(--bd-form-w);
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0 12px 12px 0;
+    transform: translateX(0);
+  }
+  .bd-stairbuilder-layout.is-form-collapsed #stairbuild {
+    transform: translateX(-100%);
+  }
+
+  /* Form tab — "Edit →" pill on the form panel's right edge. When the
+   * form is collapsed (off-screen left), the tab translates with it
+   * so it lands flush with the viewport's left edge. When the form
+   * is open, the tab sits at the form's right edge sticking out into
+   * the canvas area, arrow flipped to point left (close affordance). */
+  .bd-stairbuilder-layout .bd-fab--form {
+    --bd-form-w: min(85vw, 360px);
+    left: var(--bd-form-w);
+    top: 80px;
+    bottom: auto;
+    width: 72px;
+    height: 40px;
+    border-radius: 0 8px 8px 0;
+    /* Hide the ☰ emoji from layout.js — the ::before/::after pair below
+     * provides the visible "Edit →" content. */
+    font-size: 0;
+    transition: transform var(--bd-transition);
+  }
+  .bd-stairbuilder-layout.is-form-collapsed .bd-fab--form {
+    /* Mirror the form panel's translateX so the tab travels with it. */
+    transform: translateX(calc(-1 * var(--bd-form-w)));
+  }
+  .bd-stairbuilder-layout .bd-fab--form::before {
+    content: "Edit";
+    font-size: 13px;
+    line-height: 40px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .bd-stairbuilder-layout .bd-fab--form::after {
+    content: "→";
+    display: inline-block;
+    font-size: 16px;
+    line-height: 40px;
+    vertical-align: middle;
+    transition: transform var(--bd-transition);
+  }
+  .bd-stairbuilder-layout:not(.is-form-collapsed) .bd-fab--form::after {
+    transform: rotate(180deg);
+  }
+
+  /* Quote FAB is redundant now the quote panel is permanently pinned
+   * to the bottom on mobile. */
+  .bd-stairbuilder-layout .bd-fab--quote {
+    display: none;
+  }
+
+  /* Quote box: fixed 100px on mobile so the mm_breakout math below
+   * stays predictable. Pair with --bd-quote-h. */
+  .bd-stairbuilder-layout .breakout {
+    --bd-quote-h: 100px;
+    height: var(--bd-quote-h);
+    max-height: var(--bd-quote-h);
+  }
+
+  /* Measurements panel — accordion behind the quote box.
+   * z-index 80 sits below .breakout (100) so the quote always covers
+   * the panel's bottom edge. Fixed height (--bd-mm-h) so the tab can
+   * precisely track the panel's top edge via the same translateY. */
+  .bd-stairbuilder-layout .mm_breakout {
+    --bd-quote-h: 100px;
+    --bd-mm-h:    50vh;
+    z-index: 80;
+    height:     var(--bd-mm-h);
+    max-height: var(--bd-mm-h);
+  }
+  .bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout {
+    /* Translate down so the panel's top edge sits exactly at the quote
+     * box's top edge — nothing visible above the quote, only the tab
+     * (which mirrors this transform). */
+    transform: translateY(calc(var(--bd-mm-h) - var(--bd-quote-h)));
+  }
+
+  /* Measurements tab — right-aligned, 56×40, looks like a folder tab.
+   * Position by `bottom: var(--bd-mm-h)` so when the panel is open, the
+   * tab sits exactly on the panel's top edge. The same translateY rule
+   * applied to the panel is mirrored here, so the tab stays glued to
+   * the panel as it slides up and down. */
+  .bd-stairbuilder-layout .bd-fab--measurements {
+    --bd-quote-h: 100px;
+    --bd-mm-h:    50vh;
+    left: auto;
+    right: 16px;
+    bottom: var(--bd-mm-h);
+    width: 72px;
+    height: 40px;
+    border-radius: 8px 8px 0 0;
+    transform: none;
+    transition: transform var(--bd-transition);
+    /* Hide the 📐 emoji from layout.js — ::before/::after carry the
+     * visible info-icon + arrow content. */
+    font-size: 0;
+  }
+  .bd-stairbuilder-layout.is-measurements-collapsed .bd-fab--measurements {
+    transform: translateY(calc(var(--bd-mm-h) - var(--bd-quote-h)));
+  }
+  .bd-stairbuilder-layout .bd-fab--measurements::before {
+    content: "ⓘ";
+    font-size: 18px;
+    line-height: 40px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  /* Arrow glyph — up when collapsed (pull-up affordance), rotates
+   * 180° to point down when the panel is open (push-down). */
+  .bd-stairbuilder-layout .bd-fab--measurements::after {
+    content: "▲";
+    display: inline-block;
+    font-size: 16px;
+    line-height: 40px;
+    vertical-align: middle;
+    transition: transform var(--bd-transition);
+  }
+  .bd-stairbuilder-layout:not(.is-measurements-collapsed) .bd-fab--measurements::after {
+    transform: rotate(180deg);
+  }
 }
 
 /* WordPress admin bar height — exposed as a CSS var so .mm_breakout can
@@ -333,4 +502,108 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
 
 .sb-buynow {
   background: #97804a;
+}
+
+/* ---------------------------------------------------------------- *
+ * 1.7.0 — Desktop persistent panel tabs
+ *
+ * Replaces the 1.4.x "handle only visible when its panel is
+ * collapsed" pattern with TKstairs-style persistent tabs that sit on
+ * each panel's edge and slide in/out with the panel. Each tab keeps
+ * its panel label (Configure / Measurements / Quote) and adds a
+ * directional arrow that rotates to indicate pull direction.
+ *
+ * Scoped to min-width: 768px so the mobile accordion tabs inside the
+ * (max-width: 767px) block above are left untouched.
+ * ---------------------------------------------------------------- */
+@media (min-width: 768px) {
+  /* Always-visible, always-interactive. Keep the existing vertical
+   * text orientation from the 1.4.x .bd-handle base rule (don't
+   * override writing-mode here). Bump z-index above the panels
+   * (which are z-index 100) so the form tab can't be masked by the
+   * form's left-edge shadow when the form is open. */
+  .bd-stairbuilder-layout .bd-handle {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 110;
+    transition: transform var(--bd-transition);
+  }
+
+  /* FORM tab — anchored to the form panel's right edge.
+   *   IMPORTANT: form uses --bd-form-width (360px), NOT
+   *   --bd-side-width (320px). Easy to confuse — caught the first
+   *   pass where the tab landed inside the form's footprint and got
+   *   masked by it. */
+  .bd-stairbuilder-layout .bd-handle--form {
+    left: var(--bd-form-width);
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .bd-stairbuilder-layout.is-form-collapsed .bd-handle--form {
+    transform: translateY(-50%) translateX(calc(-1 * var(--bd-form-width)));
+  }
+  /* Arrow flows inline below the vertical text label. The parent is
+   * writing-mode: vertical-rl (inline = top-to-bottom), so an
+   * inline-block ::after lands beneath the text. Its own
+   * writing-mode override to horizontal-tb keeps "→" rendering as
+   * a proper horizontal arrow rather than being rotated. */
+  .bd-stairbuilder-layout .bd-handle--form::after {
+    content: "→";
+    display: inline-block;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    font-size: 14px;
+    margin-top: 6px;
+    transition: transform var(--bd-transition);
+  }
+  .bd-stairbuilder-layout:not(.is-form-collapsed) .bd-handle--form::after {
+    transform: rotate(180deg);
+  }
+
+  /* MEASUREMENTS tab — at mm_breakout's left edge. Sits 20px below
+   * the panel's top edge to fit visually inside the panel rather
+   * than aligning to its absolute top corner. */
+  .bd-stairbuilder-layout .bd-handle--measurements {
+    right: var(--bd-side-width);
+    left: auto;
+    top: calc(var(--wp-admin-bar-height, 0px) + 120px);
+  }
+  .bd-stairbuilder-layout.is-measurements-collapsed .bd-handle--measurements {
+    transform: translateX(var(--bd-side-width));
+  }
+  .bd-stairbuilder-layout .bd-handle--measurements::after {
+    content: "←";
+    display: inline-block;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    font-size: 14px;
+    margin-top: 6px;
+    transition: transform var(--bd-transition);
+  }
+  .bd-stairbuilder-layout:not(.is-measurements-collapsed) .bd-handle--measurements::after {
+    transform: rotate(180deg);
+  }
+
+  /* QUOTE tab — at .breakout's left edge. */
+  .bd-stairbuilder-layout .bd-handle--quote {
+    right: var(--bd-side-width);
+    left: auto;
+    bottom: 80px;
+    top: auto;
+  }
+  .bd-stairbuilder-layout.is-quote-collapsed .bd-handle--quote {
+    transform: translateX(var(--bd-side-width));
+  }
+  .bd-stairbuilder-layout .bd-handle--quote::after {
+    content: "←";
+    display: inline-block;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    font-size: 14px;
+    margin-top: 6px;
+    transition: transform var(--bd-transition);
+  }
+  .bd-stairbuilder-layout:not(.is-quote-collapsed) .bd-handle--quote::after {
+    transform: rotate(180deg);
+  }
 }

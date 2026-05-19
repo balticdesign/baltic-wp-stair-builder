@@ -482,7 +482,7 @@ foreach ($fields as $field) {
       <span id="vat" class="price">£0.00</span>
       <h4>Total Price</h4>
       <span id="total" class="price">£0.00</span>
-    </div>
+ <span id="vatnote">inc. VAT</span>   </div>
     <button id="sbbuybtn" class="sb-buynow" type="button">Get Free Quote</button>
     <p id="sb-submit-error" class="sb-submit-error" style="display:none;"></p>
   </div>

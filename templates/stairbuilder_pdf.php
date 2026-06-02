@@ -138,7 +138,10 @@
                     <?php echo esc_html( $content['phone'] ); ?><br>
                 <?php endif; ?>
                 <?php if ( ! empty( $content['postcode'] ) ) : ?>
-                    Postcode: <?php echo esc_html( $content['postcode'] ); ?>
+                    Postcode: <?php echo esc_html( $content['postcode'] ); ?><br>
+                <?php endif; ?>
+                <?php if ( ! empty( $content['project_delivery_date'] ) ) : ?>
+                    Project Delivery Date: <strong><?php echo esc_html( $content['project_delivery_date'] ); ?></strong>
                 <?php endif; ?>
             </div>
         </div>

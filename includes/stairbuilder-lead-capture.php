@@ -190,13 +190,17 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 
 	wp_mail( $lead_data['email'], $customer_subject, $customer_body, array(), $attachments );
 
-	$admin_to      = apply_filters( 'baltic_stair_admin_notification_email', get_option( 'admin_email' ), $lead_data );
-	$admin_subject = sprintf( 'New enquiry: %s — £%s', $lead_data['name'], number_format( (float) $lead_data['total'], 2 ) );
+	$admin_to             = apply_filters( 'baltic_stair_admin_notification_email', get_option( 'admin_email' ), $lead_data );
+	$project_delivery     = isset( $lead_data['form']['project_delivery_date'] ) ? (string) $lead_data['form']['project_delivery_date'] : '';
+	$urgency_line         = $project_delivery !== '' ? sprintf( "Project Delivery Date: %s\n\n", $project_delivery ) : '';
+	$admin_subject        = sprintf( 'New enquiry: %s — £%s', $lead_data['name'], number_format( (float) $lead_data['total'], 2 ) );
 	$admin_body    = sprintf(
 		"New staircase enquiry captured.\n\n" .
+		"%s" .
 		"Name: %s\nEmail: %s\nPhone: %s\nPostcode: %s\n\n" .
 		"Indicative subtotal: £%s\nVAT: £%s\nTotal: £%s\n\n" .
 		"Lead ref: %d\nView: %s\n",
+		$urgency_line,
 		$lead_data['name'],
 		$lead_data['email'],
 		$lead_data['phone'],

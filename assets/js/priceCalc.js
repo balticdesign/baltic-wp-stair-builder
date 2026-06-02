@@ -52,12 +52,13 @@ function calculateTotalPrice() {
   const $stringer_price = BuilderUtils.getNumber('stringer_material');
   const $tread_price = BuilderUtils.getNumber('tread_material');
   const $riser_price = BuilderUtils.getNumber('riser_material');
+  const $tread_profile_price = parseFloat(jQuery('#tread-profile option:selected').attr('data-price')) || 0;
 
   // === Derived Values ===
   const $adj = parseFloat($height / 0.90040404);
   const $going = parseFloat(jQuery("#going").val());
   const $risers = Math.ceil($adj / $going);
-  const $str_price = ($stringer_price + $tread_price + $riser_price) * $risers;
+  const $str_price = ($stringer_price + $tread_price + $tread_profile_price + $riser_price) * $risers;
 
   // === Delivery & Optional Extras ===
   const $delivery = parseFloat(jQuery('.deliv_btn').attr('data-price'));

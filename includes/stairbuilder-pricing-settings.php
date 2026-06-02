@@ -153,6 +153,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					esc_attr( $field['show_when']['equals'] ? '1' : '0' )
 				);
 			}
+			// Conditional disable wrapper — JS greys + disables the input.
+			if ( ! empty( $field['disable_when'] ) ) {
+				$wrapper_attrs .= sprintf(
+					' data-disable-when="%s" data-disable-equals="%s"',
+					esc_attr( $field['disable_when']['field'] ),
+					esc_attr( $field['disable_when']['equals'] ? '1' : '0' )
+				);
+			}
 
 			echo '<div class="stairbuilder-field" data-field-id="' . esc_attr( $id ) . '"' . $wrapper_attrs . '>';
 
@@ -196,6 +204,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		private function render_toggle( $id, $name, $value, $field ) {
+			// Apply per-field default when the option blob doesn't yet contain this key.
+			if ( $value === null && isset( $field['default'] ) ) {
+				$value = $field['default'];
+			}
 			$checked = ! empty( $value );
 			$label   = isset( $field['toggle_label'] ) ? $field['toggle_label'] : '';
 			?>
@@ -479,6 +491,36 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		 * rendered via the standard form-table layout underneath.
 		 */
 		private function render_tab_body( $slug, $tab ) {
+			// Bespoke layout: paired (toggle, price) rows rendered inline on one line.
+			// Fields flagged `sidebar => true` render in a right-hand column.
+			if ( isset( $tab['layout'] ) && $tab['layout'] === 'paired_rows' ) {
+				$main_fields = array();
+				$side_fields = array();
+				foreach ( $tab['fields'] as $f ) {
+					if ( ! empty( $f['sidebar'] ) ) {
+						$side_fields[] = $f;
+					} else {
+						$main_fields[] = $f;
+					}
+				}
+				if ( $side_fields ) {
+					echo '<div class="stairbuilder-paired-tab">';
+					echo '<div class="stairbuilder-paired-main">';
+					$this->render_paired_rows( $main_fields );
+					echo '</div>';
+					echo '<div class="stairbuilder-paired-side">';
+					foreach ( $side_fields as $f ) {
+						echo '<h3 class="stairbuilder-side-title">' . esc_html( $f['label'] ) . '</h3>';
+						$this->render_field( $f );
+					}
+					echo '</div>';
+					echo '</div>';
+				} else {
+					$this->render_paired_rows( $main_fields );
+				}
+				return;
+			}
+
 			$blocks = $this->detect_component_blocks( $tab['fields'] );
 
 			// Does this tab have any component-style blocks?
@@ -569,6 +611,69 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			}
 
 			return $blocks;
+		}
+
+		/**
+		 * Render fields as pairs of (toggle, number) on a single row:
+		 * [✓ Toggle Label  ............  Price Label  £___]
+		 *
+		 * Pairs are detected by sequence — every two consecutive fields form a row.
+		 */
+		private function render_paired_rows( $fields ) {
+			$options = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $options ) ) { $options = array(); }
+			?>
+			<table class="form-table stairbuilder-paired-rows" role="presentation">
+				<tbody>
+			<?php
+			$n = count( $fields );
+			for ( $i = 0; $i < $n; $i += 2 ) {
+				$toggle = isset( $fields[ $i ] )     ? $fields[ $i ]     : null;
+				$price  = isset( $fields[ $i + 1 ] ) ? $fields[ $i + 1 ] : null;
+				if ( ! $toggle || ! $price ) { continue; }
+
+				$toggle_value = isset( $options[ $toggle['id'] ] ) ? $options[ $toggle['id'] ] : null;
+				if ( $toggle_value === null && isset( $toggle['default'] ) ) {
+					$toggle_value = $toggle['default'];
+				}
+				$toggle_on   = ! empty( $toggle_value );
+				$toggle_name = self::OPTION_KEY . '[' . $toggle['id'] . ']';
+				$price_value = isset( $options[ $price['id'] ] ) ? $options[ $price['id'] ] : '';
+				$price_name  = self::OPTION_KEY . '[' . $price['id'] . ']';
+				?>
+				<tr>
+					<th scope="row">
+						<label class="stairbuilder-switch">
+							<input type="hidden" name="<?php echo esc_attr( $toggle_name ); ?>" value="0" />
+							<input type="checkbox"
+								id="<?php echo esc_attr( $toggle['id'] ); ?>"
+								name="<?php echo esc_attr( $toggle_name ); ?>"
+								value="1"
+								<?php checked( $toggle_on ); ?> />
+							<span class="stairbuilder-switch-track"><span class="stairbuilder-switch-thumb"></span></span>
+							<span class="stairbuilder-switch-text"><?php echo esc_html( isset( $toggle['toggle_label'] ) ? $toggle['toggle_label'] : '' ); ?></span>
+						</label>
+					</th>
+					<td>
+						<div class="stairbuilder-field"
+							data-field-id="<?php echo esc_attr( $price['id'] ); ?>"
+							data-disable-when="<?php echo esc_attr( $toggle['id'] ); ?>"
+							data-disable-equals="0">
+							<span class="stairbuilder-currency">£</span>
+							<input type="number" step="any"
+								id="<?php echo esc_attr( $price['id'] ); ?>"
+								name="<?php echo esc_attr( $price_name ); ?>"
+								value="<?php echo esc_attr( $price_value ); ?>"
+								class="small-text" />
+						</div>
+					</td>
+				</tr>
+				<?php
+			}
+			?>
+				</tbody>
+			</table>
+			<?php
 		}
 
 		/**
@@ -663,6 +768,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				.stairbuilder-pricing-wrap .stairbuilder-field { line-height: 28px; }
 				.stairbuilder-pricing-wrap .stairbuilder-field.is-hidden,
 				.stairbuilder-pricing-wrap tr.is-hidden { display: none; }
+				.stairbuilder-pricing-wrap .stairbuilder-field.is-disabled { opacity: 0.45; }
+				.stairbuilder-pricing-wrap .stairbuilder-field.is-disabled input { pointer-events: none; background: #f0f0f1; }
+				.stairbuilder-pricing-wrap .stairbuilder-paired-rows th { width: 280px; }
+				.stairbuilder-pricing-wrap .stairbuilder-paired-tab { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 380px); gap: 32px; align-items: start; }
+				.stairbuilder-pricing-wrap .stairbuilder-paired-side .stairbuilder-side-title { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+				.stairbuilder-pricing-wrap .stairbuilder-paired-side .stairbuilder-repeater { margin-top: 0; }
+				@media (max-width: 960px) { .stairbuilder-pricing-wrap .stairbuilder-paired-tab { grid-template-columns: 1fr; } }
 				.stairbuilder-pricing-wrap .stairbuilder-repeater { margin-top: 8px; max-width: 720px; }
 				.stairbuilder-pricing-wrap .stairbuilder-repeater input { width: 100%; }
 				.stairbuilder-pricing-wrap .form-table th { width: 260px; padding-left: 10px; }
@@ -752,6 +864,19 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							var show = depVal === equals;
 							$field.toggleClass("is-hidden", !show);
 							$field.closest("tr").toggleClass("is-hidden", !show);
+						});
+						// Conditional disable — grey out + disable rather than hide.
+						$(".stairbuilder-field[data-disable-when]").each(function(){
+							var $field = $(this);
+							var depId = $field.data("disable-when");
+							var equals = String($field.data("disable-equals"));
+							var $dep = $("#" + depId);
+							if (!$dep.length) return;
+							var depVal = $dep.is(":checkbox") ? ($dep.is(":checked") ? "1" : "0") : String($dep.val());
+							var disabled = depVal === equals;
+							// Use readonly (still submits the value) rather than disabled (drops it).
+							$field.toggleClass("is-disabled", disabled);
+							$field.find("input, select, textarea").prop("readonly", disabled);
 						});
 					}
 					applyConditionals();
@@ -860,6 +985,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				// Group 1 — per-component pricing.
 				array(
 					'strings',
+					'construction_types',
 					'treads',
 					'risers',
 					'newel_posts',
@@ -897,6 +1023,23 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							],
 						],
 					],
+					'construction_types' => [
+						'label' => 'Construction Types',
+						'fields' => [
+							[
+								'id' => 'building_regs',
+								'label' => 'Applicable Building Regs',
+								'type' => 'repeater',
+								'subfields' => [['id' => 'building_reg_name', 'label' => 'Name', 'type' => 'text'], ['id' => 'building_reg_value', 'label' => 'Value', 'type' => 'text']],
+							],
+							[
+								'id' => 'construction_types',
+								'label' => 'Add Construction Types',
+								'type' => 'repeater',
+								'subfields' => [['id' => 'construction_name', 'label' => 'Construction Name', 'type' => 'text'], ['id' => 'construction_code', 'label' => 'Construction Code', 'type' => 'text'], ['id' => 'construction_value', 'label' => 'Construction Value', 'type' => 'number']],
+							],
+						],
+					],
 					'treads' => [
 						'label' => 'Treads',
 						'fields' => [
@@ -905,6 +1048,12 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Add Tread Types',
 								'type' => 'repeater',
 								'subfields' => [['id' => 'tread_name', 'label' => 'Tread Name', 'type' => 'text'], ['id' => 'tread_code', 'label' => 'Tread Code', 'type' => 'text'], ['id' => 'tread_value', 'label' => 'Tread Value', 'type' => 'number']],
+							],
+							[
+								'id' => 'tread_profiles',
+								'label' => 'Add Tread Profiles',
+								'type' => 'repeater',
+								'subfields' => [['id' => 'tread_profile_name', 'label' => 'Profile Name', 'type' => 'text'], ['id' => 'tread_profile_code', 'label' => 'Profile Code', 'type' => 'text'], ['id' => 'tread_profile_value', 'label' => 'Per-Tread Surcharge', 'type' => 'number']],
 							],
 						],
 					],
@@ -1683,26 +1832,25 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					],
 					'delivery_options' => [
 						'label' => 'Delivery Options',
+						'layout' => 'paired_rows',
 						'fields' => [
+							['id' => 'two_man_delivery_enabled', 'label' => '', 'type' => 'toggle', 'toggle_label' => 'Two Man Delivery', 'default' => 1],
+							['id' => 'two_man_delivery_price', 'label' => 'Two Man Delivery Price', 'type' => 'number', 'disable_when' => ['field' => 'two_man_delivery_enabled', 'equals' => false]],
+							['id' => 'part_assembled_enabled', 'label' => '', 'type' => 'toggle', 'toggle_label' => 'Part Assembled', 'default' => 1],
+							['id' => 'part_assembled_price', 'label' => 'Part Assembled Price', 'type' => 'number', 'disable_when' => ['field' => 'part_assembled_enabled', 'equals' => false]],
+							['id' => 'fixing_kit_enabled', 'label' => '', 'type' => 'toggle', 'toggle_label' => 'Fixing Kit', 'default' => 1],
+							['id' => 'fixing_kit_price', 'label' => 'Fixing Kit Price', 'type' => 'number', 'disable_when' => ['field' => 'fixing_kit_enabled', 'equals' => false]],
+							['id' => 'extra_packaging_enabled', 'label' => '', 'type' => 'toggle', 'toggle_label' => 'Extra Packaging', 'default' => 1],
+							['id' => 'extra_packaging_price', 'label' => 'Extra Packaging Price', 'type' => 'number', 'disable_when' => ['field' => 'extra_packaging_enabled', 'equals' => false]],
 							[
-								'id' => 'two_man_delivery_price',
-								'label' => 'Two Man Delivery Price',
-								'type' => 'number',
-							],
-							[
-								'id' => 'part_assembled_price',
-								'label' => 'Part Assembled Price',
-								'type' => 'number',
-							],
-							[
-								'id' => 'fixing_kit_price',
-								'label' => 'Fixing Kit Price',
-								'type' => 'number',
-							],
-							[
-								'id' => 'extra_packaging_price',
-								'label' => 'Extra Packaging Price',
-								'type' => 'number',
+								'id' => 'project_delivery_dates',
+								'label' => 'Project Delivery Date',
+								'type' => 'repeater',
+								'sidebar' => true,
+								'description' => 'Populates the front-end "Project Delivery Date" dropdown — captures enquiry urgency.',
+								'subfields' => [
+									['id' => 'project_delivery_date_name', 'label' => 'Name', 'type' => 'text'],
+								],
 							],
 						],
 					],

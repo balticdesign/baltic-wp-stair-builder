@@ -266,17 +266,45 @@ foreach ($fields as $field) {
     <label class="tab-label" for="chck2">Construction</label>
     <div class="tab-content">
     <div class="form-row">
+    <label for="building_regs">Applicable Building Regs:</label>
+      <select id="building_regs" name="building_regs">
+    <?php if (!empty($building_regs_options)): ?>
+      <?php foreach ($building_regs_options as $br_option): ?>
+        <option value="<?php echo esc_attr($br_option['code']); ?>">
+          <?php echo esc_html($br_option['name']); ?>
+        </option>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <option value="">No options available</option>
+    <?php endif; ?>
+      </select>
+    </div>
+    <div class="form-row">
     <label for="construction_type">Construction Type:</label>
       <select id="construction_type" name="construction_type">
-        <option data-price="0" value="standard">Standard Closed String</option>
-        <option data-price="<?php echo $cut_string_price; ?>" value="cut">Cut String</option>
+    <?php if (!empty($construction_options)): ?>
+      <?php foreach ($construction_options as $c_option): ?>
+        <option data-price="<?php echo esc_attr($c_option['value']); ?>" value="<?php echo esc_attr($c_option['code']); ?>">
+          <?php echo esc_html($c_option['name']); ?>
+        </option>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <option value="">No options available</option>
+    <?php endif; ?>
       </select>
     </div>
     <div class="form-row">
     <label for="tread-profile">Tread Profile:</label>
       <select id="tread-profile" name="tread-profile">
-        <option value="rounded">25mm Rounded</option>
-        <option value="square">25mm Square</option>
+    <?php if (!empty($tread_profile_options)): ?>
+      <?php foreach ($tread_profile_options as $tp_option): ?>
+        <option data-price="<?php echo esc_attr($tp_option['value']); ?>" value="<?php echo esc_attr($tp_option['code']); ?>">
+          <?php echo esc_html($tp_option['name']); ?>
+        </option>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <option value="">No options available</option>
+    <?php endif; ?>
       </select>
     </div>
     <div class="form-row">
@@ -330,7 +358,7 @@ foreach ($fields as $field) {
     <button type="button" id="all_oak">Set all to Oak</button>
     <div class="form-row">
     <label for="stringer_material">Stringer:</label>
-    <select id="stringer_material" name="construction_type">
+    <select id="stringer_material" name="stringer_material">
     <?php if (!empty($stringer_options)): ?>
       <?php foreach ($stringer_options as $str_option): ?>
         <option value="<?php echo esc_attr($str_option['code']) . ':' . esc_attr($str_option['value']); ?>">
@@ -411,6 +439,19 @@ foreach ($fields as $field) {
 <input type="radio" class="form-chk" id="chck4" name="rd">
     <label class="tab-label" for="chck4">Packaging & Delivery</label>
     <div class="tab-content">
+      <?php if (!empty($project_delivery_date_options)) { ?>
+      <div class="form-row">
+        <label for="project_delivery_date">Project Delivery Date:</label>
+        <select id="project_delivery_date" name="project_delivery_date">
+          <option value="" disabled selected>Choose a delivery timeframe</option>
+          <?php foreach ($project_delivery_date_options as $pdd_option): ?>
+            <option value="<?php echo esc_attr($pdd_option['code']); ?>">
+              <?php echo esc_html($pdd_option['name']); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <?php } ?>
       <h5>Delivery Options</h5>
       <div class="delivery form-row rdbuttons">
           <input id="collected" type="radio" name="delivery" class="p radio__radio" checked>
@@ -418,12 +459,14 @@ foreach ($fields as $field) {
           <input id="delivery" type="radio" name="delivery" class="p radio__radio">
           <label for="delivery" class="d radio__label vertical-icon"><img src="<?php echo plugin_dir_url( __FILE__ ) . '../assets/images/delivery.svg' ?>" alt="icon"> Kerb Side Delivery </label>
       </div>
+      <?php if ($two_man_delivery_enabled) { ?>
       <div class="ksd form-row">
       <h5>Extra Options:</h5>
       <div class="chkboxbttn">
           <input id="duodeliv" type="checkbox" name="duodeliv" class="a chkbx" value="<?php echo $two_man_delivery_price; ?>">
           <label for="duodeliv" class="p chkbx__label">2 man delivery @ £<?php echo $two_man_delivery_price; ?> extra</label>
       </div></div>
+      <?php } ?>
       <div class="pcode rdbuttons form-row">
         <input id="postcode" name="postcode" type="text" placeholder="Your postcode" class="input__form ng-pristine ng-valid ng-touched" style="margin-top: 0;">
         <button class="input__btn deliv_btn input__btn--active" data-price="0"> Update Delivery (£0) </button>
@@ -432,20 +475,28 @@ foreach ($fields as $field) {
       <div class="packg form-row rdbuttons">
           <input id="flatpkg" type="radio" name="package" class="d radio__radio" checked>
           <label for="flatpkg" class="p radio__label">Flat Packed </label>
+          <?php if ($part_assembled_enabled) { ?>
           <input id="asspkg" type="radio" name="package" class="d radio__radio" value="<?php echo $part_assembled_price; ?>">
           <label for="asspkg" class="p radio__label">Part Assembled</label>
+          <?php } ?>
       </div>
+      <?php if ($fixing_kit_enabled || $extra_packaging_enabled) { ?>
       <h5>Add Ons</h5>
+      <?php } ?>
       <div class="addon form-row rdbuttons">
+        <?php if ($fixing_kit_enabled) { ?>
         <div class="chkboxbttn">
           <input id="fixkit" type="checkbox" name="addon" class="a chkbx" checked value="<?php echo $fixing_kit_price; ?>">
           <label for="fixkit" class="p chkbx__label">Fixing Kit </label>
           </div>
+        <?php } ?>
+        <?php if ($extra_packaging_enabled) { ?>
           <div class="chkboxbttn">
           <input id="xtrap" type="checkbox" name="addon" class="a chkbx" value="<?php echo $extra_packaging_price; ?>">
-          <input type="hidden" id="vatRate" value="<?php echo do_shortcode('[vat_rate]'); ?>">
           <label for="xtrap" class="p chkbx__label">Extra Packaging </label>
           </div>
+        <?php } ?>
+          <input type="hidden" id="vatRate" value="<?php echo do_shortcode('[vat_rate]'); ?>">
       </div>
   </div>
 </div>

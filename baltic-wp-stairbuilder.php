@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		1.8.4
+Version:		1.9.2
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '1.7.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '1.9.2' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -104,6 +104,36 @@ function custom_enqueue_files() {
 
 	wp_enqueue_style( 'builder-style', plugin_dir_url( __FILE__ ) . 'assets/css/builder.css', array(), BALTIC_STAIRBUILDER_VERSION );
 	wp_enqueue_style( 'baltic-stair-layout', plugin_dir_url( __FILE__ ) . 'assets/css/layout.css', array(), BALTIC_STAIRBUILDER_VERSION );
+
+	// Brand Colours — emit per-box CSS custom properties from the admin
+	// settings. Only set vars override layout.css's built-in fallbacks, so
+	// an unconfigured box keeps its default appearance.
+	$bd_brand_colour_vars = array(
+		'--bd-form-bg'    => stairbuilder_get_option( 'form_bg' ),
+		'--bd-form-text'  => stairbuilder_get_option( 'form_text' ),
+		'--bd-form-link'  => stairbuilder_get_option( 'form_link' ),
+		'--bd-tab-bg'          => stairbuilder_get_option( 'tab_bg' ),
+		'--bd-tab-text'        => stairbuilder_get_option( 'tab_text' ),
+		'--bd-tab-hover-bg'    => stairbuilder_get_option( 'tab_hover_bg' ),
+		'--bd-tab-active-bg'   => stairbuilder_get_option( 'tab_active_bg' ),
+		'--bd-tab-active-text' => stairbuilder_get_option( 'tab_active_text' ),
+		'--bd-mm-bg'      => stairbuilder_get_option( 'measurements_bg' ),
+		'--bd-mm-text'    => stairbuilder_get_option( 'measurements_text' ),
+		'--bd-mm-link'    => stairbuilder_get_option( 'measurements_link' ),
+		'--bd-quote-bg'   => stairbuilder_get_option( 'quote_bg' ),
+		'--bd-quote-text' => stairbuilder_get_option( 'quote_text' ),
+		'--bd-quote-link' => stairbuilder_get_option( 'quote_link' ),
+	);
+	$bd_brand_colour_decls = '';
+	foreach ( $bd_brand_colour_vars as $var => $val ) {
+		$hex = sanitize_hex_color( (string) $val );
+		if ( $hex ) {
+			$bd_brand_colour_decls .= $var . ':' . $hex . ';';
+		}
+	}
+	if ( $bd_brand_colour_decls !== '' ) {
+		wp_add_inline_style( 'baltic-stair-layout', '.bd-stairbuilder-layout{' . $bd_brand_colour_decls . '}' );
+	}
 	wp_enqueue_script( 'baltic-stair-layout', plugin_dir_url( __FILE__ ) . 'assets/js/layout.js', array(), BALTIC_STAIRBUILDER_VERSION, true );
 
 	wp_add_inline_script( 'stairbuilder', 'var pluginDirUrl = "' . plugin_dir_url( __FILE__ ) . '";' );

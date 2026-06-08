@@ -16,20 +16,20 @@ input.form-chk {
   
   .form-tab {
     width: 100%;
-    color: white;
+    color: var(--bd-tab-text, #ffffff);
     overflow: hidden;
   }
   .tab-label {
     display: flex;
     justify-content: space-between;
     padding: 1em;
-    background: #302f2f;
+    background: var(--bd-tab-bg, #302f2f);
     font-weight: bold;
     cursor: pointer;
     /* Icon */
   }
   .tab-label:hover {
-    background: #463f3f;
+    background: var(--bd-tab-hover-bg, #463f3f);
   }
   .tab-label::after {
     content: "\276F";
@@ -51,15 +51,16 @@ input.form-chk {
     justify-content: flex-end;
     padding: 1em;
     font-size: 0.75em;
-    background: #302f2f;
+    background: var(--bd-tab-bg, #302f2f);
     cursor: pointer;
   }
   .tab-close:hover {
-    background: #463f3f;
+    background: var(--bd-tab-hover-bg, #463f3f);
   }
   
   input:checked + .tab-label {
-    background: #1a252f;
+    background: var(--bd-tab-active-bg, #1a252f);
+    color: var(--bd-tab-active-text, #ffffff);
   }
   input:checked + .tab-label::after {
     transform: rotate(90deg);

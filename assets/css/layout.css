@@ -52,13 +52,15 @@
   overflow-y: auto;
   margin: 0;
   padding: 16px 16px 24px;
-  background: #ffffff;
+  background: var(--bd-form-bg, #ffffff);
+  color: var(--bd-form-text, #222222);
   box-shadow: var(--bd-panel-shadow);
   box-sizing: border-box;
   z-index: 100;
   transform: translateY(-50%) translateX(0);
   transition: transform var(--bd-transition);
 }
+.bd-stairbuilder-layout #stairbuild a { color: var(--bd-form-link, #5a300d); }
 .bd-stairbuilder-layout.is-form-collapsed #stairbuild { transform: translateY(-50%) translateX(-100%); }
 
 /* ------------ Measurements panel (fixed, right top, below header) ------------ */
@@ -72,8 +74,8 @@
   max-height: 70vh;
   margin: 0;
   padding: 16px 20px;
-  background-color: #5a300d;
-  color: #ffffff;
+  background-color: var(--bd-mm-bg, #5a300d);
+  color: var(--bd-mm-text, #ffffff);
   border-radius: 8px 0 0 8px;
   box-shadow: var(--bd-panel-shadow);
   box-sizing: border-box;
@@ -81,6 +83,7 @@
   transform: translateX(0);
   transition: transform var(--bd-transition);
 }
+.bd-stairbuilder-layout .mm_breakout a { color: var(--bd-mm-link, #ffffff); }
 .bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout { transform: translateX(100%); }
 
 /* ------------ Quote panel (fixed, right bottom) — overrides builder.css ------------ */
@@ -93,8 +96,8 @@
   width: var(--bd-side-width);
   margin: 0;
   padding: 16px 20px;
-  background-color: #292003;
-  color: #ffffff;
+  background-color: var(--bd-quote-bg, #292003);
+  color: var(--bd-quote-text, #ffffff);
   border-radius: 8px 0 0 0;
   box-shadow: var(--bd-panel-shadow);
   box-sizing: border-box;
@@ -102,6 +105,7 @@
   transform: translateX(0);
   transition: transform var(--bd-transition);
 }
+.bd-stairbuilder-layout .breakout a { color: var(--bd-quote-link, #ffffff); }
 .bd-stairbuilder-layout.is-quote-collapsed .breakout { transform: translateX(100%); }
 
 /* ------------ Close X (injected by JS) ------------ */
@@ -399,10 +403,13 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
  * earlier rule of equal specificity.
  * ---------------------------------------------------------------- */
 
-/* Bug fix: breakout info-box <h4> labels were unreadable (dark on dark). */
-.bd-stairbuilder-layout .mm_breakout h4,
+/* Bug fix: breakout info-box <h4> labels were unreadable (dark on dark).
+   Headings follow each box's configurable text colour (Brand Colours tab). */
+.bd-stairbuilder-layout .mm_breakout h4 {
+  color: var(--bd-mm-text, #fff);
+}
 .bd-stairbuilder-layout .breakout h4 {
-  color: #fff;
+  color: var(--bd-quote-text, #fff);
 }
 
 /* Tighten spacing under sub-section headings. */
@@ -458,7 +465,7 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
  * ---------------------------------------------------------------- */
 
 .bd-stairbuilder-layout #stairbuild {
-  background: #ffffff;
+  background: var(--bd-form-bg, #ffffff);
   border: 1px solid #e5dfd2;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(90, 48, 13, 0.08);
@@ -479,17 +486,17 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
 
 /* ---------------------------------------------------------------- *
  * v1.6.1 — breakout box handles match their box backgrounds
- * NOTE: hard-coded values; will become CSS custom properties in v1.7.0
- * when the customisable colour-scheme feature lands.
+ * Handles inherit each box's configurable Brand Colours so the slide-in
+ * tabs always match the panel they belong to.
  * ---------------------------------------------------------------- */
 
 .bd-stairbuilder-layout .bd-handle--measurements {
-  background: #5a300d;
-  color: #fff;
+  background: var(--bd-mm-bg, #5a300d);
+  color: var(--bd-mm-text, #fff);
 }
 .bd-stairbuilder-layout .bd-handle--quote {
-  background: #5a300d;
-  color: #fff;
+  background: var(--bd-quote-bg, #5a300d);
+  color: var(--bd-quote-text, #fff);
 }
 .bd-stairbuilder-layout .bd-handle--form {
   background: #97804a;

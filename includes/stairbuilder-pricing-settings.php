@@ -271,6 +271,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		private function render_color( $id, $name, $value, $field ) {
+			// Apply per-field default when the option blob doesn't yet contain this key.
+			if ( $value === null && isset( $field['default'] ) ) {
+				$value = $field['default'];
+			}
 			?>
 			<input type="text"
 				id="<?php echo esc_attr( $id ); ?>"
@@ -517,6 +521,35 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					echo '</div>';
 				} else {
 					$this->render_paired_rows( $main_fields );
+				}
+				return;
+			}
+
+			// Bespoke layout: simple multi-column grid of plain fields. Each
+			// field renders its own label above the input (no form-table <th>).
+			if ( isset( $tab['layout'] ) && $tab['layout'] === 'grid' ) {
+				// A field carrying a `group` key starts a new bordered section;
+				// following fields without one belong to the current section.
+				$open = false;
+				foreach ( $tab['fields'] as $f ) {
+					if ( isset( $f['group'] ) || ! $open ) {
+						if ( $open ) {
+							echo '</div></div>'; // close .stairbuilder-grid + .stairbuilder-grid-group
+						}
+						echo '<div class="stairbuilder-grid-group">';
+						if ( ! empty( $f['group'] ) ) {
+							echo '<h3 class="stairbuilder-grid-group-title">' . esc_html( $f['group'] ) . '</h3>';
+						}
+						echo '<div class="stairbuilder-grid">';
+						$open = true;
+					}
+					echo '<div class="stairbuilder-grid-item">';
+					echo '<label class="stairbuilder-grid-label" for="' . esc_attr( $f['id'] ) . '">' . esc_html( $f['label'] ) . '</label>';
+					$this->render_field( $f );
+					echo '</div>';
+				}
+				if ( $open ) {
+					echo '</div></div>';
 				}
 				return;
 			}
@@ -779,6 +812,15 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				.stairbuilder-pricing-wrap .stairbuilder-repeater input { width: 100%; }
 				.stairbuilder-pricing-wrap .form-table th { width: 260px; padding-left: 10px; }
 
+				/* Grid layout — plain fields (e.g. Brand Colours) flow in columns */
+				.stairbuilder-pricing-wrap .stairbuilder-grid-group { border: 1px solid #dcdcde; border-radius: 12px; padding: 20px 24px; margin: 0 0 20px; background: #fdfdfd; }
+				.stairbuilder-pricing-wrap .stairbuilder-grid-group-title { margin: 0 0 14px; font-size: 14px; font-weight: 600; color: #1d2327; }
+				.stairbuilder-pricing-wrap .stairbuilder-grid { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-top: 8px; }
+				.stairbuilder-pricing-wrap .stairbuilder-grid-item { flex: 0 1 calc(33.333% - 24px); min-width: 200px; box-sizing: border-box; }
+				.stairbuilder-pricing-wrap .stairbuilder-grid-label { display: block; font-weight: 600; margin-bottom: 4px; color: #1d2327; }
+				@media (max-width: 1200px) { .stairbuilder-pricing-wrap .stairbuilder-grid-item { flex-basis: calc(50% - 24px); } }
+				@media (max-width: 600px) { .stairbuilder-pricing-wrap .stairbuilder-grid-item { flex-basis: 100%; } }
+
 				/* Component rows — 3-column layout for toggle-bearing pricing items */
 				.stairbuilder-pricing-wrap .stairbuilder-components { display: flex; flex-direction: column; gap: 12px; }
 				.stairbuilder-pricing-wrap .stairbuilder-component {
@@ -1001,7 +1043,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'half_landing',
 					'postcode_areas',
 					'delivery_options',
-					'2d_staircase_colours',
+					'brand_colours',
 				),
 			);
 		}
@@ -1854,13 +1896,104 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							],
 						],
 					],
-					'2d_staircase_colours' => [
-						'label' => '2D Staircase Colours',
+					'brand_colours' => [
+						'label' => 'Brand Colours',
+						'layout' => 'grid',
 						'fields' => [
+							// --- Popout box: Form panel (#stairbuild) ---
+							[
+								'id' => 'form_bg',
+								'label' => 'Form Box — Background',
+								'type' => 'color',
+								'default' => '#ffffff',
+								'group' => 'Popout Boxes & Tabs',
+							],
+							[
+								'id' => 'form_text',
+								'label' => 'Form Box — Text',
+								'type' => 'color',
+								'default' => '#222222',
+							],
+							[
+								'id' => 'form_link',
+								'label' => 'Form Box — Links',
+								'type' => 'color',
+								'default' => '#5a300d',
+							],
+							[
+								'id' => 'tab_bg',
+								'label' => 'Inactive Tab — Background',
+								'type' => 'color',
+								'default' => '#302f2f',
+							],
+							[
+								'id' => 'tab_text',
+								'label' => 'Inactive Tab — Text',
+								'type' => 'color',
+								'default' => '#ffffff',
+							],
+							[
+								'id' => 'tab_hover_bg',
+								'label' => 'Inactive Tab — Hover',
+								'type' => 'color',
+								'default' => '#463f3f',
+							],
+							[
+								'id' => 'tab_active_bg',
+								'label' => 'Active Tab — Background',
+								'type' => 'color',
+								'default' => '#1a252f',
+							],
+							[
+								'id' => 'tab_active_text',
+								'label' => 'Active Tab — Text',
+								'type' => 'color',
+								'default' => '#ffffff',
+							],
+							// --- Popout box: Measurements panel (.mm_breakout) ---
+							[
+								'id' => 'measurements_bg',
+								'label' => 'Measurements Box — Background',
+								'type' => 'color',
+								'default' => '#5a300d',
+							],
+							[
+								'id' => 'measurements_text',
+								'label' => 'Measurements Box — Text',
+								'type' => 'color',
+								'default' => '#ffffff',
+							],
+							[
+								'id' => 'measurements_link',
+								'label' => 'Measurements Box — Links',
+								'type' => 'color',
+								'default' => '#ffffff',
+							],
+							// --- Popout box: Quote panel (.breakout) ---
+							[
+								'id' => 'quote_bg',
+								'label' => 'Quote Box — Background',
+								'type' => 'color',
+								'default' => '#292003',
+							],
+							[
+								'id' => 'quote_text',
+								'label' => 'Quote Box — Text',
+								'type' => 'color',
+								'default' => '#ffffff',
+							],
+							[
+								'id' => 'quote_link',
+								'label' => 'Quote Box — Links',
+								'type' => 'color',
+								'default' => '#ffffff',
+							],
+							// --- 2D staircase diagram colours ---
 							[
 								'id' => 'treads_fill',
 								'label' => 'Treads - Fill',
 								'type' => 'color',
+								'group' => '2D Staircase Diagram',
 							],
 							[
 								'id' => 'treads_outline',

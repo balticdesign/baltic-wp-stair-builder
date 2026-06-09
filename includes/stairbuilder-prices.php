@@ -152,23 +152,37 @@ $project_delivery_date_options = bd_stairbuilder_normalise_repeater(
 
 $cut_string_price = stairbuilder_get_option('cut_string_price');
 
-//NEWEL CAPS
-// $pine_pyramid = stairbuilder_get_option('pine_pyramid_cap_price');
-// $oak_pyramid = stairbuilder_get_option('oak_pyramid_cap_price');
-// $pine_ball = stairbuilder_get_option('pine_ball_cap_price');
-// $oak_ball = stairbuilder_get_option('oak_ball_cap_price');
+// NEWEL POSTS / CAPS / HANDRAILS / SPINDLES — admin-managed repeater rows.
+// Type selects only need name + code; price resolution stays server-side via
+// the fetch_sp_prices AJAX. Caps additionally need caps_per_newel, mapped into
+// the `value` slot so the front-end can build `{code}:{caps_per_newel}` options.
+$newel_type_options = bd_stairbuilder_normalise_repeater(
+    stairbuilder_get_option( 'newel_types', array() ),
+    'name',
+    'code',
+    'code'
+);
 
-//SPINDLES
-// $pine_spindle = stairbuilder_get_option('pine_spindle_price');
-// $oak_spindle = stairbuilder_get_option('oak_spindle_price');
+$cap_type_options = bd_stairbuilder_normalise_repeater(
+    stairbuilder_get_option( 'cap_types', array() ),
+    'name',
+    'code',
+    'caps_per_newel'
+);
 
-//HANDRAILS
-// $pine_crwn_hand_price = stairbuilder_get_option('pine_crwn_hand_price');
-// $oak_crwn_hand_price = stairbuilder_get_option('oak_crwn_hand_price');
-// $pine_hdr_hand_price = stairbuilder_get_option('pine_hdr_hand_price');
-// $oak_hdr_hand_price = stairbuilder_get_option('oak_hdr_hand_price');
-//$pine_handrail = stairbuilder_get_option('pine_ballustrade_price');
-//$oak_handrail = stairbuilder_get_option('oak_ballustrade_price');
+$handrail_type_options = bd_stairbuilder_normalise_repeater(
+    stairbuilder_get_option( 'handrail_types', array() ),
+    'name',
+    'code',
+    'code'
+);
+
+$spindle_type_options = bd_stairbuilder_normalise_repeater(
+    stairbuilder_get_option( 'spindle_types', array() ),
+    'name',
+    'code',
+    'code'
+);
 
 //HANDRAILS
 $pine_baserail = stairbuilder_get_option('pine_baserail_price');

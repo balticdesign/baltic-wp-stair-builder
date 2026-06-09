@@ -13,27 +13,66 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-function getPriceAndID($optionsMap, $type){
-  $pine_id = $oak_id = null;
-  if (array_key_exists($type, $optionsMap)) {
-    $option = $optionsMap[$type];
-    if (!$option['option']) {
-        $pinePrice = stairbuilder_get_option($option['price']['pine']);
-        $oakPrice = stairbuilder_get_option($option['price']['oak']);
-    } else {
-        $pine_id = stairbuilder_get_option($option['id']['pine']);
-        $oak_id = stairbuilder_get_option($option['id']['oak']);
-
-        $pine_product = function_exists('wc_get_product') ? wc_get_product($pine_id) : null;
-        $pinePrice = $pine_product ? $pine_product->get_price() : stairbuilder_get_option($option['price']['pine']);
-
-        $oak_product = function_exists('wc_get_product') ? wc_get_product($oak_id) : null;
-        $oakPrice = $oak_product ? $oak_product->get_price() : stairbuilder_get_option($option['price']['oak']);
-    }
-  } else {
-    $pinePrice = stairbuilder_get_option($optionsMap['default']['price']['pine']);
-    $oakPrice = stairbuilder_get_option($optionsMap['default']['price']['oak']);
+/**
+ * Find a repeater row by its `code`, falling back to the first row when the
+ * code is missing or not found. Returns null only for an empty/invalid set.
+ *
+ * @param array  $rows Repeater rows (each with at least a `code`).
+ * @param string $code Selected code from the form.
+ * @return array|null
+ */
+function bd_sb_find_row($rows, $code) {
+  if (!is_array($rows) || empty($rows)) {
+    return null;
   }
+  foreach ($rows as $row) {
+    if (is_array($row) && isset($row['code']) && (string) $row['code'] === (string) $code) {
+      return $row;
+    }
+  }
+  // Sensible default = first row. For caps a "none"/unknown code is harmless:
+  // the qty multiplier (0) zeroes the cap cost regardless of which row's
+  // price is returned, preserving the calc contract.
+  return is_array($rows[0]) ? $rows[0] : null;
+}
+
+/**
+ * Build the pine/oak <option> pair for a material select from a repeater row.
+ *
+ * Output contract is unchanged from the legacy flat-key version — the price is
+ * encoded as `value="pine:PRICE"` with the WC id in data-product-id — so
+ * priceCalc.js needs no changes. When the row's per-row Use-Product-ID switch
+ * is on, the live WooCommerce product price overrides the direct price.
+ *
+ * @param array|null $row Resolved repeater row.
+ * @return string[] [pine <option>, oak <option>]
+ */
+function getPriceAndID($row){
+  $pine_id = $oak_id = null;
+
+  if (!is_array($row)) {
+    return [
+      '<option data-product-id="" value="pine:0">Pine</option>',
+      '<option data-product-id="" value="oak:0">Oak</option>'
+    ];
+  }
+
+  $pinePrice = isset($row['pine_price']) ? $row['pine_price'] : 0;
+  $oakPrice  = isset($row['oak_price'])  ? $row['oak_price']  : 0;
+
+  if (!empty($row['use_product_id'])) {
+    $pine_id = isset($row['pine_id']) ? $row['pine_id'] : null;
+    $oak_id  = isset($row['oak_id'])  ? $row['oak_id']  : null;
+
+    $pine_product = function_exists('wc_get_product') ? wc_get_product($pine_id) : null;
+    if ($pine_product) { $pinePrice = $pine_product->get_price(); }
+
+    $oak_product = function_exists('wc_get_product') ? wc_get_product($oak_id) : null;
+    if ($oak_product) { $oakPrice = $oak_product->get_price(); }
+  }
+
+  if ($pinePrice === '' || $pinePrice === null) { $pinePrice = 0; }
+  if ($oakPrice === '' || $oakPrice === null) { $oakPrice = 0; }
 
   return [
     '<option data-product-id="'.$pine_id.'" value="pine:' . $pinePrice . '">' . 'Pine' . '</option>',
@@ -49,128 +88,24 @@ function fetch_sp_prices() {
     wp_send_json_error('Nonce verification failed');
   }
 
-  $newelType = $_POST['newelType'];
-  $capType = $_POST['capType'];
-  $hrType = $_POST['hrType'];
-  $spindleType = $_POST['spindleType'];
+  $newelType   = isset($_POST['newelType'])   ? sanitize_text_field(wp_unslash($_POST['newelType']))   : '';
+  $capType     = isset($_POST['capType'])      ? sanitize_text_field(wp_unslash($_POST['capType']))     : '';
+  $hrType      = isset($_POST['hrType'])       ? sanitize_text_field(wp_unslash($_POST['hrType']))      : '';
+  $spindleType = isset($_POST['spindleType'])  ? sanitize_text_field(wp_unslash($_POST['spindleType'])) : '';
 
-  $newel_options = [
-    'square' => [
-        'option' => stairbuilder_get_option('square_newel_option'),
-        'id' => ['pine' => 'pine_square_newel_post_id', 'oak' => 'oak_newel_post_id'],
-        'price' => ['pine' => 'pine_newel_post_price', 'oak' => 'oak_newel_post_price']
-    ],
-    'chamfered' => [
-        'option' => stairbuilder_get_option('chamfered_newel_option'),
-        'id' => ['pine' => 'pine_chmf_newel_post_id', 'oak' => 'oak_chmf_newel_post_id'],
-        'price' => ['pine' => 'pine_chmf_newel_price', 'oak' => 'oak_chmf_newel_price']
-    ],
-    'turned' => [
-        'option' => stairbuilder_get_option('turned_newel_option'),
-        'id' => ['pine' => 'pine_trn_newel_id', 'oak' => 'oak_trn_newel_id'],
-        'price' => ['pine' => 'pine_trn_newel_price', 'oak' => 'oak_trn_newel_price']
-    ],
-    'base' => [
-        'option' => stairbuilder_get_option('newel_base_option'),
-        'id' => ['pine' => 'pine_newel_base_id', 'oak' => 'oak_newel_base_id'],
-        'price' => ['pine' => 'pine_newel_base_price', 'oak' => 'oak_newel_base_price']
-    ],
-    'default' => [
-        'option' => null,
-        'id' => ['pine' => null, 'oak' => null],
-        'price' => ['pine' => 'pine_newel_post_price', 'oak' => 'oak_newel_post_price']
-    ]
-  ];
-
-  $cap_options = [
-    'pyramid' => [
-      'option' => stairbuilder_get_option('pyr_cap_option'),
-      'id' => ['pine' => 'pine_pyramid_cap_id', 'oak' => 'oak_pyramid_cap_id'],
-      'price' => ['pine' => 'pine_pyramid_cap_price', 'oak' => 'oak_pyramid_cap_price']
-    ],
-    'ball' => [
-      'option' => stairbuilder_get_option('ball_cap_option'),
-      'id' => ['pine' => 'pine_ball_cap_id', 'oak' => 'oak_ball_cap_id'],
-      'price' => ['pine' => 'pine_ball_cap_price', 'oak' => 'oak_ball_cap_price']
-    ],
-    'flat' => [
-      'option' => stairbuilder_get_option('flat_cap_option'),
-      'id' => ['pine' => 'pine_flat_cap_id', 'oak' => 'oak_flat_cap_id'],
-      'price' => ['pine' => 'pine_flat_cap_price', 'oak' => 'oak_flat_cap_price']
-    ],
-    'default' => [
-      'option' => null,
-      'id' => ['pine' => null, 'oak' => null],
-      'price' => ['pine' => 'pine_pyramid_cap_price', 'oak' => 'oak_pyramid_cap_price']
-    ]
-  ];
-
-  $handrail_options = [
-    'crown' => [
-      'option' => stairbuilder_get_option('crwn_hand_option'),
-      'id' => ['pine' => 'pine_crwn_hand_id', 'oak' => 'oak_crwn_hand_id'],
-      'price' => ['pine' => 'pine_crwn_hand_price', 'oak' => 'oak_crwn_hand_price']
-    ],
-    'hdr' => [
-      'option' => stairbuilder_get_option('hdr_hand_option'),
-      'id' => ['pine' => 'pine_hdr_hand_id', 'oak' => 'oak_hdr_hand_id'],
-      'price' => ['pine' => 'pine_hdr_hand_price', 'oak' => 'oak_hdr_hand_price']
-    ],
-    'default' => [
-      'option' => null,
-      'id' => ['pine' => null, 'oak' => null],
-      'price' => ['pine' => 'pine_crwn_hand_price', 'oak' => 'oak_crwn_hand_price']
-    ]
-  ];
-
-  $spindleMap = [
-    'chamfered' => [
-      'option' => stairbuilder_get_option('chmf_spin_option'),
-      'id' => ['pine' => 'pine_chmf_spindle_price_id', 'oak' => 'oak_chmf_spindle_id'],
-      'price' => ['pine' => 'pine_chmf_spindle_price', 'oak' => 'oak_chmf_spindle_price']
-    ],
-    'edwardian' => [
-      'option' => stairbuilder_get_option('edwa_spin_option'),
-      'id' => ['pine' => 'pine_edwa_spindle_id', 'oak' => 'oak_edwa_spindle_id'],
-      'price' => ['pine' => 'pine_edwa_spindle_price', 'oak' => 'oak_edwa_spindle_price']
-    ],
-    'twist' => [
-      'option' => stairbuilder_get_option('twist_spin_option'),
-      'id' => ['pine' => 'pine_twist_spindle_id', 'oak' => 'oak_twist_spindle_id'],
-      'price' => ['pine' => 'pine_twist_spindle_price', 'oak' => 'oak_twist_spindle_price']
-    ],
-    'flute' => [
-      'option' => stairbuilder_get_option('flute_spin_option'),
-      'id' => ['pine' => 'pine_flt_spindle_id', 'oak' => 'oak_flt_spindle_id'],
-      'price' => ['pine' => 'pine_flt_spindle_price', 'oak' => 'oak_flt_spindle_price']
-    ],
-    'tulip' => [
-      'option' => stairbuilder_get_option('tulip_spin_option'),
-      'id' => ['pine' => 'pine_tlp_spindle_id', 'oak' => 'oak_tlp_spindle_id'],
-      'price' => ['pine' => 'pine_tlp_spindle_price', 'oak' => 'oak_tlp_spindle_price']
-    ],
-    'victorian' => [
-      'option' => stairbuilder_get_option('vtrn_spin_option'),
-      'id' => ['pine' => 'pine_vtrn_spindle_id', 'oak' => 'oak_vtrn_spindle_id'],
-      'price' => ['pine' => 'pine_vtrn_spindle_price', 'oak' => 'oak_vtrn_spindle_price']
-    ],
-    'provincial' => [
-      'option' => stairbuilder_get_option('prv_spin_option'),
-      'id' => ['pine' => 'pine_prv_spindle_id', 'oak' => 'oak_prv_spindle_id'],
-      'price' => ['pine' => 'pine_prv_spindle_price', 'oak' => 'oak_prv_spindle_price']
-    ],
-    'default' => [
-      'option' => null,
-      'id' => ['pine' => null, 'oak' => null],
-      'price' => ['pine' => 'pine_chmf_spindle_price', 'oak' => 'oak_chmf_spindle_price']
-    ]
-  ];
+  // Component pricing is now driven by admin-managed repeater rows. Each row
+  // carries its own name/code, per-row Use-Product-ID switch, and pine/oak
+  // price + product ID — resolved by code (default = first row).
+  $newel_rows    = stairbuilder_get_option('newel_types', array());
+  $cap_rows      = stairbuilder_get_option('cap_types', array());
+  $handrail_rows = stairbuilder_get_option('handrail_types', array());
+  $spindle_rows  = stairbuilder_get_option('spindle_types', array());
 
   $form_options = array(
-    'newel_options' => getPriceAndID($newel_options, $newelType),
-    'cap_options' => getPriceAndID($cap_options, $capType),
-    'handrail_options' => getPriceAndID($handrail_options, $hrType),
-    'spindle_options' => getPriceAndID($spindleMap, $spindleType),
+    'newel_options'    => getPriceAndID(bd_sb_find_row($newel_rows, $newelType)),
+    'cap_options'      => getPriceAndID(bd_sb_find_row($cap_rows, $capType)),
+    'handrail_options' => getPriceAndID(bd_sb_find_row($handrail_rows, $hrType)),
+    'spindle_options'  => getPriceAndID(bd_sb_find_row($spindle_rows, $spindleType)),
   );
 
   echo json_encode($form_options);

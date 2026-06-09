@@ -213,19 +213,23 @@ foreach ($fields as $field) {
     <div class="form-row">
     <label for="newel_type">Newel Style</label>
       <select id="newel_type" name="newel_type">
-        <option value="square">Plain Square</option>
-        <option value="chamfered">Chamfered</option>
-        <option value="turned">Turned</option>
-        <option value="base">Base Only</option>
+    <?php if (!empty($newel_type_options)): ?>
+      <?php foreach ($newel_type_options as $nt_option): ?>
+        <option value="<?php echo esc_attr($nt_option['code']); ?>"><?php echo esc_html($nt_option['name']); ?></option>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <option value="" disabled>No options available</option>
+    <?php endif; ?>
       </select>
     </div>
     <div class="form-row">
     <label for="newel_cap">Newel Caps</label>
       <select id="newel_cap" name="newel_cap">
         <option value="none:0">None</option>
-        <option value="flat:1">Flat</option>
-        <option value="pyramid:1">Pyramid</option>
-        <option value="ball:1">Ball</option>
+    <?php foreach ($cap_type_options as $cap_option):
+      $cap_qty = ($cap_option['value'] === '' || $cap_option['value'] === null) ? 1 : $cap_option['value']; ?>
+        <option value="<?php echo esc_attr($cap_option['code'] . ':' . $cap_qty); ?>"><?php echo esc_html($cap_option['name']); ?></option>
+    <?php endforeach; ?>
       </select>
     </div>
     <div class="form-row">
@@ -242,20 +246,25 @@ foreach ($fields as $field) {
 <div class="form-row">
     <label for="handrail_type">Handrail Style</label>
       <select id="handrail_type" name="handrail_type">
-        <option value="crown">Crown</option>
-        <option value="hdr">HDR</option>
+    <?php if (!empty($handrail_type_options)): ?>
+      <?php foreach ($handrail_type_options as $hr_option): ?>
+        <option value="<?php echo esc_attr($hr_option['code']); ?>"><?php echo esc_html($hr_option['name']); ?></option>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <option value="" disabled>No options available</option>
+    <?php endif; ?>
       </select>
     </div>
 <div class="form-row">
     <label for="spindle_type">Spindle Style</label>
       <select id="spindle_type" name="spindle_type">
-        <option value="chamfered">Chamfered</option>
-        <option value="edwardian">Edwardian</option>
-        <option value="twist">Twist</option>
-        <option value="fluted">Fluted</option>
-        <option value="tulip">Tulip</option>
-        <option value="victorian">Victorian</option>
-        <option value="provincial">Provincial</option>
+    <?php if (!empty($spindle_type_options)): ?>
+      <?php foreach ($spindle_type_options as $sp_option): ?>
+        <option value="<?php echo esc_attr($sp_option['code']); ?>"><?php echo esc_html($sp_option['name']); ?></option>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <option value="" disabled>No options available</option>
+    <?php endif; ?>
       </select>
     </div>
 </div>

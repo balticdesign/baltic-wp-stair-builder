@@ -10,7 +10,7 @@
  * existing `get_field($name, 'option')` calls elsewhere in the plugin.
  *
  * @package BalticWpStairBuilder
- * @version 1.0.2
+ * @version 2.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -37,7 +37,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		const MIGRATION_FLAG = 'stairbuilder_migrated_from_acf';
 
 		/** Schema version, written into the blob so future migrations can detect shape. */
-		const SCHEMA_VERSION = 1;
+		const SCHEMA_VERSION = 2;
+
+		/** Option flag set to 1 after the v2 flat-key → repeater migration. */
+		const REPEATER_MIGRATION_FLAG = 'stairbuilder_repeater_migrated_v2';
 
 		/** @var array Parsed schema (tabs + fields). */
 		private $schema;
@@ -47,6 +50,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			add_action( 'admin_menu', array( $this, 'add_menu' ) );
 			add_action( 'admin_init', array( $this, 'register' ) );
 			add_action( 'admin_init', array( $this, 'maybe_migrate_from_acf' ), 20 );
+			add_action( 'admin_init', array( $this, 'maybe_migrate_repeaters_v2' ), 30 );
 			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 		}
 
@@ -296,6 +300,12 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		private function render_repeater( $id, $name, $value, $field ) {
+			// Rich "card" repeaters (newels, caps, handrails, spindles) render
+			// each row as a component card with a per-row Use-Product-ID switch.
+			if ( isset( $field['style'] ) && $field['style'] === 'card' ) {
+				$this->render_rich_repeater( $id, $name, $value, $field );
+				return;
+			}
 			$rows       = is_array( $value ) ? $value : array();
 			$subfields  = isset( $field['subfields'] ) ? $field['subfields'] : array();
 			$subfields_json = wp_json_encode( $subfields );
@@ -335,6 +345,139 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					</tr>
 				</tfoot>
 			</table>
+			<?php
+		}
+
+		/**
+		 * Rich card repeater — each row is a component card with editable
+		 * name/code, an optional Caps/Newel quantity, a per-row Use-Product-ID
+		 * switch, and Pine/Oak price + product-ID inputs. A hidden prototype row
+		 * (index token `__i__`) is cloned by the Add-Row JS so the rich markup
+		 * never has to be reconstructed in JavaScript.
+		 */
+		private function render_rich_repeater( $id, $name, $value, $field ) {
+			$rows      = is_array( $value ) ? $value : array();
+			$subfields = isset( $field['subfields'] ) ? $field['subfields'] : array();
+
+			// Variant cards (newels/caps/handrails/spindles) carry the per-row
+			// Use-Product-ID switch + Pine/Oak columns. Everything else (strings,
+			// construction, treads, risers) renders as a generic card — each
+			// sub-field a labelled input laid out in a row.
+			$is_variant = false;
+			foreach ( $subfields as $sf ) {
+				if ( $sf['id'] === 'use_product_id' ) {
+					$is_variant = true;
+					break;
+				}
+			}
+			$row_cb = $is_variant ? 'render_card_row' : 'render_generic_card_row';
+			?>
+			<div class="stairbuilder-card-repeater" data-field-id="<?php echo esc_attr( $id ); ?>" data-next-index="<?php echo count( $rows ); ?>">
+				<div class="stairbuilder-cards">
+					<?php foreach ( $rows as $i => $row ) {
+						$this->$row_cb( $name, (string) $i, $subfields, is_array( $row ) ? $row : array() );
+					} ?>
+				</div>
+				<script type="text/html" class="stairbuilder-card-proto"><?php
+					$this->$row_cb( $name, '__i__', $subfields, array() );
+				?></script>
+				<button type="button" class="button button-secondary stairbuilder-card-add"><?php esc_html_e( 'Add Row', 'stairbuilder' ); ?></button>
+			</div>
+			<?php
+		}
+
+		/**
+		 * Render one generic card row — a component card containing each
+		 * sub-field as a labelled input. Used by the simpler name/code/value
+		 * repeaters (strings, construction types, treads, risers).
+		 */
+		private function render_generic_card_row( $name, $i, $subfields, $row ) {
+			?>
+			<div class="stairbuilder-component stairbuilder-card-row stairbuilder-card-row-generic">
+				<?php foreach ( $subfields as $sf ) :
+					$fname = $name . '[' . $i . '][' . $sf['id'] . ']';
+					$rv    = isset( $row[ $sf['id'] ] ) ? $row[ $sf['id'] ] : '';
+					$is_num = ( isset( $sf['type'] ) && $sf['type'] === 'number' );
+					?>
+					<div class="stairbuilder-card-field">
+						<label class="stairbuilder-card-label"><?php echo esc_html( $sf['label'] ); ?>
+							<input type="<?php echo $is_num ? 'number' : 'text'; ?>" <?php echo $is_num ? 'step="any"' : ''; ?>
+								name="<?php echo esc_attr( $fname ); ?>"
+								value="<?php echo esc_attr( $rv ); ?>"
+								class="widefat" />
+						</label>
+					</div>
+				<?php endforeach; ?>
+				<div class="stairbuilder-card-actions">
+					<button type="button" class="button stairbuilder-card-remove" aria-label="<?php esc_attr_e( 'Remove row', 'stairbuilder' ); ?>">&times;</button>
+				</div>
+			</div>
+			<?php
+		}
+
+		/**
+		 * Render one card row for a rich repeater. $i is the row index (or the
+		 * `__i__` token for the cloneable prototype).
+		 */
+		private function render_card_row( $name, $i, $subfields, $row ) {
+			$by = array();
+			foreach ( $subfields as $sf ) {
+				$by[ $sf['id'] ] = $sf;
+			}
+			$has_caps  = isset( $by['caps_per_newel'] );
+			$toggle_on = ! empty( $row['use_product_id'] );
+			$fname     = function( $k ) use ( $name, $i ) {
+				return $name . '[' . $i . '][' . $k . ']';
+			};
+			$val       = function( $k, $fallback = '' ) use ( $row ) {
+				return ( isset( $row[ $k ] ) && $row[ $k ] !== '' ) ? $row[ $k ] : $fallback;
+			};
+			?>
+			<div class="stairbuilder-component stairbuilder-card-row<?php echo $toggle_on ? ' is-product-id' : ''; ?>">
+				<div class="stairbuilder-component-col stairbuilder-component-header">
+					<label class="stairbuilder-card-label"><?php esc_html_e( 'Name', 'stairbuilder' ); ?>
+						<input type="text" name="<?php echo esc_attr( $fname( 'name' ) ); ?>" value="<?php echo esc_attr( $val( 'name' ) ); ?>" class="widefat" />
+					</label>
+					<label class="stairbuilder-card-label"><?php esc_html_e( 'Code', 'stairbuilder' ); ?>
+						<input type="text" name="<?php echo esc_attr( $fname( 'code' ) ); ?>" value="<?php echo esc_attr( $val( 'code' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'auto from name', 'stairbuilder' ); ?>" />
+					</label>
+					<?php if ( $has_caps ) : ?>
+					<label class="stairbuilder-card-label stairbuilder-card-qty"><?php esc_html_e( 'Caps / Newel', 'stairbuilder' ); ?>
+						<input type="number" step="any" min="0" name="<?php echo esc_attr( $fname( 'caps_per_newel' ) ); ?>" value="<?php echo esc_attr( $val( 'caps_per_newel', '1' ) ); ?>" class="small-text" />
+					</label>
+					<?php endif; ?>
+					<label class="stairbuilder-switch stairbuilder-card-switch">
+						<input type="hidden" name="<?php echo esc_attr( $fname( 'use_product_id' ) ); ?>" value="0" />
+						<input type="checkbox" class="bd-row-toggle" name="<?php echo esc_attr( $fname( 'use_product_id' ) ); ?>" value="1" <?php checked( $toggle_on ); ?> />
+						<span class="stairbuilder-switch-track"><span class="stairbuilder-switch-thumb"></span></span>
+						<span class="stairbuilder-switch-text"><?php esc_html_e( 'Use Product ID', 'stairbuilder' ); ?></span>
+					</label>
+				</div>
+
+				<?php
+				$variants = array(
+					'Pine' => array( 'price' => 'pine_price', 'id' => 'pine_id' ),
+					'Oak'  => array( 'price' => 'oak_price', 'id' => 'oak_id' ),
+				);
+				foreach ( $variants as $label => $keys ) : ?>
+				<div class="stairbuilder-component-col stairbuilder-component-variant">
+					<h4 class="stairbuilder-variant-title"><?php echo esc_html( $label ); ?></h4>
+					<div class="stairbuilder-field bd-variant-price">
+						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Price', 'stairbuilder' ); ?></label>
+						<span class="stairbuilder-currency">£</span>
+						<input type="number" step="0.01" min="0" name="<?php echo esc_attr( $fname( $keys['price'] ) ); ?>" value="<?php echo esc_attr( $val( $keys['price'] ) ); ?>" class="regular-text" />
+					</div>
+					<div class="stairbuilder-field bd-variant-id">
+						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Product ID', 'stairbuilder' ); ?></label>
+						<input type="number" step="1" min="0" name="<?php echo esc_attr( $fname( $keys['id'] ) ); ?>" value="<?php echo esc_attr( $val( $keys['id'] ) ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Variation ID', 'stairbuilder' ); ?>" />
+					</div>
+				</div>
+				<?php endforeach; ?>
+
+				<div class="stairbuilder-card-actions">
+					<button type="button" class="button stairbuilder-card-remove" aria-label="<?php esc_attr_e( 'Remove row', 'stairbuilder' ); ?>">&times;</button>
+				</div>
+			</div>
 			<?php
 		}
 
@@ -406,6 +549,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				return array();
 			}
 			$subfields = isset( $field['subfields'] ) ? $field['subfields'] : array();
+			$has_code  = false;
+			foreach ( $subfields as $sf ) {
+				if ( $sf['id'] === 'code' ) {
+					$has_code = true;
+					break;
+				}
+			}
 			$clean_rows = array();
 			foreach ( $raw as $row ) {
 				if ( ! is_array( $row ) ) {
@@ -415,12 +565,22 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				$has_value = false;
 				foreach ( $subfields as $sf ) {
 					$v = isset( $row[ $sf['id'] ] ) ? $row[ $sf['id'] ] : '';
-					if ( $sf['type'] === 'number' ) {
-						$clean_row[ $sf['id'] ] = ( $v === '' || $v === null ) ? '' : (float) $v;
-					} else {
-						$clean_row[ $sf['id'] ] = is_scalar( $v ) ? sanitize_text_field( (string) $v ) : '';
+					switch ( $sf['type'] ) {
+						case 'toggle':
+							$clean_row[ $sf['id'] ] = ! empty( $v ) ? 1 : 0;
+							break;
+						case 'price':
+						case 'number':
+							$clean_row[ $sf['id'] ] = ( $v === '' || $v === null ) ? '' : (float) $v;
+							break;
+						case 'product_id':
+							$clean_row[ $sf['id'] ] = ( $v === '' || $v === null ) ? '' : absint( $v );
+							break;
+						default:
+							$clean_row[ $sf['id'] ] = is_scalar( $v ) ? sanitize_text_field( (string) $v ) : '';
 					}
-					if ( $clean_row[ $sf['id'] ] !== '' && $clean_row[ $sf['id'] ] !== 0 && $clean_row[ $sf['id'] ] !== 0.0 ) {
+					$cv = $clean_row[ $sf['id'] ];
+					if ( $cv !== '' && $cv !== 0 && $cv !== 0.0 ) {
 						$has_value = true;
 					}
 				}
@@ -428,7 +588,47 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					$clean_rows[] = $clean_row;
 				}
 			}
+
+			// Codes are the stable machine keys the front-end + price lookup use.
+			// Auto-slugify blanks from the name and de-duplicate; reserved codes
+			// (e.g. caps' built-in "none") are never allowed as a row code.
+			if ( $has_code ) {
+				$reserved   = isset( $field['reserved_codes'] ) ? (array) $field['reserved_codes'] : array();
+				$clean_rows = $this->ensure_unique_codes( $clean_rows, $reserved );
+			}
+
 			return array_values( $clean_rows );
+		}
+
+		/**
+		 * Guarantee every row has a non-blank, unique, slugified `code`.
+		 * Blank codes are derived from the row name; collisions and reserved
+		 * codes get a numeric suffix (-2, -3, …).
+		 */
+		private function ensure_unique_codes( $rows, $reserved = array() ) {
+			$seen = array();
+			foreach ( $rows as &$row ) {
+				if ( ! array_key_exists( 'code', $row ) ) {
+					continue;
+				}
+				$code = sanitize_title( (string) $row['code'] );
+				if ( $code === '' ) {
+					$code = sanitize_title( isset( $row['name'] ) ? (string) $row['name'] : '' );
+				}
+				if ( $code === '' ) {
+					$code = 'item';
+				}
+				$base = $code;
+				$n    = 2;
+				while ( in_array( $code, $seen, true ) || in_array( $code, $reserved, true ) ) {
+					$code = $base . '-' . $n;
+					$n++;
+				}
+				$seen[]      = $code;
+				$row['code'] = $code;
+			}
+			unset( $row );
+			return $rows;
 		}
 
 		/* ------------------------------------------------------------------ */
@@ -556,16 +756,20 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 
 			$blocks = $this->detect_component_blocks( $tab['fields'] );
 
-			// Does this tab have any component-style blocks?
+			// Does this tab have any component-style blocks or rich card
+			// repeaters? Both render full-width (title above, no form-table
+			// left-hand label column) so they match the component cards.
 			$has_components = false;
+			$has_card       = false;
 			foreach ( $blocks as $b ) {
 				if ( $b['type'] === 'component' ) {
 					$has_components = true;
-					break;
+				} elseif ( $this->is_card_repeater( $b['field'] ) ) {
+					$has_card = true;
 				}
 			}
 
-			if ( ! $has_components ) {
+			if ( ! $has_components && ! $has_card ) {
 				// Standard form-table rendering for plain-field tabs.
 				echo '<table class="form-table" role="presentation">';
 				do_settings_fields( self::PAGE_ID . '-' . $slug, 'stairbuilder_section_' . $slug );
@@ -573,11 +777,18 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				return;
 			}
 
-			// Mixed layout: components on top, any trailing plain fields below.
+			// Mixed layout: component cards + card repeaters render full-width
+			// with their title above; any other stray field falls back to a
+			// single-row form-table to stay visible.
 			echo '<div class="stairbuilder-components">';
 			foreach ( $blocks as $block ) {
 				if ( $block['type'] === 'component' ) {
 					$this->render_component_row( $block );
+				} elseif ( $this->is_card_repeater( $block['field'] ) ) {
+					echo '<div class="stairbuilder-card-block">';
+					echo '<h3 class="stairbuilder-component-title">' . esc_html( $block['field']['label'] ) . '</h3>';
+					$this->render_field( $block['field'] );
+					echo '</div>';
 				} else {
 					// A stray non-component field inside a component-heavy tab —
 					// render it as a single-row form-table to keep it visible.
@@ -589,6 +800,11 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				}
 			}
 			echo '</div>';
+		}
+
+		/** True when a field is a rich "card" style repeater. */
+		private function is_card_repeater( $field ) {
+			return isset( $field['type'], $field['style'] ) && $field['type'] === 'repeater' && $field['style'] === 'card';
 		}
 
 		/**
@@ -872,6 +1088,45 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					.stairbuilder-pricing-wrap .stairbuilder-component {
 						grid-template-columns: 1fr;
 					}
+				}
+
+				/* Rich card repeaters (newels, caps, handrails, spindles) — each
+				   row reuses the .stairbuilder-component card look (grey bg,
+				   border, padding, radius) so they match the baserail cards. */
+				.stairbuilder-pricing-wrap .stairbuilder-card-block { margin-bottom: 20px; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-block > .stairbuilder-component-title { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-repeater .stairbuilder-cards { display: flex; flex-direction: column; gap: 12px; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row {
+					grid-template-columns: minmax(220px, 1.4fr) 1fr 1fr 44px;
+					align-items: start;
+					margin: 0;
+				}
+				/* Generic card rows (strings, construction, treads, risers) —
+				   each sub-field a labelled input flowing in a flex row. */
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic {
+					display: flex;
+					flex-wrap: wrap;
+					gap: 12px 16px;
+					align-items: flex-end;
+					grid-template-columns: none;
+				}
+				.stairbuilder-pricing-wrap .stairbuilder-card-field { flex: 1 1 160px; min-width: 140px; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-label { margin-bottom: 0; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-actions { flex: 0 0 auto; margin-left: auto; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-label { display: block; font-size: 12px; font-weight: 600; color: #1d2327; margin-bottom: 8px; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-label input { font-weight: 400; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-qty input { max-width: 90px; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-switch { margin-top: 4px; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-actions { text-align: right; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-remove { color: #b32d2e; }
+				/* Per-row toggle: show price by default, product ID when switched on */
+				.stairbuilder-pricing-wrap .stairbuilder-card-row .bd-variant-id { display: none; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row.is-product-id .bd-variant-price { display: none; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row.is-product-id .bd-variant-id { display: block; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-add { margin-top: 14px; }
+				@media (max-width: 960px) {
+					.stairbuilder-pricing-wrap .stairbuilder-card-row { grid-template-columns: 1fr; }
+					.stairbuilder-pricing-wrap .stairbuilder-card-actions { text-align: left; }
 				}'
 			);
 
@@ -949,6 +1204,29 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					$(document).on("click", ".stairbuilder-repeater-remove", function(){
 						$(this).closest("tr").remove();
 					});
+
+					// Rich card repeater: add row by cloning the hidden prototype.
+					// A monotonic per-repeater counter keeps POST indices unique even
+					// after removals (PHP re-indexes on save).
+					$(document).on("click", ".stairbuilder-card-add", function(){
+						var $rep = $(this).closest(".stairbuilder-card-repeater");
+						var next = parseInt($rep.attr("data-next-index"), 10);
+						if (isNaN(next)) { next = $rep.find(".stairbuilder-cards .stairbuilder-card-row").length; }
+						var proto = $rep.children(".stairbuilder-card-proto").html() || "";
+						$rep.find(".stairbuilder-cards").append(proto.replace(/__i__/g, next));
+						$rep.attr("data-next-index", next + 1);
+					});
+
+					// Rich card repeater: remove row
+					$(document).on("click", ".stairbuilder-card-remove", function(){
+						$(this).closest(".stairbuilder-card-row").remove();
+					});
+
+					// Rich card repeater: per-row Use-Product-ID switch toggles
+					// price vs product-ID inputs for that row only.
+					$(document).on("change", ".stairbuilder-card-repeater .bd-row-toggle", function(){
+						$(this).closest(".stairbuilder-card-row").toggleClass("is-product-id", $(this).is(":checked"));
+					});
 				});'
 			);
 		}
@@ -1017,6 +1295,90 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		/* ------------------------------------------------------------------ */
+		/* One-shot v2 migration — flat component keys → typed repeater rows.   */
+		/*                                                                      */
+		/* Seeds newel_types / cap_types / handrail_types / spindle_types from  */
+		/* the existing flat keys in stairbuilder_options so live prices and    */
+		/* product IDs survive the conversion. Gated by its OWN flag — never    */
+		/* reuse the ACF migration flag.                                        */
+		/* ------------------------------------------------------------------ */
+
+		public function maybe_migrate_repeaters_v2() {
+			if ( get_option( self::REPEATER_MIGRATION_FLAG ) ) {
+				return;
+			}
+
+			$opts = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $opts ) ) {
+				$opts = array();
+			}
+
+			// If any repeater is already populated (manual setup or re-run),
+			// leave it alone — just record that the migration is satisfied.
+			if ( ! empty( $opts['newel_types'] ) || ! empty( $opts['cap_types'] )
+				|| ! empty( $opts['handrail_types'] ) || ! empty( $opts['spindle_types'] ) ) {
+				update_option( self::REPEATER_MIGRATION_FLAG, 1 );
+				return;
+			}
+
+			$price = function( $k ) use ( $opts ) {
+				$v = isset( $opts[ $k ] ) ? $opts[ $k ] : '';
+				return ( $v === '' || $v === null ) ? '' : (float) $v;
+			};
+			$pid = function( $k ) use ( $opts ) {
+				$v = isset( $opts[ $k ] ) ? $opts[ $k ] : '';
+				return ( $v === '' || $v === null ) ? '' : absint( $v );
+			};
+			$tog = function( $k ) use ( $opts ) {
+				return ! empty( $opts[ $k ] ) ? 1 : 0;
+			};
+			$row = function( $name, $code, $opt, $pp, $op, $pi, $oi, $extra = array() ) use ( $price, $pid, $tog ) {
+				return array_merge( array(
+					'name'           => $name,
+					'code'           => $code,
+					'use_product_id' => $tog( $opt ),
+					'pine_price'     => $price( $pp ),
+					'oak_price'      => $price( $op ),
+					'pine_id'        => $pid( $pi ),
+					'oak_id'         => $pid( $oi ),
+				), $extra );
+			};
+
+			$opts['newel_types'] = array(
+				$row( 'Plain Square', 'square',    'square_newel_option',    'pine_newel_post_price', 'oak_newel_post_price', 'pine_square_newel_post_id', 'oak_newel_post_id' ),
+				$row( 'Chamfered',    'chamfered', 'chamfered_newel_option', 'pine_chmf_newel_price', 'oak_chmf_newel_price', 'pine_chmf_newel_post_id',   'oak_chmf_newel_post_id' ),
+				$row( 'Turned',       'turned',    'turned_newel_option',    'pine_trn_newel_price',  'oak_trn_newel_price',  'pine_trn_newel_id',         'oak_trn_newel_id' ),
+				$row( 'Base Only',    'base',      'newel_base_option',      'pine_newel_base_price', 'oak_newel_base_price', 'pine_newel_base_id',        'oak_newel_base_id' ),
+			);
+
+			$opts['handrail_types'] = array(
+				$row( 'Crown', 'crown', 'crwn_hand_option', 'pine_crwn_hand_price', 'oak_crwn_hand_price', 'pine_crwn_hand_id', 'oak_crwn_hand_id' ),
+				$row( 'HDR',   'hdr',   'hdr_hand_option',  'pine_hdr_hand_price',  'oak_hdr_hand_price',  'pine_hdr_hand_id',  'oak_hdr_hand_id' ),
+			);
+
+			$opts['spindle_types'] = array(
+				// Seeded as 'fluted' (matches the form) — retires the old map key
+				// 'flute' and the fluted→default fallthrough bug along with it.
+				$row( 'Chamfered',  'chamfered',  'chmf_spin_option',  'pine_chmf_spindle_price',  'oak_chmf_spindle_price',  'pine_chmf_spindle_price_id', 'oak_chmf_spindle_id' ),
+				$row( 'Edwardian',  'edwardian',  'edwa_spin_option',  'pine_edwa_spindle_price',  'oak_edwa_spindle_price',  'pine_edwa_spindle_id',       'oak_edwa_spindle_id' ),
+				$row( 'Twist',      'twist',      'twist_spin_option', 'pine_twist_spindle_price', 'oak_twist_spindle_price', 'pine_twist_spindle_id',      'oak_twist_spindle_id' ),
+				$row( 'Fluted',     'fluted',     'flute_spin_option', 'pine_flt_spindle_price',   'oak_flt_spindle_price',   'pine_flt_spindle_id',        'oak_flt_spindle_id' ),
+				$row( 'Tulip',      'tulip',      'tulip_spin_option', 'pine_tlp_spindle_price',   'oak_tlp_spindle_price',   'pine_tlp_spindle_id',        'oak_tlp_spindle_id' ),
+				$row( 'Victorian',  'victorian',  'vtrn_spin_option',  'pine_vtrn_spindle_price',  'oak_vtrn_spindle_price',  'pine_vtrn_spindle_id',       'oak_vtrn_spindle_id' ),
+				$row( 'Provincial', 'provincial', 'prv_spin_option',   'pine_prv_spindle_price',   'oak_prv_spindle_price',   'pine_prv_spindle_id',        'oak_prv_spindle_id' ),
+			);
+
+			$opts['cap_types'] = array(
+				$row( 'Flat',    'flat',    'flat_cap_option', 'pine_flat_cap_price',    'oak_flat_cap_price',    'pine_flat_cap_id',    'oak_flat_cap_id',    array( 'caps_per_newel' => 1 ) ),
+				$row( 'Pyramid', 'pyramid', 'pyr_cap_option',  'pine_pyramid_cap_price', 'oak_pyramid_cap_price', 'pine_pyramid_cap_id', 'oak_pyramid_cap_id', array( 'caps_per_newel' => 1 ) ),
+				$row( 'Ball',    'ball',    'ball_cap_option', 'pine_ball_cap_price',    'oak_ball_cap_price',    'pine_ball_cap_id',    'oak_ball_cap_id',    array( 'caps_per_newel' => 1 ) ),
+			);
+
+			update_option( self::OPTION_KEY, $opts );
+			update_option( self::REPEATER_MIGRATION_FLAG, 1 );
+		}
+
+		/* ------------------------------------------------------------------ */
 		/* Tab groups — splits the tab bar into multiple rows, mirroring the   */
 		/* ACF `endpoint` flag that divided component pricing (top) from       */
 		/* staircase-wide settings (bottom).                                   */
@@ -1053,6 +1415,32 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/* ------------------------------------------------------------------ */
 
 			private function get_schema() {
+				// Shared sub-field set for the rich "card" repeaters (newels,
+				// handrails, spindles). Each row carries its own name/code, a
+				// per-row Use-Product-ID switch, and pine/oak price + product ID.
+				$variant_subfields = [
+					['id' => 'name',           'label' => 'Name',           'type' => 'text'],
+					['id' => 'code',           'label' => 'Code',           'type' => 'text'],
+					['id' => 'use_product_id', 'label' => 'Use Product ID', 'type' => 'toggle'],
+					['id' => 'pine_price',     'label' => 'Pine Price',     'type' => 'price'],
+					['id' => 'oak_price',      'label' => 'Oak Price',      'type' => 'price'],
+					['id' => 'pine_id',        'label' => 'Pine Product ID', 'type' => 'product_id'],
+					['id' => 'oak_id',         'label' => 'Oak Product ID',  'type' => 'product_id'],
+				];
+				// Caps additionally carry a per-newel quantity multiplier. The
+				// front-end cap select encodes this as `{code}:{caps_per_newel}`
+				// (mirroring the always-present `none:0` no-cap choice), which the
+				// price calc reads to multiply cap cost by the newel count.
+				$cap_subfields = [
+					['id' => 'name',           'label' => 'Name',            'type' => 'text'],
+					['id' => 'code',           'label' => 'Code',            'type' => 'text'],
+					['id' => 'caps_per_newel', 'label' => 'Caps / Newel',    'type' => 'number'],
+					['id' => 'use_product_id', 'label' => 'Use Product ID',  'type' => 'toggle'],
+					['id' => 'pine_price',     'label' => 'Pine Price',      'type' => 'price'],
+					['id' => 'oak_price',      'label' => 'Oak Price',       'type' => 'price'],
+					['id' => 'pine_id',        'label' => 'Pine Product ID', 'type' => 'product_id'],
+					['id' => 'oak_id',         'label' => 'Oak Product ID',  'type' => 'product_id'],
+				];
 				return [
 					'strings' => [
 						'label' => 'Strings',
@@ -1061,6 +1449,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'id' => 'stringer_types',
 								'label' => 'Add Stringer Types',
 								'type' => 'repeater',
+								'style' => 'card',
 								'subfields' => [['id' => 'stringer_name', 'label' => 'Stringer Name', 'type' => 'text'], ['id' => 'stringer_code', 'label' => 'Stringer Code', 'type' => 'text'], ['id' => 'stringer_value', 'label' => 'Stringer Value', 'type' => 'number']],
 							],
 						],
@@ -1072,12 +1461,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'id' => 'building_regs',
 								'label' => 'Applicable Building Regs',
 								'type' => 'repeater',
+								'style' => 'card',
 								'subfields' => [['id' => 'building_reg_name', 'label' => 'Name', 'type' => 'text'], ['id' => 'building_reg_value', 'label' => 'Value', 'type' => 'text']],
 							],
 							[
 								'id' => 'construction_types',
 								'label' => 'Add Construction Types',
 								'type' => 'repeater',
+								'style' => 'card',
 								'subfields' => [['id' => 'construction_name', 'label' => 'Construction Name', 'type' => 'text'], ['id' => 'construction_code', 'label' => 'Construction Code', 'type' => 'text'], ['id' => 'construction_value', 'label' => 'Construction Value', 'type' => 'number']],
 							],
 						],
@@ -1089,12 +1480,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'id' => 'tread_types',
 								'label' => 'Add Tread Types',
 								'type' => 'repeater',
+								'style' => 'card',
 								'subfields' => [['id' => 'tread_name', 'label' => 'Tread Name', 'type' => 'text'], ['id' => 'tread_code', 'label' => 'Tread Code', 'type' => 'text'], ['id' => 'tread_value', 'label' => 'Tread Value', 'type' => 'number']],
 							],
 							[
 								'id' => 'tread_profiles',
 								'label' => 'Add Tread Profiles',
 								'type' => 'repeater',
+								'style' => 'card',
 								'subfields' => [['id' => 'tread_profile_name', 'label' => 'Profile Name', 'type' => 'text'], ['id' => 'tread_profile_code', 'label' => 'Profile Code', 'type' => 'text'], ['id' => 'tread_profile_value', 'label' => 'Per-Tread Surcharge', 'type' => 'number']],
 							],
 						],
@@ -1106,6 +1499,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'id' => 'riser_types',
 								'label' => 'Add Riser Types',
 								'type' => 'repeater',
+								'style' => 'card',
 								'subfields' => [['id' => 'riser_name', 'label' => 'Riser Name', 'type' => 'text'], ['id' => 'riser_code', 'label' => 'Riser Code', 'type' => 'text'], ['id' => 'riser_value', 'label' => 'Riser Value', 'type' => 'number']],
 							],
 						],
@@ -1114,136 +1508,12 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						'label' => 'Newel Posts',
 						'fields' => [
 							[
-								'id' => 'square_newel_option',
-								'label' => 'Square Newel Post Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_newel_post_price',
-								'label' => 'Pine Square Newel Post Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'square_newel_option', 'equals' => false],
-								'description' => 'Add a value to be used in builder forms.',
-							],
-							[
-								'id' => 'pine_square_newel_post_id',
-								'label' => 'Pine Square Newel Post Product ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'square_newel_option', 'equals' => true],
-								'description' => 'Add a product variation id (This will override price)',
-							],
-							[
-								'id' => 'oak_newel_post_price',
-								'label' => 'Oak Square Newel Post Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'square_newel_option', 'equals' => false],
-								'description' => 'Add a value to be used in builder forms.',
-							],
-							[
-								'id' => 'oak_newel_post_id',
-								'label' => 'Oak Square Newel Post ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'square_newel_option', 'equals' => true],
-								'description' => 'Add a product variation id (This will override price)',
-							],
-							[
-								'id' => 'chamfered_newel_option',
-								'label' => 'Chamfered Newel Post Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_chmf_newel_price',
-								'label' => 'Pine Chamfered Newel Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'chamfered_newel_option', 'equals' => false],
-								'description' => 'Add a value to be used in builder forms.',
-							],
-							[
-								'id' => 'pine_chmf_newel_post_id',
-								'label' => 'Pine Chamfered Newel Post Product ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'chamfered_newel_option', 'equals' => true],
-								'description' => 'Add a product variation id (This will override price)',
-							],
-							[
-								'id' => 'oak_chmf_newel_price',
-								'label' => 'Oak Chamfered Newel Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'chamfered_newel_option', 'equals' => false],
-								'description' => 'Add a value to be used in builder forms.',
-							],
-							[
-								'id' => 'oak_chmf_newel_post_id',
-								'label' => 'Oak Chamfered Newel Post Product ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'chamfered_newel_option', 'equals' => true],
-								'description' => 'Add a product variation id (This will override price)',
-							],
-							[
-								'id' => 'turned_newel_option',
-								'label' => 'Turned Newel Post Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_trn_newel_price',
-								'label' => 'Pine Turned Newel Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'turned_newel_option', 'equals' => false],
-								'description' => 'Add a value to be used in builder forms.',
-							],
-							[
-								'id' => 'pine_trn_newel_id',
-								'label' => 'Pine Turned Newel ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'turned_newel_option', 'equals' => true],
-								'description' => 'Add a value to be used in builder forms.',
-							],
-							[
-								'id' => 'oak_trn_newel_price',
-								'label' => 'Oak Turned Newel Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'turned_newel_option', 'equals' => false],
-								'description' => 'Add a value to be used in builder forms.',
-							],
-							[
-								'id' => 'oak_trn_newel_id',
-								'label' => 'Oak Turned Newel ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'turned_newel_option', 'equals' => true],
-								'description' => 'Add a value to be used in builder forms.',
-							],
-							[
-								'id' => 'newel_base_option',
-								'label' => 'Newel Base Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_newel_base_price',
-								'label' => 'Pine Newel Base Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'newel_base_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_newel_base_id',
-								'label' => 'Pine Newel Base ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'newel_base_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_newel_base_price',
-								'label' => 'Oak Newel Base Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'newel_base_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_newel_base_id',
-								'label' => 'Oak Newel Base ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'newel_base_option', 'equals' => true],
+								'id' => 'newel_types',
+								'label' => 'Newel Post Types',
+								'type' => 'repeater',
+								'style' => 'card',
+								'description' => 'Each row is a selectable newel style. Name = label shown to the customer; Code = stable machine key.',
+								'subfields' => $variant_subfields,
 							],
 						],
 					],
@@ -1251,94 +1521,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						'label' => 'Newel Caps',
 						'fields' => [
 							[
-								'id' => 'pyr_cap_option',
-								'label' => 'Pyramid Cap Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_pyramid_cap_price',
-								'label' => 'Pine Pyramid Cap Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'pyr_cap_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_pyramid_cap_id',
-								'label' => 'Pine Pyramid Cap ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'pyr_cap_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_pyramid_cap_price',
-								'label' => 'Oak Pyramid Cap Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'pyr_cap_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_pyramid_cap_id',
-								'label' => 'Oak Pyramid Cap ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'pyr_cap_option', 'equals' => true],
-							],
-							[
-								'id' => 'ball_cap_option',
-								'label' => 'Ball Cap Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_ball_cap_price',
-								'label' => 'Pine Ball Cap Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'ball_cap_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_ball_cap_id',
-								'label' => 'Pine Ball Cap ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'ball_cap_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_ball_cap_price',
-								'label' => 'Oak Ball Cap Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'ball_cap_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_ball_cap_id',
-								'label' => 'Oak Ball Cap ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'ball_cap_option', 'equals' => true],
-							],
-							[
-								'id' => 'flat_cap_option',
-								'label' => 'Flat Cap Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_flat_cap_price',
-								'label' => 'Pine Flat Cap Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'flat_cap_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_flat_cap_id',
-								'label' => 'Pine Flat Cap ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'flat_cap_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_flat_cap_price',
-								'label' => 'Oak Flat Cap Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'flat_cap_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_flat_cap_id',
-								'label' => 'Oak Flat Cap ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'flat_cap_option', 'equals' => true],
+								'id' => 'cap_types',
+								'label' => 'Newel Cap Types',
+								'type' => 'repeater',
+								'style' => 'card',
+								'reserved_codes' => ['none'],
+								'description' => 'Each row is a selectable cap. "Caps / Newel" multiplies the cap cost by the newel count. A "None" choice is always offered on the form automatically — do not add it here ("none" is a reserved code).',
+								'subfields' => $cap_subfields,
 							],
 						],
 					],
@@ -1447,72 +1636,12 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						'label' => 'Handrails & Baserails',
 						'fields' => [
 							[
-								'id' => 'crwn_hand_option',
-								'label' => 'Crown Handrail Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_crwn_hand_price',
-								'label' => 'Pine Crown Handrail Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'crwn_hand_option', 'equals' => false],
-								'description' => '(per meter)',
-							],
-							[
-								'id' => 'pine_crwn_hand_id',
-								'label' => 'Pine Crown Handrail ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'crwn_hand_option', 'equals' => true],
-								'description' => '(per meter)',
-							],
-							[
-								'id' => 'oak_crwn_hand_price',
-								'label' => 'Oak Crown Handrail Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'crwn_hand_option', 'equals' => false],
-								'description' => '(per meter)',
-							],
-							[
-								'id' => 'oak_crwn_hand_id',
-								'label' => 'Oak Crown Handrail ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'crwn_hand_option', 'equals' => true],
-								'description' => '(per meter)',
-							],
-							[
-								'id' => 'hdr_hand_option',
-								'label' => 'HDR Handrail Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_hdr_hand_price',
-								'label' => 'Pine HDR Handrail Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'hdr_hand_option', 'equals' => false],
-								'description' => '(per meter)',
-							],
-							[
-								'id' => 'pine_hdr_hand_id',
-								'label' => 'Pine HDR Handrail ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'hdr_hand_option', 'equals' => true],
-								'description' => '(per meter)',
-							],
-							[
-								'id' => 'oak_hdr_hand_price',
-								'label' => 'Oak HDR Handrail Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'hdr_hand_option', 'equals' => false],
-								'description' => '(per meter)',
-							],
-							[
-								'id' => 'oak_hdr_hand_id',
-								'label' => 'Oak HDR Handrail ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'hdr_hand_option', 'equals' => true],
-								'description' => '(per meter)',
+								'id' => 'handrail_types',
+								'label' => 'Handrail Types',
+								'type' => 'repeater',
+								'style' => 'card',
+								'description' => 'Selectable handrail styles (per metre). Baserail is fixed below and is not a repeater row.',
+								'subfields' => $variant_subfields,
 							],
 							[
 								'id' => 'baserail_option',
@@ -1554,214 +1683,12 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						'label' => 'Spindles (Balustrading)',
 						'fields' => [
 							[
-								'id' => 'chmf_spin_option',
-								'label' => 'Chamfered Spindle Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_chmf_spindle_price',
-								'label' => 'Pine Chamfered Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'chmf_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_chmf_spindle_price_id',
-								'label' => 'Pine Chamfered Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'chmf_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_chmf_spindle_price',
-								'label' => 'Oak Chamfered Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'chmf_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_chmf_spindle_id',
-								'label' => 'Oak Chamfered Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'chmf_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'edwa_spin_option',
-								'label' => 'Edwardian Spindle Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_edwa_spindle_price',
-								'label' => 'Pine Edwardian Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'edwa_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_edwa_spindle_id',
-								'label' => 'Pine Edwardian Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'edwa_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_edwa_spindle_price',
-								'label' => 'Oak Edwardian Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'edwa_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_edwa_spindle_id',
-								'label' => 'Oak Edwardian Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'edwa_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'twist_spin_option',
-								'label' => 'Twist Spindle Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_twist_spindle_price',
-								'label' => 'Pine Twist Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'twist_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_twist_spindle_id',
-								'label' => 'Pine Twist Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'twist_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_twist_spindle_price',
-								'label' => 'Oak Twist Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'twist_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_twist_spindle_id',
-								'label' => 'Oak Twist Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'twist_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'flute_spin_option',
-								'label' => 'Flute Spindle Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_flt_spindle_price',
-								'label' => 'Pine Fluted Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'flute_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_flt_spindle_id',
-								'label' => 'Pine Fluted Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'flute_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_flt_spindle_price',
-								'label' => 'Oak Fluted Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'flute_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_flt_spindle_id',
-								'label' => 'Oak Fluted Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'flute_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'tulip_spin_option',
-								'label' => 'Tulip Spindle Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_tlp_spindle_price',
-								'label' => 'Pine Tulip Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'tulip_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_tlp_spindle_id',
-								'label' => 'Pine Tulip Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'tulip_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_tlp_spindle_price',
-								'label' => 'Oak Tulip Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'tulip_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_tlp_spindle_id',
-								'label' => 'Oak Tulip Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'tulip_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'vtrn_spin_option',
-								'label' => 'Victorian Spindle Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_vtrn_spindle_price',
-								'label' => 'Pine Victorian Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'vtrn_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_vtrn_spindle_id',
-								'label' => 'Pine Victorian Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'vtrn_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_vtrn_spindle_price',
-								'label' => 'Oak Victorian Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'vtrn_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_vtrn_spindle_id',
-								'label' => 'Oak Victorian Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'vtrn_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'prv_spin_option',
-								'label' => 'Provincial Spindle Options',
-								'type' => 'toggle',
-								'toggle_label' => 'Add a price direct or reference a product ID',
-							],
-							[
-								'id' => 'pine_prv_spindle_price',
-								'label' => 'Pine Provincial Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'prv_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'pine_prv_spindle_id',
-								'label' => 'Pine Provincial Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'prv_spin_option', 'equals' => true],
-							],
-							[
-								'id' => 'oak_prv_spindle_price',
-								'label' => 'Oak Provincial Spindle Price',
-								'type' => 'price',
-								'show_when' => ['field' => 'prv_spin_option', 'equals' => false],
-							],
-							[
-								'id' => 'oak_prv_spindle_id',
-								'label' => 'Oak Provincial Spindle ID',
-								'type' => 'product_id',
-								'show_when' => ['field' => 'prv_spin_option', 'equals' => true],
+								'id' => 'spindle_types',
+								'label' => 'Spindle Types',
+								'type' => 'repeater',
+								'style' => 'card',
+								'description' => 'Each row is a selectable spindle style. Name = customer-facing label; Code = stable machine key.',
+								'subfields' => $variant_subfields,
 							],
 						],
 					],
@@ -1783,7 +1710,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							[
 								'id' => 'cut_string_price',
 								'label' => 'Cut String Price',
-								'type' => 'text',
+								'type' => 'price',
 							],
 						],
 					],

@@ -6,6 +6,25 @@
  *   $title   — heading
  *   $content — assoc array merging form fields + contact info + price totals
  */
+
+// Map a stored component code back to its admin-defined human label for
+// display. Leads store codes in form_data; if a code is later renamed/removed
+// the raw code is shown (same fragility as the legacy plugin — out of scope).
+$bd_code_label = function ( $option_key, $code ) {
+    $code = (string) $code;
+    if ( $code === '' ) {
+        return '';
+    }
+    $rows = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( $option_key, array() ) : array();
+    if ( is_array( $rows ) ) {
+        foreach ( $rows as $row ) {
+            if ( is_array( $row ) && isset( $row['code'] ) && (string) $row['code'] === $code && ! empty( $row['name'] ) ) {
+                return $row['name'];
+            }
+        }
+    }
+    return $code;
+};
 ?>
 <style>
     @page { margin: 20px; font-family: Arial, Helvetica, sans-serif; width: 100%; }
@@ -89,7 +108,7 @@
             <h3 style="margin-top:20px;">Newel Posts</h3>
             <div class="table-wrapper" style="background-color:#e1e6f7;">
                 <table>
-                    <tr><td class="lbl">Type:</td><td class="vl"><?php echo esc_html( $content['newel_type'] ?? '' ); ?></td></tr>
+                    <tr><td class="lbl">Type:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'newel_types', $content['newel_type'] ?? '' ) ); ?></td></tr>
                     <tr><td class="lbl">Material:</td><td class="vl"><?php echo esc_html( $content['newel_material'] ?? '' ); ?></td></tr>
                     <?php
                     $box   = ! empty( $content['box-post'] ) ? 1 : 0;
@@ -103,7 +122,7 @@
                         + intval( $content['br-post'] ?? 0 );
                     ?>
                     <tr><td class="lbl">Number:</td><td class="vl"><?php echo (int) $newel_number; ?></td></tr>
-                    <tr><td class="lbl">Caps:</td><td class="vl"><?php echo esc_html( $content['newel_cap'] ?? '' ); ?></td></tr>
+                    <tr><td class="lbl">Caps:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'cap_types', $content['newel_cap'] ?? '' ) ); ?></td></tr>
                     <?php if ( ( $content['newel_cap'] ?? '' ) !== 'none' ) : ?>
                         <tr><td class="lbl">Cap Number:</td><td class="vl"><?php echo (int) $newel_number; ?></td></tr>
                     <?php endif; ?>
@@ -116,10 +135,10 @@
             <h3 style="margin-top:20px;">Ballustrading</h3>
             <div class="table-wrapper" style="background-color:#e1e6f7; margin-right: 0px;">
                 <table>
-                    <tr><td class="lbl">Handrail Type:</td><td class="vl"><?php echo esc_html( $content['handrail_type'] ?? '' ); ?></td></tr>
+                    <tr><td class="lbl">Handrail Type:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'handrail_types', $content['handrail_type'] ?? '' ) ); ?></td></tr>
                     <tr><td class="lbl">Handrail Material:</td><td class="vl"><?php echo esc_html( $content['hdr_material'] ?? '' ); ?></td></tr>
                     <tr><td class="lbl">Baserail Material:</td><td class="vl"><?php echo esc_html( $content['bsr_material'] ?? '' ); ?></td></tr>
-                    <tr><td class="lbl">Spindles:</td><td class="vl"><?php echo esc_html( $content['spindle_type'] ?? '' ); ?></td></tr>
+                    <tr><td class="lbl">Spindles:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'spindle_types', $content['spindle_type'] ?? '' ) ); ?></td></tr>
                     <tr><td class="lbl">Spindle Material:</td><td class="vl"><?php echo esc_html( $content['bal_material'] ?? '' ); ?></td></tr>
                 </table>
             </div>

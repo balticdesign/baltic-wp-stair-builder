@@ -1917,10 +1917,16 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							],
 							// --- 2D staircase diagram colours ---
 							[
+								'id' => 'canvas_bg',
+								'label' => 'Canvas - Background',
+								'type' => 'color',
+								'group' => '2D Staircase Diagram',
+								'description' => 'Leave blank for a transparent canvas (page background shows through).',
+							],
+							[
 								'id' => 'treads_fill',
 								'label' => 'Treads - Fill',
 								'type' => 'color',
-								'group' => '2D Staircase Diagram',
 							],
 							[
 								'id' => 'treads_outline',

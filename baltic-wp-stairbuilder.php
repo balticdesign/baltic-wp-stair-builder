@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.0.0
+Version:		2.0.1
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.0.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.0.1' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -60,6 +60,7 @@ function custom_enqueue_files() {
 	}
 
 	$bd_diagram_colours = array(
+		'canvas_bg'        => stairbuilder_get_option( 'canvas_bg' ),
 		'treads_fill'      => stairbuilder_get_option( 'treads_fill' ),
 		'treads_outline'   => stairbuilder_get_option( 'treads_outline' ),
 		'treads_text'      => stairbuilder_get_option( 'treads_text' ),

@@ -136,7 +136,7 @@ function onLoad(changedElement = null) {
   const quarterturnStairsConfig = {
     type: 'quarterturn',
     direction: variables.direction,
-    backgroundColor: 'transparent',
+    backgroundColor: bd_diagram_colours.canvas_bg || 'transparent',
     font: 'Varela Round',
     treadHeight: variables.going,
     flight1Treads: {

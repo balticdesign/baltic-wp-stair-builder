@@ -96,7 +96,7 @@ function onLoad(changedElement = null) {
   // Prepare config for renderer
   const regularStairsConfig = {
     type: 'regular',
-    backgroundColor: 'transparent',
+    backgroundColor: bd_diagram_colours.canvas_bg || 'transparent',
     font: 'Varela Round',
     treads: {
       amount: RiserNo,

@@ -156,7 +156,7 @@ function onLoad(changedElement = null) {
   const halfturnStairsConfig = {
     type: 'halfturn',
     direction: variables.direction,
-    backgroundColor: 'transparent',
+    backgroundColor: bd_diagram_colours.canvas_bg || 'transparent',
     font: 'Varela Round',
     treadHeight: going,
     flight1Treads: {

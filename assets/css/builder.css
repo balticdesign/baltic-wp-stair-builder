@@ -162,10 +162,10 @@ input.form-chk {
 .input__btn:hover {
   border-color: var(--bd-tab-active-bg, #2c3e50);
 }
-/* Package / postcode panels use the form-box background. */
+/* Package / postcode panels use the form-box background + text colours. */
 .packg, .pcode {
   padding: 0.4rem;
-  border: 0.1rem solid #2c3e50;
+  border: 0.1rem solid var(--bd-form-text, #2c3e50);
   border-radius: 0.6rem;
   background-color: var(--bd-form-bg, #c6d8e9);
 }

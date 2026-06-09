@@ -142,29 +142,32 @@ input.form-chk {
   color: var(--bd-tab-active-text, #ffffff);
 }
 
+/* Action button follows the Active-Tab brand colours (fallbacks preserve the
+   original appearance when no brand colours are configured). */
 .input__btn {
-  border: 0.1rem solid #2c3e50;
+  border: 0.1rem solid var(--bd-tab-active-bg, #2c3e50);
   border-radius: 0.6rem;
-  background-color: #2c3e50;
+  background-color: var(--bd-tab-active-bg, #2c3e50);
   display: inline-flex;
   justify-content: center;
   align-items: center;
   font-weight: 600;
   font-size: 0.8rem;
   line-height: 1.2rem;
-  color: #ffffff;
+  color: var(--bd-tab-active-text, #ffffff);
   width: 100%;
   padding: 1rem 0;
 }
 
 .input__btn:hover {
-  border-color: #2c3e50;
+  border-color: var(--bd-tab-active-bg, #2c3e50);
 }
+/* Package / postcode panels use the form-box background. */
 .packg, .pcode {
   padding: 0.4rem;
   border: 0.1rem solid #2c3e50;
   border-radius: 0.6rem;
-  background-color: #c6d8e9;
+  background-color: var(--bd-form-bg, #c6d8e9);
 }
 .pcode input[type="text"] { background:#fff; border-radius: 0.6rem; border-color: #1a252f;  } 
 .chkboxbttn { display: flex; flex-direction:row; justify-content: space-evenly; }

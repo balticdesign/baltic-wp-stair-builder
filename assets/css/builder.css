@@ -132,15 +132,14 @@ input.form-chk {
 .radio__radio {
   display: none;
 }
-.radio__radio:checked + .d.radio__label {
-  background-color: #c6d8e9;
-  border-color: #1a252f;
-  color: #1a252f;
-}
+/* Selected radio pills (delivery .d + packaging .p) follow the Active-Tab
+   brand colours; fallbacks preserve the original hardcoded appearance when
+   no brand colours are configured. */
+.radio__radio:checked + .d.radio__label,
 .radio__radio:checked + .p.radio__label {
-  background-color: #2c3e50;
-  border-color: #1a252f;
-  color: #ffffff;
+  background-color: var(--bd-tab-active-bg, #2c3e50);
+  border-color: var(--bd-tab-active-bg, #1a252f);
+  color: var(--bd-tab-active-text, #ffffff);
 }
 
 .input__btn {

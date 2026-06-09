@@ -536,15 +536,17 @@ foreach ($fields as $field) {
   </form>
   <div class="breakout">
     <div id="pricetotal">
-      <h4>Quote</h4>
-      <span id="priceCalc" class="price">£0.00</span>
-      <h4>VAT</h4>
-      <span id="vat" class="price">£0.00</span>
-      <h4>Total Price</h4>
+      <h4>Price</h4>
       <span id="total" class="price">£0.00</span>
- <span id="vatnote">inc. VAT</span>   </div>
+      <span id="vatnote">inc. VAT</span>
+      <!-- Subtotal + VAT kept hidden: still populated by priceCalc.js and read
+           by formLogic.js at submit for the captured lead + quote PDF. -->
+      <span id="priceCalc" class="price" style="display:none;">£0.00</span>
+      <span id="vat" class="price" style="display:none;">£0.00</span>
+    </div>
     <button id="sbbuybtn" class="sb-buynow" type="button">Get Free Quote</button>
     <p id="sb-submit-error" class="sb-submit-error" style="display:none;"></p>
+    <button type="button" class="bd-panel-close" data-bd-toggle="quote" aria-label="Close Quote">&times;</button>
   </div>
   <div class="mm_breakout">
     <h4>Floor to floor</h4>

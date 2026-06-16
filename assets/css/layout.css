@@ -407,6 +407,11 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
    Headings follow each box's configurable text colour (Brand Colours tab). */
 .bd-stairbuilder-layout .mm_breakout h4 {
   color: var(--bd-mm-text, #fff);
+  font-size: 1.2em;
+}
+.bd-stairbuilder-layout .mm_breakout span.msmnt {
+  display: block;
+  padding-bottom: 10px;
 }
 .bd-stairbuilder-layout .breakout h4 {
   color: var(--bd-quote-text, #fff);

@@ -569,13 +569,13 @@ foreach ($fields as $field) {
     <button type="button" class="bd-panel-close" data-bd-toggle="quote" aria-label="Close Quote">&times;</button>
   </div>
   <div class="mm_breakout">
-    <h4>Floor to floor</h4>
+    <h4>Floor to Floor (Total Rise)</h4>
     <span id="floor" class="msmnt">00</span>
-    <h4>Tread length</h4>
-    <span id="tread" class="msmnt">00</span>
-    <h4>Rise per tread</h4>
+    <h4>Riser per tread (Individual Rise)</h4>
     <span id="rise" class="msmnt">00</span>
-    <h4>Width</h4>
+    <h4>Tread Depth (Going)</h4>
+    <span id="tread" class="msmnt">00</span>
+    <h4>Width (From Outside each String)</h4>
     <span id="scwidth" class="msmnt">00</span>
     <h4>Angle</h4>
     <span id="angl" class="msmnt">00 &deg;</span>

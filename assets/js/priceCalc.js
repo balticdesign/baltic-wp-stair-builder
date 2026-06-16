@@ -61,7 +61,8 @@ function calculateTotalPrice() {
   const $str_price = ($stringer_price + $tread_price + $tread_profile_price + $riser_price) * $risers;
 
   // === Delivery & Optional Extras ===
-  const $delivery = parseFloat(jQuery('.deliv_btn').attr('data-price'));
+  // Falls back to 0 when the Packaging & Delivery section is disabled (no .deliv_btn present).
+  const $delivery = parseFloat(jQuery('.deliv_btn').attr('data-price')) || 0;
   if (jQuery('#duodeliv').is(':checked')) $duodeliv = parseFloat(jQuery('#duodeliv').val());
   if (jQuery('#fixkit').is(':checked')) $fixkit = parseFloat(jQuery('#fixkit').val());
   if (jQuery('#asspkg').is(':checked')) $asspkg = parseFloat(jQuery('#asspkg').val());

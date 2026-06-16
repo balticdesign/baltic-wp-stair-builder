@@ -137,6 +137,10 @@ if ( ! function_exists( 'bd_stairbuilder_is_enabled' ) ) {
         return ! empty( $v );
     }
 }
+// Master toggle for the whole "Packaging & Delivery" front-end tab. When off,
+// the tab is hidden and its delivery/package/add-on charges are not applied;
+// Project Delivery Date + Postcode move into the "Your Details" tab.
+$delivery_section_enabled = bd_stairbuilder_is_enabled( 'delivery_options_enabled' );
 $two_man_delivery_enabled = bd_stairbuilder_is_enabled( 'two_man_delivery_enabled' );
 $part_assembled_enabled   = bd_stairbuilder_is_enabled( 'part_assembled_enabled' );
 $fixing_kit_enabled       = bd_stairbuilder_is_enabled( 'fixing_kit_enabled' );

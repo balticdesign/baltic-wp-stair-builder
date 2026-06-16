@@ -120,7 +120,7 @@ foreach ($fields as $field) {
         <label for="treadat">Treads after Turn:</label>
         <input type="number" id="treadat" name="treadat" value="3">
         </div>
-        <?php if ($flight3) {?> 
+        <?php if ($flight3) {?>
          <div class="form-row">
         <label for="treadit2">Treads in Turn2:</label>
         <select id="treadit2" name="treadit2">
@@ -138,138 +138,6 @@ foreach ($fields as $field) {
         </div>
         </div>
         <?php } ?>
-    
-    <div class="form-tab"><!--- Posts & Balustrades -->
-  <input type="radio" class="form-chk" id="psts1" name="rd">
-  <label class="tab-label" for="psts1">Posts & Balustrades</label>
-    <div id="posts" class="tab-content">
-    <div class="form-row">
-    <label for="newel-posts">Add Newel Posts?</label>
-      <select id="newel-posts" name="newel-posts">
-        <option value="none:0">None Required</option>
-        <?php if (!$flight2) {?>
-        <option value="left:2">Left</option>
-        <option value="right:2">Right</option>
-        <option value="both:4">Both Sides</option>
-        <option value="custom:0">Custom</option>
-        <?php } else { ?>
-          <option value="custom:0">Yes</option>
-        <?php } ?>
-      </select>
-    </div>
-    <div id="custom">
-    <h3>Top (Flt.3)</h3>
-    <div class="form-row">
-        <div class="form-col">
-        <label for="tl-post">Left</label>
-            <input id="tl-post" type="checkbox" name="tl-post" value="1">
-            </div><div class="form-col">
-        <label for="tr-post">Right</label>
-            <input id="tr-post" type="checkbox" name="tr-post" value="1">
-        </div>
-    </div>
-    <?php if ($flight3) {?>
-      <h3>Box 2</h3>
-      <div class="form-row">
-        <div class="form-col">
-        <label for="to-post2">Flt.2 Top Outside</label>
-            <input id="to-post2" type="checkbox" name="to-post2" value="1">
-            </div><div class="form-col">
-        <label for="bo-post2">Flt.3 Bottom Outside</label>
-            <input id="bo-post2" type="checkbox" name="bo-post2" value="1">
-            </div><div class="form-col">
-            <label for="box-post2">Flt.2 Box Corner</label>
-            <input id="box-post2" type="checkbox" name="box-post2" value="1">
-        </div>
-    </div>
-    <?php } ?>
-    <?php if ($flight2) {?> 
-      <h3>Box</h3>
-      <div class="form-row">
-        <div class="form-col">
-        <label for="to-post">Flt.1 Top Outside</label>
-            <input id="to-post" type="checkbox" name="to-post" value="1">
-            </div><div class="form-col">
-        <label for="bo-post">Flt.2 Bottom Outside</label>
-            <input id="bo-post" type="checkbox" name="bo-post" value="1">
-            </div><div class="form-col">
-            <label for="box-post">Flt.1 Box Corner</label>
-            <input id="box-post" type="checkbox" name="box-post" value="1">
-        </div>
-    </div>
-    <?php } ?>
-    <h3>Bottom (Flt.1)</h3>
-    <div class="form-row">
-        <div class="form-col">
-        <label for="bl-post">Left</label>
-            <input id="bl-post" type="checkbox" name="bl-post" value="1">
-            </div><div class="form-col">
-        <label for="br-post">Right</label>
-            <input id="br-post" type="checkbox" name="br-post" value="1">
-        </div>
-    </div>
-    </div>
-    <div id="posts">
-    <div class="form-row">
-    <label for="newel_type">Newel Style</label>
-      <select id="newel_type" name="newel_type">
-    <?php if (!empty($newel_type_options)): ?>
-      <?php foreach ($newel_type_options as $nt_option): ?>
-        <option value="<?php echo esc_attr($nt_option['code']); ?>"><?php echo esc_html($nt_option['name']); ?></option>
-      <?php endforeach; ?>
-    <?php else: ?>
-      <option value="" disabled>No options available</option>
-    <?php endif; ?>
-      </select>
-    </div>
-    <div class="form-row">
-    <label for="newel_cap">Newel Caps</label>
-      <select id="newel_cap" name="newel_cap">
-        <option value="none:0">None</option>
-    <?php foreach ($cap_type_options as $cap_option):
-      $cap_qty = ($cap_option['value'] === '' || $cap_option['value'] === null) ? 1 : $cap_option['value']; ?>
-        <option value="<?php echo esc_attr($cap_option['code'] . ':' . $cap_qty); ?>"><?php echo esc_html($cap_option['name']); ?></option>
-    <?php endforeach; ?>
-      </select>
-    </div>
-    <div class="form-row">
-    <h4>Do you require Ballustrades?</h4>
-    <div class="form-col">
-    <label for="ballustrades-yes">Yes</label>
-     <input id="ballustrades-yes" type="radio" name="ballustrades" value="true">
-     <label for="ballustrades-no">No</label>
-     <input id="ballustrades-no" type="radio" name="ballustrades" value="false" checked>
-</div>
-    </div>
-</div>
-<div id="ball">
-<div class="form-row">
-    <label for="handrail_type">Handrail Style</label>
-      <select id="handrail_type" name="handrail_type">
-    <?php if (!empty($handrail_type_options)): ?>
-      <?php foreach ($handrail_type_options as $hr_option): ?>
-        <option value="<?php echo esc_attr($hr_option['code']); ?>"><?php echo esc_html($hr_option['name']); ?></option>
-      <?php endforeach; ?>
-    <?php else: ?>
-      <option value="" disabled>No options available</option>
-    <?php endif; ?>
-      </select>
-    </div>
-<div class="form-row">
-    <label for="spindle_type">Spindle Style</label>
-      <select id="spindle_type" name="spindle_type">
-    <?php if (!empty($spindle_type_options)): ?>
-      <?php foreach ($spindle_type_options as $sp_option): ?>
-        <option value="<?php echo esc_attr($sp_option['code']); ?>"><?php echo esc_html($sp_option['name']); ?></option>
-      <?php endforeach; ?>
-    <?php else: ?>
-      <option value="" disabled>No options available</option>
-    <?php endif; ?>
-      </select>
-    </div>
-</div>
-    </div>
- </div>
     <div id="cnstr" class="form-tab"><!--- Construction -->
     <input type="radio" class="form-chk" id="chck2" name="rd">
     <label class="tab-label" for="chck2">Construction</label>
@@ -335,7 +203,7 @@ foreach ($fields as $field) {
         <option data-config="0,4" value="Right Curtail and Bullnose Step">Right Curtail and Bullnose Step</option>
         <option data-config="4,4" value="Double Curtail and Bullnose Step">Double Curtail and Bullnose Step</option>
       </select>
-  
+
       <!--<label for="left-featured-step">Left Hand Side:</label>-->
       <select id="left-featured-step" name="left-featured-step">
         <option value="0">None</option>
@@ -355,7 +223,7 @@ foreach ($fields as $field) {
       </select>
       <input type="hidden" id="leftFeatStep" value="0">
       <input type="hidden" id="rightFeatStep" value="0">
-   
+
     </div>
 </div>
 </div>
@@ -444,6 +312,138 @@ foreach ($fields as $field) {
 <?php echo $bonuslogic; ?>
 </div>
 </div>
+    <div class="form-tab"><!--- Posts & Balustrades -->
+  <input type="radio" class="form-chk" id="psts1" name="rd">
+  <label class="tab-label" for="psts1">Posts & Balustrades</label>
+    <div id="posts" class="tab-content">
+    <div class="form-row">
+    <label for="newel-posts">Add Newel Posts?</label>
+      <select id="newel-posts" name="newel-posts">
+        <option value="none:0">None Required</option>
+        <?php if (!$flight2) {?>
+        <option value="left:2">Left</option>
+        <option value="right:2">Right</option>
+        <option value="both:4">Both Sides</option>
+        <option value="custom:0">Custom</option>
+        <?php } else { ?>
+          <option value="custom:0">Yes</option>
+        <?php } ?>
+      </select>
+    </div>
+    <div id="custom">
+    <h3>Top (Flt.3)</h3>
+    <div class="form-row">
+        <div class="form-col">
+        <label for="tl-post">Left</label>
+            <input id="tl-post" type="checkbox" name="tl-post" value="1">
+            </div><div class="form-col">
+        <label for="tr-post">Right</label>
+            <input id="tr-post" type="checkbox" name="tr-post" value="1">
+        </div>
+    </div>
+    <?php if ($flight3) {?>
+      <h3>Box 2</h3>
+      <div class="form-row">
+        <div class="form-col">
+        <label for="to-post2">Flt.2 Top Outside</label>
+            <input id="to-post2" type="checkbox" name="to-post2" value="1">
+            </div><div class="form-col">
+        <label for="bo-post2">Flt.3 Bottom Outside</label>
+            <input id="bo-post2" type="checkbox" name="bo-post2" value="1">
+            </div><div class="form-col">
+            <label for="box-post2">Flt.2 Box Corner</label>
+            <input id="box-post2" type="checkbox" name="box-post2" value="1">
+        </div>
+    </div>
+    <?php } ?>
+    <?php if ($flight2) {?>
+      <h3>Box</h3>
+      <div class="form-row">
+        <div class="form-col">
+        <label for="to-post">Flt.1 Top Outside</label>
+            <input id="to-post" type="checkbox" name="to-post" value="1">
+            </div><div class="form-col">
+        <label for="bo-post">Flt.2 Bottom Outside</label>
+            <input id="bo-post" type="checkbox" name="bo-post" value="1">
+            </div><div class="form-col">
+            <label for="box-post">Flt.1 Box Corner</label>
+            <input id="box-post" type="checkbox" name="box-post" value="1">
+        </div>
+    </div>
+    <?php } ?>
+    <h3>Bottom (Flt.1)</h3>
+    <div class="form-row">
+        <div class="form-col">
+        <label for="bl-post">Left</label>
+            <input id="bl-post" type="checkbox" name="bl-post" value="1">
+            </div><div class="form-col">
+        <label for="br-post">Right</label>
+            <input id="br-post" type="checkbox" name="br-post" value="1">
+        </div>
+    </div>
+    </div>
+    <div id="posts">
+    <div class="form-row">
+    <label for="newel_type">Newel Style</label>
+      <select id="newel_type" name="newel_type">
+    <?php if (!empty($newel_type_options)): ?>
+      <?php foreach ($newel_type_options as $nt_option): ?>
+        <option value="<?php echo esc_attr($nt_option['code']); ?>"><?php echo esc_html($nt_option['name']); ?></option>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <option value="" disabled>No options available</option>
+    <?php endif; ?>
+      </select>
+    </div>
+    <div class="form-row">
+    <label for="newel_cap">Newel Caps</label>
+      <select id="newel_cap" name="newel_cap">
+        <option value="none:0">None</option>
+    <?php foreach ($cap_type_options as $cap_option):
+      $cap_qty = ($cap_option['value'] === '' || $cap_option['value'] === null) ? 1 : $cap_option['value']; ?>
+        <option value="<?php echo esc_attr($cap_option['code'] . ':' . $cap_qty); ?>"><?php echo esc_html($cap_option['name']); ?></option>
+    <?php endforeach; ?>
+      </select>
+    </div>
+    <div class="form-row">
+    <h4>Do you require Ballustrades?</h4>
+    <div class="form-col">
+    <label for="ballustrades-yes">Yes</label>
+     <input id="ballustrades-yes" type="radio" name="ballustrades" value="true">
+     <label for="ballustrades-no">No</label>
+     <input id="ballustrades-no" type="radio" name="ballustrades" value="false" checked>
+</div>
+    </div>
+</div>
+<div id="ball">
+<div class="form-row">
+    <label for="handrail_type">Handrail Style</label>
+      <select id="handrail_type" name="handrail_type">
+    <?php if (!empty($handrail_type_options)): ?>
+      <?php foreach ($handrail_type_options as $hr_option): ?>
+        <option value="<?php echo esc_attr($hr_option['code']); ?>"><?php echo esc_html($hr_option['name']); ?></option>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <option value="" disabled>No options available</option>
+    <?php endif; ?>
+      </select>
+    </div>
+<div class="form-row">
+    <label for="spindle_type">Spindle Style</label>
+      <select id="spindle_type" name="spindle_type">
+    <?php if (!empty($spindle_type_options)): ?>
+      <?php foreach ($spindle_type_options as $sp_option): ?>
+        <option value="<?php echo esc_attr($sp_option['code']); ?>"><?php echo esc_html($sp_option['name']); ?></option>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <option value="" disabled>No options available</option>
+    <?php endif; ?>
+      </select>
+    </div>
+</div>
+    </div>
+ </div>
+<?php if ($delivery_section_enabled) : ?>
 <div id="deliv" class="form-tab"><!--- Packaging / Delivery -->
 <input type="radio" class="form-chk" id="chck4" name="rd">
     <label class="tab-label" for="chck4">Packaging & Delivery</label>
@@ -505,14 +505,33 @@ foreach ($fields as $field) {
           <label for="xtrap" class="p chkbx__label">Extra Packaging </label>
           </div>
         <?php } ?>
-          <input type="hidden" id="vatRate" value="<?php echo do_shortcode('[vat_rate]'); ?>">
       </div>
   </div>
 </div>
+<?php endif; ?>
 <div id="contact" class="form-tab"><!--- Contact / Lead capture -->
     <input type="radio" class="form-chk" id="chck5" name="rd">
     <label class="tab-label" for="chck5">Your Details</label>
     <div class="tab-content">
+      <?php if ( ! $delivery_section_enabled ) : ?>
+        <?php if (!empty($project_delivery_date_options)) { ?>
+        <div class="form-row">
+          <label for="project_delivery_date">Project Delivery Date:</label>
+          <select id="project_delivery_date" name="project_delivery_date">
+            <option value="" disabled selected>Choose a delivery timeframe</option>
+            <?php foreach ($project_delivery_date_options as $pdd_option): ?>
+              <option value="<?php echo esc_attr($pdd_option['code']); ?>">
+                <?php echo esc_html($pdd_option['name']); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <?php } ?>
+        <div class="form-row">
+          <label for="postcode">Postcode</label>
+          <input type="text" id="postcode" name="postcode" placeholder="Your postcode">
+        </div>
+      <?php endif; ?>
       <div class="form-row">
         <label for="contact_name">Name *</label>
         <input type="text" id="contact_name" name="contact_name" required>
@@ -526,6 +545,7 @@ foreach ($fields as $field) {
         <input type="tel" id="contact_phone" name="contact_phone">
       </div>
       <p class="contact-note"><small>We'll email your PDF quote to the address above and follow up to discuss your project.</small></p>
+      <input type="hidden" id="vatRate" value="<?php echo do_shortcode('[vat_rate]'); ?>">
     </div>
 </div>
 <div class="form-tab">

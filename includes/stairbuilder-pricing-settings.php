@@ -700,12 +700,20 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			if ( isset( $tab['layout'] ) && $tab['layout'] === 'paired_rows' ) {
 				$main_fields = array();
 				$side_fields = array();
+				$full_fields = array();
 				foreach ( $tab['fields'] as $f ) {
-					if ( ! empty( $f['sidebar'] ) ) {
+					if ( ! empty( $f['full_row'] ) ) {
+						$full_fields[] = $f;
+					} elseif ( ! empty( $f['sidebar'] ) ) {
 						$side_fields[] = $f;
 					} else {
 						$main_fields[] = $f;
 					}
+				}
+				// Full-width section toggles (e.g. a master on/off for the whole tab)
+				// render as a banner above the paired (toggle, price) rows.
+				foreach ( $full_fields as $f ) {
+					$this->render_full_toggle( $f );
 				}
 				if ( $side_fields ) {
 					echo '<div class="stairbuilder-paired-tab">';
@@ -860,6 +868,40 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			}
 
 			return $blocks;
+		}
+
+		/**
+		 * Render a single full-width section toggle (a master on/off switch),
+		 * shown as a banner above paired rows. Optional `description` renders
+		 * underneath as help text.
+		 */
+		private function render_full_toggle( $field ) {
+			$options = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $options ) ) { $options = array(); }
+
+			$value = isset( $options[ $field['id'] ] ) ? $options[ $field['id'] ] : null;
+			if ( $value === null && isset( $field['default'] ) ) {
+				$value = $field['default'];
+			}
+			$on   = ! empty( $value );
+			$name = self::OPTION_KEY . '[' . $field['id'] . ']';
+			?>
+			<div class="stairbuilder-section-toggle">
+				<label class="stairbuilder-switch">
+					<input type="hidden" name="<?php echo esc_attr( $name ); ?>" value="0" />
+					<input type="checkbox"
+						id="<?php echo esc_attr( $field['id'] ); ?>"
+						name="<?php echo esc_attr( $name ); ?>"
+						value="1"
+						<?php checked( $on ); ?> />
+					<span class="stairbuilder-switch-track"><span class="stairbuilder-switch-thumb"></span></span>
+					<span class="stairbuilder-switch-text"><?php echo wp_kses_post( isset( $field['toggle_label'] ) ? $field['toggle_label'] : '' ); ?></span>
+				</label>
+				<?php if ( ! empty( $field['description'] ) ) : ?>
+					<p class="description"><?php echo wp_kses_post( $field['description'] ); ?></p>
+				<?php endif; ?>
+			</div>
+			<?php
 		}
 
 		/**
@@ -1079,6 +1121,11 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				.stairbuilder-pricing-wrap .stairbuilder-switch input:checked + .stairbuilder-switch-track .stairbuilder-switch-thumb { transform: translateX(18px); }
 				.stairbuilder-pricing-wrap .stairbuilder-switch input:focus-visible + .stairbuilder-switch-track { outline: 2px solid #2271b1; outline-offset: 2px; }
 				.stairbuilder-pricing-wrap .stairbuilder-switch-text { font-size: 13px; color: #1d2327; }
+
+				/* Full-width section master toggle, banner above paired rows */
+				.stairbuilder-pricing-wrap .stairbuilder-section-toggle { margin: 0 0 18px; padding: 14px 16px; background: #fff; border: 1px solid #c3c4c7; border-left: 4px solid #2271b1; border-radius: 4px; }
+				.stairbuilder-pricing-wrap .stairbuilder-section-toggle .stairbuilder-switch-text { font-size: 14px; font-weight: 600; }
+				.stairbuilder-pricing-wrap .stairbuilder-section-toggle .description { margin: 8px 0 0; }
 
 				/* Stray single field inside a component-tab */
 				.stairbuilder-pricing-wrap .stairbuilder-single-row { margin-top: 12px; background: #fff; }
@@ -1803,6 +1850,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						'label' => 'Delivery Options',
 						'layout' => 'paired_rows',
 						'fields' => [
+							['id' => 'delivery_options_enabled', 'label' => '', 'type' => 'toggle', 'toggle_label' => 'Enable Packaging &amp; Delivery section', 'default' => 1, 'full_row' => true, 'description' => 'When off, the front-end "Packaging &amp; Delivery" tab is hidden and its delivery, package and add-on charges are not applied. "Project Delivery Date" and "Postcode" move into the "Your Details" tab (Postcode becomes a plain text field, no delivery lookup). VAT is unaffected.'],
 							['id' => 'two_man_delivery_enabled', 'label' => '', 'type' => 'toggle', 'toggle_label' => 'Two Man Delivery', 'default' => 1],
 							['id' => 'two_man_delivery_price', 'label' => 'Two Man Delivery Price', 'type' => 'number', 'disable_when' => ['field' => 'two_man_delivery_enabled', 'equals' => false]],
 							['id' => 'part_assembled_enabled', 'label' => '', 'type' => 'toggle', 'toggle_label' => 'Part Assembled', 'default' => 1],

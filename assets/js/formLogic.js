@@ -278,3 +278,92 @@ jQuery("input[name='delivery']").change(function () {
     jQuery(".pcode").show();
   }
 });
+
+// ==============================
+// Construction limits: building-regs warning (Going turns red) + hard
+// maximums for Going and Width. All admin-configured via the "Construction
+// Settings" tab and passed through stairBuilderVars.construction.
+// ==============================
+(function () {
+  const cfg = (window.stairBuilderVars && stairBuilderVars.construction) || {};
+
+  const warnEnabled =
+    cfg.going_warning_enabled === true ||
+    cfg.going_warning_enabled === 1 ||
+    cfg.going_warning_enabled === '1';
+  const warnMin  = parseFloat(cfg.going_warning_min);
+  const warnMax  = parseFloat(cfg.going_warning_max);
+  const goingMax = parseFloat(cfg.going_max); // NaN => no hard limit
+  const widthMax = parseFloat(cfg.width_max); // NaN => no hard limit
+
+  const WIDTH_IDS = ['stair-width', 'stair-width2', 'stair-width3'];
+
+  function buildMsg(custom, fallback, maxVal) {
+    const text = (custom && String(custom).trim()) || fallback;
+    return text.replace(/\{max\}/g, isNaN(maxVal) ? '' : maxVal);
+  }
+  const goingMsg = buildMsg(cfg.going_max_message, 'Maximum going is {max}mm.', goingMax);
+  const widthMsg = buildMsg(cfg.width_max_message, 'Maximum width is {max}mm.', widthMax);
+
+  // Create a hidden red message element immediately after the given input.
+  function makeMsgEl(afterInput) {
+    const el = document.createElement('p');
+    el.className = 'sb-limit-msg';
+    el.style.cssText = 'display:none;color:#d63638;margin:4px 0 0;font-size:13px;font-weight:600;';
+    afterInput.insertAdjacentElement('afterend', el);
+    return jQuery(el);
+  }
+
+  jQuery(function () {
+    const goingInput = document.getElementById('going');
+    if (!goingInput) return;
+
+    const $going = jQuery(goingInput);
+    const $goingMsg = makeMsgEl(goingInput);
+
+    // One shared width message, placed after the last width field present.
+    let lastWidthEl = null;
+    WIDTH_IDS.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) lastWidthEl = el;
+    });
+    const $widthMsg = lastWidthEl ? makeMsgEl(lastWidthEl) : jQuery();
+
+    function applyGoing() {
+      let v = parseFloat($going.val());
+      // Hard maximum — clamp and show message.
+      if (!isNaN(goingMax) && !isNaN(v) && v > goingMax) {
+        v = goingMax;
+        $going.val(goingMax);
+        $goingMsg.text(goingMsg).show();
+      } else {
+        $goingMsg.hide();
+      }
+      // Soft building-regs warning — colour the field red, value still allowed.
+      const outOfRange =
+        warnEnabled && !isNaN(v) &&
+        ((!isNaN(warnMin) && v < warnMin) || (!isNaN(warnMax) && v > warnMax));
+      $going.css('color', outOfRange ? 'red' : 'inherit');
+    }
+
+    function applyWidth(input) {
+      const $w = jQuery(input);
+      const v = parseFloat($w.val());
+      if (!isNaN(widthMax) && !isNaN(v) && v > widthMax) {
+        $w.val(widthMax);
+        $widthMsg.text(widthMsg).show();
+      } else {
+        $widthMsg.hide();
+      }
+    }
+
+    $going.on('input change', applyGoing);
+    WIDTH_IDS.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) jQuery(el).on('input change', function () { applyWidth(this); });
+    });
+
+    // Initial pass (after the flight script has seeded default values).
+    applyGoing();
+  });
+})();

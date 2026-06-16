@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.1.0
+Version:		2.2.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.1.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.2.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -98,9 +98,28 @@ function custom_enqueue_files() {
 	wp_enqueue_script( 'formLogic', plugin_dir_url( __FILE__ ) . 'assets/js/formLogic.js', $flight_script_handle, BALTIC_STAIRBUILDER_VERSION, true );
 	wp_enqueue_script( 'priceCalc', plugin_dir_url( __FILE__ ) . 'assets/js/priceCalc.js', $flight_script_handle, BALTIC_STAIRBUILDER_VERSION, true );
 	$ajax_nonce = wp_create_nonce( 'sb-ajax-nonce' );
+
+	// Construction Settings — building-regs warning + hard maximums for the
+	// front-end form. (bd_stairbuilder_is_enabled() isn't loaded yet at enqueue
+	// time, so resolve the toggle's null/empty-as-enabled default inline here.)
+	$cs_warn_raw = stairbuilder_get_option( 'going_regs_warning_enabled', null );
+	$cs_warn_on  = ( $cs_warn_raw === null || $cs_warn_raw === '' ) ? true : ! empty( $cs_warn_raw );
+	$cs_min_raw  = stairbuilder_get_option( 'going_regs_warning_min', null );
+	$cs_max_raw  = stairbuilder_get_option( 'going_regs_warning_max', null );
+
 	wp_localize_script( 'formLogic', 'stairBuilderVars', array(
 		'ajax_url' => admin_url( 'admin-ajax.php' ),
 		'nonce'    => $ajax_nonce,
+		'construction' => array(
+			'going_warning_enabled' => $cs_warn_on ? 1 : 0,
+			'going_warning_min'     => ( $cs_min_raw === null || $cs_min_raw === '' ) ? 220 : (float) $cs_min_raw,
+			'going_warning_max'     => ( $cs_max_raw === null || $cs_max_raw === '' ) ? 250 : (float) $cs_max_raw,
+			// Empty string = no hard limit (JS parseFloat('') is NaN).
+			'going_max'             => stairbuilder_get_option( 'going_max', '' ),
+			'going_max_message'     => stairbuilder_get_option( 'going_max_message', '' ),
+			'width_max'             => stairbuilder_get_option( 'width_max', '' ),
+			'width_max_message'     => stairbuilder_get_option( 'width_max_message', '' ),
+		),
 	) );
 
 	wp_enqueue_style( 'builder-style', plugin_dir_url( __FILE__ ) . 'assets/css/builder.css', array(), BALTIC_STAIRBUILDER_VERSION );

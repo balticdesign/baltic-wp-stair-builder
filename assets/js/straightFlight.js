@@ -90,8 +90,8 @@ function onLoad(changedElement = null) {
     }
   }
 
-  // Going input feedback
-  jQuery('#going').css({ color: (going < 220 || going > 250) ? 'red' : 'inherit' });
+  // Going input feedback (building-regs warning) is handled centrally in
+  // formLogic.js from admin-configured Construction Settings.
 
   // Prepare config for renderer
   const regularStairsConfig = {

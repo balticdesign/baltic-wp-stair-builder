@@ -152,7 +152,8 @@ function onLoad(changedElement = null) {
       RiserNo = numberOfStairs;
     }
   }
-  jQuery('#going').css({ color: (going < 220 || going > 250) ? 'red' : 'inherit' });
+  // Going input feedback (building-regs warning) is handled centrally in
+  // formLogic.js from admin-configured Construction Settings.
   const halfturnStairsConfig = {
     type: 'halfturn',
     direction: variables.direction,

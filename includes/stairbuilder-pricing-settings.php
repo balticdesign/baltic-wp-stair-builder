@@ -247,21 +247,25 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		private function render_number( $id, $name, $value, $field ) {
+			$placeholder = isset( $field['placeholder'] ) ? $field['placeholder'] : '';
 			?>
 			<input type="number" step="any"
 				id="<?php echo esc_attr( $id ); ?>"
 				name="<?php echo esc_attr( $name ); ?>"
 				value="<?php echo esc_attr( $value ); ?>"
+				placeholder="<?php echo esc_attr( $placeholder ); ?>"
 				class="small-text" />
 			<?php
 		}
 
 		private function render_text( $id, $name, $value, $field ) {
+			$placeholder = isset( $field['placeholder'] ) ? $field['placeholder'] : '';
 			?>
 			<input type="text"
 				id="<?php echo esc_attr( $id ); ?>"
 				name="<?php echo esc_attr( $name ); ?>"
 				value="<?php echo esc_attr( $value ); ?>"
+				placeholder="<?php echo esc_attr( $placeholder ); ?>"
 				class="regular-text" />
 			<?php
 		}
@@ -1447,6 +1451,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				),
 				// Group 2 — staircase-wide settings + display.
 				array(
+					'construction_settings',
 					'base_costs',
 					'quarter_landing',
 					'half_landing',
@@ -1736,6 +1741,63 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'style' => 'card',
 								'description' => 'Each row is a selectable spindle style. Name = customer-facing label; Code = stable machine key.',
 								'subfields' => $variant_subfields,
+							],
+						],
+					],
+					'construction_settings' => [
+						'label' => 'Construction Settings',
+						'fields' => [
+							[
+								'id' => 'going_regs_warning_enabled',
+								'label' => 'Building Regs Warning',
+								'type' => 'toggle',
+								'toggle_label' => 'Highlight "Going" in red when outside the building-regs range',
+								'default' => 1,
+								'description' => 'When on, the front-end "Going" field turns red if its value is below the minimum or above the maximum set below (a soft warning — the value is still allowed). Turn off to disable the warning entirely.',
+							],
+							[
+								'id' => 'going_regs_warning_min',
+								'label' => 'Going Warning — Minimum (mm)',
+								'type' => 'number',
+								'placeholder' => '220',
+								'description' => 'Going below this turns red. Defaults to 220mm if left empty. Only used when the warning is on.',
+								'disable_when' => ['field' => 'going_regs_warning_enabled', 'equals' => false],
+							],
+							[
+								'id' => 'going_regs_warning_max',
+								'label' => 'Going Warning — Maximum (mm)',
+								'type' => 'number',
+								'placeholder' => '250',
+								'description' => 'Going above this turns red. Defaults to 250mm if left empty. Only used when the warning is on.',
+								'disable_when' => ['field' => 'going_regs_warning_enabled', 'equals' => false],
+							],
+							[
+								'id' => 'going_max',
+								'label' => 'Going — Hard Maximum (mm)',
+								'type' => 'number',
+								'placeholder' => 'No limit',
+								'description' => 'The front-end form will not allow a Going larger than this — the value snaps back to the maximum and a message is shown. Leave empty for no limit.',
+							],
+							[
+								'id' => 'going_max_message',
+								'label' => 'Going Maximum — Message',
+								'type' => 'text',
+								'placeholder' => 'Maximum going is {max}mm.',
+								'description' => 'Red message shown when someone exceeds the Going maximum. Use {max} for the maximum value. Leave empty for a default message.',
+							],
+							[
+								'id' => 'width_max',
+								'label' => 'Staircase Width — Hard Maximum (mm)',
+								'type' => 'number',
+								'placeholder' => 'No limit',
+								'description' => 'Applies to all flight widths. The form will not allow a width larger than this — the value snaps back and a message is shown. Leave empty for no limit.',
+							],
+							[
+								'id' => 'width_max_message',
+								'label' => 'Width Maximum — Message',
+								'type' => 'text',
+								'placeholder' => 'Maximum width is {max}mm.',
+								'description' => 'Red message shown when someone exceeds the width maximum. Use {max} for the maximum value. Leave empty for a default message.',
 							],
 						],
 					],

@@ -1748,6 +1748,15 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						'label' => 'Construction Settings',
 						'fields' => [
 							[
+								'id' => 'material_quick_set_enabled',
+								'label' => 'Material Quick-Set Buttons',
+								'type' => 'toggle',
+								'toggle_label' => 'Show "Set all to Pine" / "Set all to Oak" buttons on the Material section',
+								'default' => 0,
+								'full_row' => true,
+								'description' => 'When on, two quick buttons appear above the front-end Material options letting the customer set every component to Pine or Oak at once. Off by default.',
+							],
+							[
 								'id' => 'going_regs_warning_enabled',
 								'label' => 'Building Regs Warning',
 								'type' => 'toggle',

@@ -192,6 +192,57 @@ $spindle_type_options = bd_stairbuilder_normalise_repeater(
 $pine_baserail = stairbuilder_get_option('pine_baserail_price');
 $oak_baserail = stairbuilder_get_option('oak_baserail_price');
 
+// Front-end "Set all to Pine / Oak" quick buttons. Default OFF — only shown
+// when an admin explicitly turns them on (Construction Settings tab).
+$material_quick_set_enabled = ! empty( stairbuilder_get_option( 'material_quick_set_enabled' ) );
 
+if ( ! function_exists( 'bd_stairbuilder_render_type_field' ) ) {
+    /**
+     * Render an admin-driven "type/style" select — or, when only a single
+     * choice exists, a hidden input carrying that one value.
+     *
+     * Collapsing to a hidden field keeps the form simple for the customer
+     * while preserving pricing exactly: the JS reads these fields by id via
+     * .val() (splitting on ":"), so a hidden <input> is a drop-in for the
+     * <select> and the captured value — and therefore the price — is identical.
+     *
+     * @param string $id       Field id/name (must match the JS hooks).
+     * @param string $label    Visible label (only shown when rendered as a select).
+     * @param array  $choices  List of ['value' => string, 'label' => string].
+     */
+    function bd_stairbuilder_render_type_field( $id, $label, array $choices ) {
+        // No admin rows — keep the existing disabled placeholder behaviour.
+        if ( empty( $choices ) ) {
+            printf(
+                '<div class="form-row"><label for="%1$s">%2$s</label><select id="%1$s" name="%1$s"><option value="" disabled>No options available</option></select></div>',
+                esc_attr( $id ),
+                esc_html( $label )
+            );
+            return;
+        }
+        // Single choice — invisible field, no UI clutter, same submitted value.
+        if ( count( $choices ) === 1 ) {
+            printf(
+                '<input type="hidden" id="%1$s" name="%1$s" value="%2$s">',
+                esc_attr( $id ),
+                esc_attr( $choices[0]['value'] )
+            );
+            return;
+        }
+        printf(
+            '<div class="form-row"><label for="%1$s">%2$s</label><select id="%1$s" name="%1$s">',
+            esc_attr( $id ),
+            esc_html( $label )
+        );
+        foreach ( $choices as $choice ) {
+            printf(
+                '<option value="%1$s">%2$s</option>',
+                esc_attr( $choice['value'] ),
+                esc_html( $choice['label'] )
+            );
+        }
+        echo '</select></div>';
+    }
+}
 
  ?>

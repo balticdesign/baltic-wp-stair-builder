@@ -62,7 +62,7 @@ foreach ($fields as $field) {
         </div>
         <?php } ?>
         <div class="form-row">
-            <label for="floor-height">Floor Height:</label>
+            <label for="floor-height">Floor Height <span class="form-sub">(Floor to Floor)</span></label>
             <input type="number" id="floor-height" name="floor-height" value="">
         </div>
         <div class="form-row">
@@ -75,11 +75,11 @@ foreach ($fields as $field) {
             </select>
         </div>
         <div class="form-row">
-            <label for="going">Going:</label>
+            <label for="going">Tread Depth <span class="form-sub">(Going)</span></label>
             <input type="number" id="going" name="going" value="">
         </div>
         <div class="form-row">
-            <label for="stair-width">Width:</label>
+            <label for="stair-width">Width <span class="form-sub">(Outside to Outside String)</span></label>
             <input type="number" id="stair-width" name="stair-width" value="">
             <?php if ($flight2) {?>
             <label for="stair-width2">Flight 2 Width:</label>
@@ -231,11 +231,13 @@ foreach ($fields as $field) {
 <input type="radio" class="form-chk" id="chck3" name="rd">
     <label class="tab-label" for="chck3">Material</label>
     <div class="tab-content">
+    <?php if ($material_quick_set_enabled) : ?>
     <button type="button" id="all_pine">Set all to Pine</button>
     <button type="button" id="all_oak">Set all to Oak</button>
+    <?php endif; ?>
     <div class="form-row">
     <label for="stringer_material">Stringer:</label>
-    <select id="stringer_material" name="stringer_material">
+    <select id="stringer_material" name="stringer_material" class="bd-mat-select">
     <?php if (!empty($stringer_options)): ?>
       <?php foreach ($stringer_options as $str_option): ?>
         <option value="<?php echo esc_attr($str_option['code']) . ':' . esc_attr($str_option['value']); ?>">
@@ -249,7 +251,7 @@ foreach ($fields as $field) {
     </div>
     <div class="form-row">
   <label for="tread_material">Treads:</label>
-  <select id="tread_material" name="tread_material">
+  <select id="tread_material" name="tread_material" class="bd-mat-select">
     <?php if (!empty($tread_options)): ?>
       <?php foreach ($tread_options as $tr_option): ?>
         <option value="<?php echo esc_attr($tr_option['code']) . ':' . esc_attr($tr_option['value']); ?>">
@@ -263,7 +265,7 @@ foreach ($fields as $field) {
 </div>
     <div class="form-row">
       <label for="riser_material">Risers:</label>
-      <select id="riser_material" name="riser_material">
+      <select id="riser_material" name="riser_material" class="bd-mat-select">
       <?php if (!empty($riser_options)) { ?>
       <?php foreach ($riser_options as $r_option) { ?>
         <option value="<?php echo esc_attr($r_option['code']) . ':' . esc_attr($r_option['value']); ?>">
@@ -274,41 +276,6 @@ foreach ($fields as $field) {
     <?php } ?>
       </select>
     </div>
-    <div class="form-row">
-    <label for="newel_material">Newel Posts:</label>
-      <select id="newel_material" name="newel_material">
-        <option value="">Pine</option>
-        <option value="">Oak</option>
-      </select>
-    </div>
-    <div class="form-row">
-  <label for="cap_material">Newel Caps:</label>
-  <select id="cap_material" name="cap_material">
-    <option value="">Pine</option>
-    <option value="">Oak</option>
-  </select>
-</div>
-<div class="form-row">
-  <label for="bal_material">Spindles(Baluster):</label>
-  <select id="bal_material" name="bal_material">
-    <option value="">Pine</option>
-    <option value="">Oak</option>
-  </select>
-</div>
-<div class="form-row">
-  <label for="hdr_material">Handrails:</label>
-  <select id="hdr_material" name="hdr_material">
-    <option value="">Pine</option>
-    <option value="">Oak</option>
-  </select>
-</div>
-<div class="form-row">
-  <label for="bsr_material">Baserails:</label>
-  <select id="bsr_material" name="bsr_material">
-    <option value="pine:<?php echo $pine_baserail; ?>">Pine</option>
-    <option value="oak:<?php echo $oak_baserail; ?>">Oak</option>
-  </select>
-</div>
 <?php echo $bonuslogic; ?>
 </div>
 </div>
@@ -384,25 +351,34 @@ foreach ($fields as $field) {
     </div>
     <div id="posts">
     <div class="form-row">
-    <label for="newel_type">Newel Style</label>
-      <select id="newel_type" name="newel_type">
-    <?php if (!empty($newel_type_options)): ?>
-      <?php foreach ($newel_type_options as $nt_option): ?>
-        <option value="<?php echo esc_attr($nt_option['code']); ?>"><?php echo esc_html($nt_option['name']); ?></option>
-      <?php endforeach; ?>
-    <?php else: ?>
-      <option value="" disabled>No options available</option>
-    <?php endif; ?>
+    <label for="newel_material">Newel Material</label>
+      <select id="newel_material" name="newel_material" class="bd-mat-select">
+        <option value="">Pine</option>
+        <option value="">Oak</option>
       </select>
     </div>
+    <?php
+    // Newel Style — collapses to a hidden field when only one type is defined.
+    $newel_type_choices = array();
+    foreach ($newel_type_options as $nt_option) {
+      $newel_type_choices[] = array('value' => $nt_option['code'], 'label' => $nt_option['name']);
+    }
+    bd_stairbuilder_render_type_field('newel_type', 'Newel Style', $newel_type_choices);
+    ?>
+    <?php
+    // Newel Caps — "None" is always offered, so this only collapses if no cap rows exist.
+    $newel_cap_choices = array(array('value' => 'none:0', 'label' => 'None'));
+    foreach ($cap_type_options as $cap_option) {
+      $cap_qty = ($cap_option['value'] === '' || $cap_option['value'] === null) ? 1 : $cap_option['value'];
+      $newel_cap_choices[] = array('value' => $cap_option['code'] . ':' . $cap_qty, 'label' => $cap_option['name']);
+    }
+    bd_stairbuilder_render_type_field('newel_cap', 'Newel Caps', $newel_cap_choices);
+    ?>
     <div class="form-row">
-    <label for="newel_cap">Newel Caps</label>
-      <select id="newel_cap" name="newel_cap">
-        <option value="none:0">None</option>
-    <?php foreach ($cap_type_options as $cap_option):
-      $cap_qty = ($cap_option['value'] === '' || $cap_option['value'] === null) ? 1 : $cap_option['value']; ?>
-        <option value="<?php echo esc_attr($cap_option['code'] . ':' . $cap_qty); ?>"><?php echo esc_html($cap_option['name']); ?></option>
-    <?php endforeach; ?>
+    <label for="cap_material">Newel Cap Material</label>
+      <select id="cap_material" name="cap_material" class="bd-mat-select">
+        <option value="">Pine</option>
+        <option value="">Oak</option>
       </select>
     </div>
     <div class="form-row">
@@ -417,29 +393,42 @@ foreach ($fields as $field) {
 </div>
 <div id="ball">
 <div class="form-row">
-    <label for="handrail_type">Handrail Style</label>
-      <select id="handrail_type" name="handrail_type">
-    <?php if (!empty($handrail_type_options)): ?>
-      <?php foreach ($handrail_type_options as $hr_option): ?>
-        <option value="<?php echo esc_attr($hr_option['code']); ?>"><?php echo esc_html($hr_option['name']); ?></option>
-      <?php endforeach; ?>
-    <?php else: ?>
-      <option value="" disabled>No options available</option>
-    <?php endif; ?>
+    <label for="hdr_material">Handrail Material</label>
+      <select id="hdr_material" name="hdr_material" class="bd-mat-select">
+        <option value="">Pine</option>
+        <option value="">Oak</option>
+      </select>
+    </div>
+    <?php
+    // Handrail Style — collapses to a hidden field when only one type is defined.
+    $handrail_type_choices = array();
+    foreach ($handrail_type_options as $hr_option) {
+      $handrail_type_choices[] = array('value' => $hr_option['code'], 'label' => $hr_option['name']);
+    }
+    bd_stairbuilder_render_type_field('handrail_type', 'Handrail Style', $handrail_type_choices);
+    ?>
+<div class="form-row">
+    <label for="bsr_material">Baserail Material</label>
+      <select id="bsr_material" name="bsr_material" class="bd-mat-select">
+        <option value="pine:<?php echo $pine_baserail; ?>">Pine</option>
+        <option value="oak:<?php echo $oak_baserail; ?>">Oak</option>
       </select>
     </div>
 <div class="form-row">
-    <label for="spindle_type">Spindle Style</label>
-      <select id="spindle_type" name="spindle_type">
-    <?php if (!empty($spindle_type_options)): ?>
-      <?php foreach ($spindle_type_options as $sp_option): ?>
-        <option value="<?php echo esc_attr($sp_option['code']); ?>"><?php echo esc_html($sp_option['name']); ?></option>
-      <?php endforeach; ?>
-    <?php else: ?>
-      <option value="" disabled>No options available</option>
-    <?php endif; ?>
+    <label for="bal_material">Spindle Material</label>
+      <select id="bal_material" name="bal_material" class="bd-mat-select">
+        <option value="">Pine</option>
+        <option value="">Oak</option>
       </select>
     </div>
+    <?php
+    // Spindle Style — collapses to a hidden field when only one type is defined.
+    $spindle_type_choices = array();
+    foreach ($spindle_type_options as $sp_option) {
+      $spindle_type_choices[] = array('value' => $sp_option['code'], 'label' => $sp_option['name']);
+    }
+    bd_stairbuilder_render_type_field('spindle_type', 'Spindle Style', $spindle_type_choices);
+    ?>
 </div>
     </div>
  </div>
@@ -569,13 +558,13 @@ foreach ($fields as $field) {
     <button type="button" class="bd-panel-close" data-bd-toggle="quote" aria-label="Close Quote">&times;</button>
   </div>
   <div class="mm_breakout">
-    <h4>Floor to Floor (Total Rise)</h4>
+    <h4>Floor to Floor <span class="mm-sub">(Total Rise)</span></h4>
     <span id="floor" class="msmnt">00</span>
-    <h4>Riser per tread (Individual Rise)</h4>
+    <h4>Riser per tread <span class="mm-sub">(Individual Rise)</span></h4>
     <span id="rise" class="msmnt">00</span>
-    <h4>Tread Depth (Going)</h4>
+    <h4>Tread Depth <span class="mm-sub">(Going)</span></h4>
     <span id="tread" class="msmnt">00</span>
-    <h4>Width (From Outside each String)</h4>
+    <h4>Width <span class="mm-sub">(Outside to Outside String)</span></h4>
     <span id="scwidth" class="msmnt">00</span>
     <h4>Angle</h4>
     <span id="angl" class="msmnt">00 &deg;</span>

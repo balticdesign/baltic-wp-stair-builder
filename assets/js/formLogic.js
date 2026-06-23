@@ -178,7 +178,9 @@ function resetInputs() {
 }
 
 function setMaterial(material) {
-  jQuery('#mat select').each(function () {
+  // Material selects now live across the Material and Posts & Balustrades tabs,
+  // so target them by shared class rather than by container.
+  jQuery('.bd-mat-select').each(function () {
     jQuery(this).find(`option:contains(${material})`).prop('selected', true);
   });
 }

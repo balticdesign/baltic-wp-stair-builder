@@ -409,9 +409,17 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   color: var(--bd-mm-text, #fff);
   font-size: 1.2em;
 }
+/* Bracketed clarifier sits on its own line, smaller and lighter. */
+.bd-stairbuilder-layout .mm_breakout h4 .mm-sub {
+  display: block;
+  font-size: 0.7em;
+  font-weight: 400;
+  opacity: 0.8;
+}
 .bd-stairbuilder-layout .mm_breakout span.msmnt {
   display: block;
   padding-bottom: 10px;
+  font-size: 1.4em;
 }
 .bd-stairbuilder-layout .breakout h4 {
   color: var(--bd-quote-text, #fff);
@@ -430,6 +438,14 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   width: 100%;
   text-transform: capitalize;
   vertical-align: middle;
+}
+/* Bracketed clarifier under a form label: own line, smaller, lighter. */
+.bd-stairbuilder-layout #stairbuild .form-row label .form-sub {
+  display: block;
+  font-size: 0.75em;
+  font-weight: 400;
+  text-transform: none;
+  opacity: 0.75;
 }
 
 /* Three-column custom-section layout: equal thirds with a soft border. */

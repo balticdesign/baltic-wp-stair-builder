@@ -37,10 +37,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		const MIGRATION_FLAG = 'stairbuilder_migrated_from_acf';
 
 		/** Schema version, written into the blob so future migrations can detect shape. */
-		const SCHEMA_VERSION = 2;
+		const SCHEMA_VERSION = 3;
 
 		/** Option flag set to 1 after the v2 flat-key → repeater migration. */
 		const REPEATER_MIGRATION_FLAG = 'stairbuilder_repeater_migrated_v2';
+
+		/** Option flag set to 1 after the v2.4 spindle material-mode backfill. */
+		const BALLUSTRADE_MODES_FLAG = 'stairbuilder_balustrading_modes_migrated_v24';
 
 		/** @var array Parsed schema (tabs + fields). */
 		private $schema;
@@ -51,6 +54,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			add_action( 'admin_init', array( $this, 'register' ) );
 			add_action( 'admin_init', array( $this, 'maybe_migrate_from_acf' ), 20 );
 			add_action( 'admin_init', array( $this, 'maybe_migrate_repeaters_v2' ), 30 );
+			add_action( 'admin_init', array( $this, 'maybe_backfill_balustrade_modes' ), 40 );
 			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 		}
 
@@ -429,6 +433,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				$by[ $sf['id'] ] = $sf;
 			}
 			$has_caps  = isset( $by['caps_per_newel'] );
+			// Spindle rows carry a material_mode select (Wood / Metal / Glass). Other
+			// component rows (newel/cap/handrail) have no mode and render Pine/Oak only.
+			$has_modes = isset( $by['material_mode'] );
 			$toggle_on = ! empty( $row['use_product_id'] );
 			$fname     = function( $k ) use ( $name, $i ) {
 				return $name . '[' . $i . '][' . $k . ']';
@@ -436,18 +443,90 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			$val       = function( $k, $fallback = '' ) use ( $row ) {
 				return ( isset( $row[ $k ] ) && $row[ $k ] !== '' ) ? $row[ $k ] : $fallback;
 			};
+			// Reusable price/product-ID column. The row-level `is-product-id` switch
+			// flips .bd-variant-price ↔ .bd-variant-id via CSS, so metal/glass single
+			// columns get the same Use-Product-ID behaviour as Pine/Oak for free.
+			// $flat collapses the title + "Price"/"£" sub-rows into one label line
+			// ("Pine £" / "Price £") so it aligns with Name on the single-line spindle
+			// rows. Non-flat keeps the original stacked layout for newel/cap/handrail.
+			$variant_col = function( $label, $price_key, $id_key, $flat = false ) use ( $fname, $val ) {
+				if ( $flat ) {
+					$base       = ( $label === '' ) ? __( 'Price', 'stairbuilder' ) : $label;
+					$price_lbl  = sprintf( '%s £', $base );
+					$id_lbl     = ( $label === '' ) ? __( 'Product ID', 'stairbuilder' ) : sprintf( '%s ID', $label );
+					?>
+					<div class="stairbuilder-component-col stairbuilder-component-variant is-flat">
+						<label class="stairbuilder-card-label bd-variant-price"><?php echo esc_html( $price_lbl ); ?>
+							<input type="number" step="0.01" min="0" name="<?php echo esc_attr( $fname( $price_key ) ); ?>" value="<?php echo esc_attr( $val( $price_key ) ); ?>" class="widefat" />
+						</label>
+						<label class="stairbuilder-card-label bd-variant-id"><?php echo esc_html( $id_lbl ); ?>
+							<input type="number" step="1" min="0" name="<?php echo esc_attr( $fname( $id_key ) ); ?>" value="<?php echo esc_attr( $val( $id_key ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'Variation ID', 'stairbuilder' ); ?>" />
+						</label>
+					</div>
+					<?php
+					return;
+				}
+				?>
+				<div class="stairbuilder-component-col stairbuilder-component-variant">
+					<h4 class="stairbuilder-variant-title"><?php echo esc_html( $label ); ?></h4>
+					<div class="stairbuilder-field bd-variant-price">
+						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Price', 'stairbuilder' ); ?></label>
+						<span class="stairbuilder-currency">£</span>
+						<input type="number" step="0.01" min="0" name="<?php echo esc_attr( $fname( $price_key ) ); ?>" value="<?php echo esc_attr( $val( $price_key ) ); ?>" class="regular-text" />
+					</div>
+					<div class="stairbuilder-field bd-variant-id">
+						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Product ID', 'stairbuilder' ); ?></label>
+						<input type="number" step="1" min="0" name="<?php echo esc_attr( $fname( $id_key ) ); ?>" value="<?php echo esc_attr( $val( $id_key ) ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Variation ID', 'stairbuilder' ); ?>" />
+					</div>
+				</div>
+				<?php
+			};
+			$mode = $has_modes ? $val( 'material_mode', 'wood_pine_oak' ) : '';
+			$mode_class = '';
+			if ( $has_modes ) {
+				$m = ( $mode === 'metal' ) ? 'metal' : ( ( $mode === 'glass' ) ? 'glass' : 'wood' );
+				$mode_class = ' mode-' . $m;
+			}
 			?>
-			<div class="stairbuilder-component stairbuilder-card-row<?php echo $toggle_on ? ' is-product-id' : ''; ?>">
+			<div class="stairbuilder-component stairbuilder-card-row<?php echo $toggle_on ? ' is-product-id' : ''; ?><?php echo esc_attr( $mode_class ); ?>">
 				<div class="stairbuilder-component-col stairbuilder-component-header">
 					<label class="stairbuilder-card-label"><?php esc_html_e( 'Name', 'stairbuilder' ); ?>
 						<input type="text" name="<?php echo esc_attr( $fname( 'name' ) ); ?>" value="<?php echo esc_attr( $val( 'name' ) ); ?>" class="widefat" />
 					</label>
-					<label class="stairbuilder-card-label"><?php esc_html_e( 'Code', 'stairbuilder' ); ?>
-						<input type="text" name="<?php echo esc_attr( $fname( 'code' ) ); ?>" value="<?php echo esc_attr( $val( 'code' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'auto from name', 'stairbuilder' ); ?>" />
-					</label>
+					<?php if ( $has_modes ) : ?>
+						<?php // Balustrading rows hide Code (frees the row for Price); the
+						// stable key is preserved here and auto-slugs from Name when blank. ?>
+						<input type="hidden" name="<?php echo esc_attr( $fname( 'code' ) ); ?>" value="<?php echo esc_attr( $val( 'code' ) ); ?>" />
+					<?php else : ?>
+						<label class="stairbuilder-card-label"><?php esc_html_e( 'Code', 'stairbuilder' ); ?>
+							<input type="text" name="<?php echo esc_attr( $fname( 'code' ) ); ?>" value="<?php echo esc_attr( $val( 'code' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'auto from name', 'stairbuilder' ); ?>" />
+						</label>
+					<?php endif; ?>
 					<?php if ( $has_caps ) : ?>
 					<label class="stairbuilder-card-label stairbuilder-card-qty"><?php esc_html_e( 'Caps / Newel', 'stairbuilder' ); ?>
 						<input type="number" step="any" min="0" name="<?php echo esc_attr( $fname( 'caps_per_newel' ) ); ?>" value="<?php echo esc_attr( $val( 'caps_per_newel', '1' ) ); ?>" class="small-text" />
+					</label>
+					<?php endif; ?>
+					<?php if ( $has_modes ) : ?>
+					<label class="stairbuilder-card-label stairbuilder-card-mode"><?php esc_html_e( 'Material Type', 'stairbuilder' ); ?>
+						<select class="bd-mode-select widefat" name="<?php echo esc_attr( $fname( 'material_mode' ) ); ?>">
+							<option value="wood_pine_oak" <?php selected( $mode, 'wood_pine_oak' ); ?>><?php esc_html_e( 'Wood (Pine / Oak)', 'stairbuilder' ); ?></option>
+							<option value="metal" <?php selected( $mode, 'metal' ); ?>><?php esc_html_e( 'Metal', 'stairbuilder' ); ?></option>
+							<option value="glass" <?php selected( $mode, 'glass' ); ?>><?php esc_html_e( 'Glass', 'stairbuilder' ); ?></option>
+						</select>
+					</label>
+					<?php // Glass basis controls sit inline in the header; CSS shows them only in glass mode. ?>
+					<label class="stairbuilder-card-label bd-glass-inline"><?php esc_html_e( 'Glass Pricing', 'stairbuilder' ); ?>
+						<select class="bd-glass-unit widefat" name="<?php echo esc_attr( $fname( 'pricing_unit' ) ); ?>">
+							<option value="per_metre" <?php selected( $val( 'pricing_unit', 'per_metre' ), 'per_metre' ); ?>><?php esc_html_e( 'Per Linear Metre', 'stairbuilder' ); ?></option>
+							<option value="per_panel" <?php selected( $val( 'pricing_unit', 'per_metre' ), 'per_panel' ); ?>><?php esc_html_e( 'Per Panel', 'stairbuilder' ); ?></option>
+						</select>
+					</label>
+					<label class="stairbuilder-card-label bd-glass-inline bd-glass-panel"><?php esc_html_e( 'Panel Width (mm)', 'stairbuilder' ); ?>
+						<input type="number" step="any" min="0" name="<?php echo esc_attr( $fname( 'panel_width_mm' ) ); ?>" value="<?php echo esc_attr( $val( 'panel_width_mm' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'e.g. 600', 'stairbuilder' ); ?>" />
+					</label>
+					<label class="stairbuilder-card-label bd-glass-inline bd-glass-panel"><?php esc_html_e( 'Panel Gap (mm)', 'stairbuilder' ); ?>
+						<input type="number" step="any" min="0" name="<?php echo esc_attr( $fname( 'panel_gap_mm' ) ); ?>" value="<?php echo esc_attr( $val( 'panel_gap_mm' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'e.g. 20', 'stairbuilder' ); ?>" />
 					</label>
 					<?php endif; ?>
 					<label class="stairbuilder-switch stairbuilder-card-switch">
@@ -458,25 +537,21 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					</label>
 				</div>
 
-				<?php
-				$variants = array(
-					'Pine' => array( 'price' => 'pine_price', 'id' => 'pine_id' ),
-					'Oak'  => array( 'price' => 'oak_price', 'id' => 'oak_id' ),
-				);
-				foreach ( $variants as $label => $keys ) : ?>
-				<div class="stairbuilder-component-col stairbuilder-component-variant">
-					<h4 class="stairbuilder-variant-title"><?php echo esc_html( $label ); ?></h4>
-					<div class="stairbuilder-field bd-variant-price">
-						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Price', 'stairbuilder' ); ?></label>
-						<span class="stairbuilder-currency">£</span>
-						<input type="number" step="0.01" min="0" name="<?php echo esc_attr( $fname( $keys['price'] ) ); ?>" value="<?php echo esc_attr( $val( $keys['price'] ) ); ?>" class="regular-text" />
+				<?php if ( ! $has_modes ) : ?>
+					<?php $variant_col( __( 'Pine', 'stairbuilder' ), 'pine_price', 'pine_id' ); ?>
+					<?php $variant_col( __( 'Oak', 'stairbuilder' ), 'oak_price', 'oak_id' ); ?>
+				<?php else : ?>
+					<div class="bd-mode-block bd-mode-wood">
+						<?php $variant_col( __( 'Pine', 'stairbuilder' ), 'pine_price', 'pine_id', true ); ?>
+						<?php $variant_col( __( 'Oak', 'stairbuilder' ), 'oak_price', 'oak_id', true ); ?>
 					</div>
-					<div class="stairbuilder-field bd-variant-id">
-						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Product ID', 'stairbuilder' ); ?></label>
-						<input type="number" step="1" min="0" name="<?php echo esc_attr( $fname( $keys['id'] ) ); ?>" value="<?php echo esc_attr( $val( $keys['id'] ) ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Variation ID', 'stairbuilder' ); ?>" />
+					<div class="bd-mode-block bd-mode-metal">
+						<?php $variant_col( '', 'metal_price', 'metal_id', true ); ?>
 					</div>
-				</div>
-				<?php endforeach; ?>
+					<div class="bd-mode-block bd-mode-glass">
+						<?php $variant_col( '', 'glass_price', 'glass_id', true ); ?>
+					</div>
+				<?php endif; ?>
 
 				<div class="stairbuilder-card-actions">
 					<button type="button" class="button stairbuilder-card-remove" aria-label="<?php esc_attr_e( 'Remove row', 'stairbuilder' ); ?>">&times;</button>
@@ -580,12 +655,24 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						case 'product_id':
 							$clean_row[ $sf['id'] ] = ( $v === '' || $v === null ) ? '' : absint( $v );
 							break;
+						case 'select':
+							$choices = isset( $sf['choices'] ) ? array_keys( $sf['choices'] ) : array();
+							if ( is_scalar( $v ) && in_array( (string) $v, array_map( 'strval', $choices ), true ) ) {
+								$clean_row[ $sf['id'] ] = (string) $v;
+							} else {
+								$clean_row[ $sf['id'] ] = isset( $sf['default'] ) ? (string) $sf['default'] : ( $choices ? (string) $choices[0] : '' );
+							}
+							break;
 						default:
 							$clean_row[ $sf['id'] ] = is_scalar( $v ) ? sanitize_text_field( (string) $v ) : '';
 					}
-					$cv = $clean_row[ $sf['id'] ];
-					if ( $cv !== '' && $cv !== 0 && $cv !== 0.0 ) {
-						$has_value = true;
+					// Selects always carry a (default) value, so they must not count
+					// toward "row has content" — otherwise blank rows would never drop.
+					if ( $sf['type'] !== 'select' ) {
+						$cv = $clean_row[ $sf['id'] ];
+						if ( $cv !== '' && $cv !== 0 && $cv !== 0.0 ) {
+							$has_value = true;
+						}
 					}
 				}
 				if ( $has_value ) {
@@ -1174,6 +1261,31 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				.stairbuilder-pricing-wrap .stairbuilder-card-row .bd-variant-id { display: none; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-row.is-product-id .bd-variant-price { display: none; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-row.is-product-id .bd-variant-id { display: block; }
+				/* Spindle material-mode rows: the fixed Pine/Oak 3-col grid does not fit
+				   the variable mode blocks (wood = 2 cols, metal = 1, glass = opts + 1),
+				   so switch those rows to a flex layout and show only the active block. */
+				/* Balustrading rows render as a SINGLE compact line: name / material
+				   type (+ glass pricing / panel width / gap in glass mode) / price
+				   column(s) / toggle. The header and the active price block use
+				   display:contents so their fields become direct flex items of the row;
+				   `order` keeps the toggle + remove button on the right regardless of
+				   DOM order. Code is hidden on these rows (see render_card_row). */
+				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-wood,
+				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-metal,
+				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-glass { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-component-header { display: contents; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-card-label { flex: 0 1 150px; margin-bottom: 0; order: 1; }
+				/* Glass basis fields appear only when the row is in glass mode. */
+				.stairbuilder-pricing-wrap .stairbuilder-card-row .bd-glass-inline { display: none; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-glass .bd-glass-inline { display: block; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row .bd-mode-block { display: none; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-wood .bd-mode-wood,
+				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-metal .bd-mode-metal,
+				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-glass .bd-mode-glass { display: contents; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-component-variant { flex: 0 1 150px; min-width: 130px; order: 2; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-card-switch { flex: 0 0 auto; order: 3; margin-left: auto; align-self: center; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-card-actions { flex: 0 0 auto; order: 4; align-self: center; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-mode select { font-weight: 400; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-add { margin-top: 14px; }
 				@media (max-width: 960px) {
 					.stairbuilder-pricing-wrap .stairbuilder-card-row { grid-template-columns: 1fr; }
@@ -1278,8 +1390,52 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					$(document).on("change", ".stairbuilder-card-repeater .bd-row-toggle", function(){
 						$(this).closest(".stairbuilder-card-row").toggleClass("is-product-id", $(this).is(":checked"));
 					});
+
+					// Spindle rows: Material Type select swaps which mode block (Wood /
+					// Metal / Glass) is shown. Cloned rows render with mode-wood baked in,
+					// so no init pass is needed beyond this change handler.
+					$(document).on("change", ".stairbuilder-card-repeater .bd-mode-select", function(){
+						var v = $(this).val();
+						var cls = v === "metal" ? "mode-metal" : (v === "glass" ? "mode-glass" : "mode-wood");
+						$(this).closest(".stairbuilder-card-row")
+							.removeClass("mode-wood mode-metal mode-glass")
+							.addClass(cls);
+					});
 				});'
 			);
+		}
+
+		/* ------------------------------------------------------------------ */
+		/* One-shot backfill: spindle material_mode (v2.4)                      */
+		/* ------------------------------------------------------------------ */
+
+		/**
+		 * Stamp existing spindle rows with material_mode = 'wood_pine_oak' so the
+		 * admin shows them explicitly as Wood and the future bulk price tool sees a
+		 * mode on every row. Purely additive — the renderer / price lookup / price
+		 * calc already treat a missing mode as wood, so this changes no behaviour.
+		 */
+		public function maybe_backfill_balustrade_modes() {
+			if ( get_option( self::BALLUSTRADE_MODES_FLAG ) ) {
+				return;
+			}
+			$opts = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $opts ) || empty( $opts['spindle_types'] ) || ! is_array( $opts['spindle_types'] ) ) {
+				update_option( self::BALLUSTRADE_MODES_FLAG, 1 );
+				return;
+			}
+			$changed = false;
+			foreach ( $opts['spindle_types'] as &$row ) {
+				if ( is_array( $row ) && empty( $row['material_mode'] ) ) {
+					$row['material_mode'] = 'wood_pine_oak';
+					$changed = true;
+				}
+			}
+			unset( $row );
+			if ( $changed ) {
+				update_option( self::OPTION_KEY, $opts );
+			}
+			update_option( self::BALLUSTRADE_MODES_FLAG, 1 );
 		}
 
 		/* ------------------------------------------------------------------ */
@@ -1492,6 +1648,38 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					['id' => 'oak_price',      'label' => 'Oak Price',       'type' => 'price'],
 					['id' => 'pine_id',        'label' => 'Pine Product ID', 'type' => 'product_id'],
 					['id' => 'oak_id',         'label' => 'Oak Product ID',  'type' => 'product_id'],
+				];
+				// Spindle rows extend the wood variant with a material_mode dimension:
+				// Wood (pine/oak, existing), Metal (single per-spindle price, count via
+				// 141/112 divisor in priceCalc.js) and Glass (single price, per metre or
+				// per panel). render_card_row() detects material_mode and renders the
+				// per-mode blocks; the sanitiser/migration default missing modes to wood.
+				// 'adjustable' marks prices the future bulk price-increase tool sweeps.
+				$spindle_subfields = [
+					['id' => 'name',           'label' => 'Name',            'type' => 'text'],
+					['id' => 'code',           'label' => 'Code',            'type' => 'text'],
+					['id' => 'material_mode',  'label' => 'Material Type',   'type' => 'select',
+						'choices' => ['wood_pine_oak' => 'Wood (Pine / Oak)', 'metal' => 'Metal', 'glass' => 'Glass'],
+						'default' => 'wood_pine_oak'],
+					['id' => 'use_product_id', 'label' => 'Use Product ID',  'type' => 'toggle'],
+					// Wood (pine/oak) — unchanged from the shared variant set.
+					['id' => 'pine_price',     'label' => 'Pine Price',      'type' => 'price', 'adjustable' => true],
+					['id' => 'oak_price',      'label' => 'Oak Price',       'type' => 'price', 'adjustable' => true],
+					['id' => 'pine_id',        'label' => 'Pine Product ID', 'type' => 'product_id'],
+					['id' => 'oak_id',         'label' => 'Oak Product ID',  'type' => 'product_id'],
+					// Metal single-material price / product ID. Distinct keys from glass
+					// so the hidden (inactive-mode) inputs can't clobber each other on save.
+					['id' => 'metal_price',    'label' => 'Metal Price',     'type' => 'price', 'adjustable' => true],
+					['id' => 'metal_id',       'label' => 'Metal Product ID', 'type' => 'product_id'],
+					// Glass single-material price / product ID + per-metre vs per-panel
+					// basis (+ panel width, used only when per-panel).
+					['id' => 'glass_price',    'label' => 'Glass Price',     'type' => 'price', 'adjustable' => true],
+					['id' => 'glass_id',       'label' => 'Glass Product ID', 'type' => 'product_id'],
+					['id' => 'pricing_unit',   'label' => 'Glass Pricing',   'type' => 'select',
+						'choices' => ['per_metre' => 'Per Linear Metre', 'per_panel' => 'Per Panel'],
+						'default' => 'per_metre'],
+					['id' => 'panel_width_mm', 'label' => 'Panel Width (mm)', 'type' => 'number'],
+					['id' => 'panel_gap_mm',   'label' => 'Panel Gap (mm)',   'type' => 'number'],
 				];
 				return [
 					'strings' => [
@@ -1739,8 +1927,8 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Spindle Types',
 								'type' => 'repeater',
 								'style' => 'card',
-								'description' => 'Each row is a selectable spindle style. Name = customer-facing label; Code = stable machine key.',
-								'subfields' => $variant_subfields,
+								'description' => 'Each row is a selectable balustrading style. Name = customer-facing label; Code = stable machine key. Material Type switches between Wood (Pine/Oak), Metal (priced per spindle) and Glass (priced per metre or per panel).',
+								'subfields' => $spindle_subfields,
 							],
 						],
 					],

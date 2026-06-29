@@ -1,3 +1,26 @@
+// Metal/glass balustrade pricing. Wood spindles never call this — their per-tread
+// count is left exactly as it was. Counts/lengths come pre-computed from the caller.
+//   metal: count = ceil(stairRun / 141) + ceil(landingRun / 112), min 1, × unit price.
+//          stairRun uses the 240mm-going / 42°-rake assumption so the configurator
+//          agrees with the live spindle-calculator product page (divisors 141/112).
+//   glass: per linear metre  -> (run / 1000) × price
+//          per panel         -> ceil(run / panelWidth) × price
+function altBalustradePrice(mode, g) {
+  if (mode === 'metal') {
+    let n = Math.ceil(g.runStairs / 141);
+    if (g.runLanding > 0) n += Math.ceil(g.runLanding / 112);
+    return Math.max(1, n) * g.unitCost;
+  }
+  // glass
+  if (g.glassUnit === 'per_panel') {
+    // Panels don't butt together — the effective pitch is panel width + gap.
+    const pitch = g.panelWidth + (g.panelGap || 0);
+    const panels = pitch > 0 ? Math.ceil(g.glassRun / pitch) : 0;
+    return panels * g.unitCost;
+  }
+  return (g.glassRun / 1000) * g.unitCost;
+}
+
 function calculateTotalPrice() {
   // Use stair-specific grabFormValues if available, otherwise fallback
   const formValues =
@@ -79,6 +102,14 @@ function calculateTotalPrice() {
   const $caps = BuilderUtils.getNumber('newel_cap');
   const $cap_cost = $caps * BuilderUtils.getNumber('cap_material');
   const $spindle_cost = BuilderUtils.getNumber('bal_material');
+  // Balustrade material mode + glass basis ride on the selected #bal_material
+  // option's data-attrs (set server-side by getPriceAndID). Wood (or no attr)
+  // leaves the existing per-tread spindle count untouched.
+  const $balOpt = jQuery('#bal_material option:selected');
+  const spMode = ($balOpt.attr('data-material-mode') || 'wood').toLowerCase();
+  const spGlassUnit = $balOpt.attr('data-pricing-unit') || 'per_metre';
+  const spPanelW = parseFloat($balOpt.attr('data-panel-width')) || 0;
+  const spPanelGap = parseFloat($balOpt.attr('data-panel-gap')) || 0;
   const $hdr_cost = BuilderUtils.getNumber('hdr_material');
   const $bsr_cost = BuilderUtils.getNumber('bsr_material');
   const $leftFeatStep = parseFloat(jQuery('#leftFeatStep').val());
@@ -125,6 +156,25 @@ function calculateTotalPrice() {
     $hdr_price = $hdr_cost * totalUnits;
     $bsr_price = $bsr_cost * totalUnits;
     $ball_price = $hdr_price + $bsr_price;
+
+    // Metal/glass override the wood spindle count for the rake sections (÷141) and
+    // box/landing run (÷112); glass prices the full run per-metre/per-panel.
+    if (spMode === 'metal' || spMode === 'glass') {
+      const rakePerStep = 240 / Math.cos(42 * Math.PI / 180);
+      const stepsSides =
+        ($qtBefore * (rightBal + leftBal)) +
+        ($qtAfter * (rightBal2 + leftBal2)) +
+        ($htAfter2 ? $htAfter2 * (rightBal3 + leftBal3) : 0);
+      $spindle_price = altBalustradePrice(spMode, {
+        unitCost: $spindle_cost,
+        glassUnit: spGlassUnit,
+        panelWidth: spPanelW,
+        panelGap: spPanelGap,
+        runStairs: rakePerStep * stepsSides,
+        runLanding: activeBoxWidth,
+        glassRun: totalLength,
+      });
+    }
   } else {
     // Simple/straight logic
     const $spindles_needed = ($risers * 2) * ($spLmod + $spRmod);
@@ -135,6 +185,22 @@ function calculateTotalPrice() {
     $bsr_price = $bsr_cost * $hdrUnits;
 
     $ball_price = ($hdr_price + $bsr_price) * ($spLmod + $spRmod);
+
+    // Metal/glass override the wood spindle count: rake length ÷141 (240/42°
+    // assumption) per balustraded side; glass prices the run per-metre/per-panel.
+    if (spMode === 'metal' || spMode === 'glass') {
+      const sides = $spLmod + $spRmod;
+      const rakePerStep = 240 / Math.cos(42 * Math.PI / 180);
+      $spindle_price = altBalustradePrice(spMode, {
+        unitCost: $spindle_cost,
+        glassUnit: spGlassUnit,
+        panelWidth: spPanelW,
+        panelGap: spPanelGap,
+        runStairs: rakePerStep * treads * sides,
+        runLanding: 0,
+        glassRun: parseFloat($rake) * sides,
+      });
+    }
   }
 
   // === Total Calculation ===

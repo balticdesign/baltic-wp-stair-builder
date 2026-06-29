@@ -52,11 +52,48 @@ function getPriceAndID($row){
 
   if (!is_array($row)) {
     return [
-      '<option data-product-id="" value="pine:0">Pine</option>',
-      '<option data-product-id="" value="oak:0">Oak</option>'
+      '<option data-product-id="" data-material-mode="wood" value="pine:0">Pine</option>',
+      '<option data-product-id="" data-material-mode="wood" value="oak:0">Oak</option>'
     ];
   }
 
+  // Spindle rows can be Metal or Glass single-material modes (newel/cap/handrail
+  // rows have no material_mode and fall through to the Pine/Oak default). For the
+  // single-material modes the front-end material select collapses to one option;
+  // priceCalc.js reads the mode + glass basis from the option's data-attributes.
+  $mode = isset($row['material_mode']) ? $row['material_mode'] : 'wood_pine_oak';
+
+  $resolve_price = function($price, $id) {
+    if (!empty($id) && function_exists('wc_get_product')) {
+      $product = wc_get_product($id);
+      if ($product) { return $product->get_price(); }
+    }
+    return ($price === '' || $price === null) ? 0 : $price;
+  };
+
+  if ($mode === 'metal' || $mode === 'glass') {
+    $use_pid = !empty($row['use_product_id']);
+    if ($mode === 'metal') {
+      $pid   = $use_pid ? (isset($row['metal_id']) ? $row['metal_id'] : null) : null;
+      $price = $resolve_price(isset($row['metal_price']) ? $row['metal_price'] : 0, $pid);
+      return [
+        '<option data-product-id="'.esc_attr($pid).'" data-material-mode="metal" value="metal:'.esc_attr($price).'">Metal</option>'
+      ];
+    }
+    // glass
+    $pid   = $use_pid ? (isset($row['glass_id']) ? $row['glass_id'] : null) : null;
+    $price = $resolve_price(isset($row['glass_price']) ? $row['glass_price'] : 0, $pid);
+    $unit  = (isset($row['pricing_unit']) && $row['pricing_unit'] === 'per_panel') ? 'per_panel' : 'per_metre';
+    $pw    = isset($row['panel_width_mm']) && $row['panel_width_mm'] !== '' ? $row['panel_width_mm'] : '';
+    $gap   = isset($row['panel_gap_mm']) && $row['panel_gap_mm'] !== '' ? $row['panel_gap_mm'] : '';
+    return [
+      '<option data-product-id="'.esc_attr($pid).'" data-material-mode="glass"'
+        .' data-pricing-unit="'.esc_attr($unit).'" data-panel-width="'.esc_attr($pw).'" data-panel-gap="'.esc_attr($gap).'"'
+        .' value="glass:'.esc_attr($price).'">Glass</option>'
+    ];
+  }
+
+  // Wood (Pine / Oak) — unchanged behaviour.
   $pinePrice = isset($row['pine_price']) ? $row['pine_price'] : 0;
   $oakPrice  = isset($row['oak_price'])  ? $row['oak_price']  : 0;
 
@@ -75,8 +112,8 @@ function getPriceAndID($row){
   if ($oakPrice === '' || $oakPrice === null) { $oakPrice = 0; }
 
   return [
-    '<option data-product-id="'.$pine_id.'" value="pine:' . $pinePrice . '">' . 'Pine' . '</option>',
-    '<option data-product-id="'.$oak_id.'" value="oak:' . $oakPrice . '">' . 'Oak' . '</option>'
+    '<option data-product-id="'.$pine_id.'" data-material-mode="wood" value="pine:' . $pinePrice . '">' . 'Pine' . '</option>',
+    '<option data-product-id="'.$oak_id.'" data-material-mode="wood" value="oak:' . $oakPrice . '">' . 'Oak' . '</option>'
   ];
 }
 

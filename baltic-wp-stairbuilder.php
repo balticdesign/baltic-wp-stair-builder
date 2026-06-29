@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.4.0
+Version:		2.4.1
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.4.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.4.1' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -110,6 +110,9 @@ function custom_enqueue_files() {
 	wp_localize_script( 'formLogic', 'stairBuilderVars', array(
 		'ajax_url' => admin_url( 'admin-ajax.php' ),
 		'nonce'    => $ajax_nonce,
+		// Spindle balustrading is Material-first (Pine/Oak/Metal/Glass → filtered
+		// Style list), resolved client-side from this catalogue.
+		'spindles' => function_exists( 'bd_stairbuilder_spindle_frontend_rows' ) ? bd_stairbuilder_spindle_frontend_rows() : array(),
 		'construction' => array(
 			'going_warning_enabled' => $cs_warn_on ? 1 : 0,
 			'going_warning_min'     => ( $cs_min_raw === null || $cs_min_raw === '' ) ? 220 : (float) $cs_min_raw,

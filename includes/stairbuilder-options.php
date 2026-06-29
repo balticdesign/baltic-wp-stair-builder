@@ -151,6 +151,60 @@ function fetch_sp_prices() {
 add_action('wp_ajax_fetch_sp_prices', 'fetch_sp_prices');
 add_action('wp_ajax_nopriv_fetch_sp_prices', 'fetch_sp_prices');
 
+/**
+ * Front-end spindle catalogue, localised to JS (stairBuilderVars.spindles).
+ *
+ * Unlike newel/cap/handrail (Style → Material via AJAX), spindle balustrading is
+ * Material-first: the customer picks Pine/Oak/Metal/Glass, then the Style list
+ * filters to that material's rows. formLogic.js needs every row's mode + resolved
+ * price client-side to do that instantly, so we resolve here (honouring the per-row
+ * Use-Product-ID switch, exactly like getPriceAndID) and hand JS a flat array.
+ *
+ * @return array[] [{code,name,mode, pine?,oak?|metal?|glass?,pricing_unit?,panel_width?,panel_gap?}]
+ */
+function bd_stairbuilder_spindle_frontend_rows() {
+  $rows = stairbuilder_get_option('spindle_types', array());
+  $out  = array();
+  if (!is_array($rows)) {
+    return $out;
+  }
+  foreach ($rows as $r) {
+    if (!is_array($r) || empty($r['code'])) {
+      continue;
+    }
+    $mode_raw = isset($r['material_mode']) ? $r['material_mode'] : 'wood_pine_oak';
+    $mode     = ($mode_raw === 'metal') ? 'metal' : (($mode_raw === 'glass') ? 'glass' : 'wood');
+    $use_pid  = !empty($r['use_product_id']);
+    $resolve  = function ($price, $id) use ($use_pid) {
+      if ($use_pid && !empty($id) && function_exists('wc_get_product')) {
+        $product = wc_get_product($id);
+        if ($product) { return (float) $product->get_price(); }
+      }
+      return ($price === '' || $price === null) ? 0.0 : (float) $price;
+    };
+    $get = function ($k) use ($r) { return isset($r[$k]) ? $r[$k] : null; };
+
+    $row = array(
+      'code' => (string) $r['code'],
+      'name' => isset($r['name']) ? (string) $r['name'] : (string) $r['code'],
+      'mode' => $mode,
+    );
+    if ($mode === 'wood') {
+      $row['pine'] = $resolve($get('pine_price'), $get('pine_id'));
+      $row['oak']  = $resolve($get('oak_price'), $get('oak_id'));
+    } elseif ($mode === 'metal') {
+      $row['metal'] = $resolve($get('metal_price'), $get('metal_id'));
+    } else { // glass
+      $row['glass']        = $resolve($get('glass_price'), $get('glass_id'));
+      $row['pricing_unit'] = ($get('pricing_unit') === 'per_panel') ? 'per_panel' : 'per_metre';
+      $row['panel_width']  = ($get('panel_width_mm') === null || $get('panel_width_mm') === '') ? 0.0 : (float) $get('panel_width_mm');
+      $row['panel_gap']    = ($get('panel_gap_mm') === null || $get('panel_gap_mm') === '') ? 0.0 : (float) $get('panel_gap_mm');
+    }
+    $out[] = $row;
+  }
+  return $out;
+}
+
 function get_stepCost($featNumber, $material) {
   if ($featNumber == 0) {
     return 0;

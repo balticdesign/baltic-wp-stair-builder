@@ -44,7 +44,8 @@ function updateNewelPosts(newelType, capType, hrType, spindleType) {
       jQuery('#newel_material').html(response.newel_options.join(''));
       jQuery('#cap_material').html(response.cap_options.join(''));
       jQuery('#hdr_material').html(response.handrail_options.join(''));
-      jQuery('#bal_material').html(response.spindle_options.join(''));
+      // Spindle material/style is now Material-first and resolved client-side
+      // (see the bdSpindle* helpers) — no longer injected from this AJAX.
       calculateTotalPrice();
     },
     error(jqXHR, textStatus, errorThrown) {
@@ -183,12 +184,113 @@ function setMaterial(material) {
   jQuery('.bd-mat-select').each(function () {
     jQuery(this).find(`option:contains(${material})`).prop('selected', true);
   });
+  // The spindle Material select drives Style + price resolution, which only runs
+  // on change — so nudge it after a quick-set so the spindle price stays correct.
+  jQuery('#bal_material').trigger('change');
+}
+
+// ==============================
+// SPINDLE BALUSTRADING (Material-first)
+// ==============================
+// Customer picks Spindle Material (Pine/Oak/Metal/Glass), which filters the
+// Spindle Style list to that material's rows (collapsing to a hidden field when
+// only one style exists). Price + mode + glass basis are resolved client-side
+// from the localised catalogue and baked into the selected #bal_material option
+// so priceCalc.js reads them exactly as before (value "key:price" + data-attrs).
+
+function bdSpindleRows() {
+  return (window.stairBuilderVars && Array.isArray(stairBuilderVars.spindles)) ? stairBuilderVars.spindles : [];
+}
+
+// Materials available given the defined rows. Pine + Oak both come from wood rows.
+function bdAvailableMaterials() {
+  const rows = bdSpindleRows();
+  const has = (m) => rows.some((r) => r.mode === m);
+  const mats = [];
+  if (has('wood')) {
+    mats.push({ key: 'pine', label: 'Pine', mode: 'wood', field: 'pine' });
+    mats.push({ key: 'oak', label: 'Oak', mode: 'wood', field: 'oak' });
+  }
+  if (has('metal')) mats.push({ key: 'metal', label: 'Metal', mode: 'metal', field: 'metal' });
+  if (has('glass')) mats.push({ key: 'glass', label: 'Glass', mode: 'glass', field: 'glass' });
+  return mats;
+}
+
+function bdMaterialByKey(key) {
+  return bdAvailableMaterials().find((m) => m.key === key) || null;
+}
+
+function bdSelectedMaterialKey() {
+  const v = jQuery('#bal_material').val();
+  return v ? String(v).split(':')[0] : '';
+}
+
+// Fill the Material select (preserving the current choice when still valid).
+function bdPopulateMaterials() {
+  const mats = bdAvailableMaterials();
+  const $sel = jQuery('#bal_material');
+  const prev = bdSelectedMaterialKey();
+  $sel.empty();
+  mats.forEach((m) => $sel.append('<option value="' + m.key + '">' + m.label + '</option>'));
+  if (prev && mats.some((m) => m.key === prev)) $sel.val(prev);
+}
+
+// Fill the Style select with the chosen material's rows; collapse to a hidden
+// single value when there is one (or zero) style for that material.
+function bdPopulateStyles() {
+  const mat = bdMaterialByKey(bdSelectedMaterialKey());
+  const $row = jQuery('#spindle_style_row');
+  const $sel = jQuery('#spindle_type');
+  if (!mat) { $sel.empty(); $row.hide(); return; }
+  const styles = bdSpindleRows().filter((r) => r.mode === mat.mode);
+  const prev = $sel.val();
+  $sel.empty();
+  styles.forEach((r) => $sel.append('<option value="' + r.code + '">' + r.name + '</option>'));
+  if (prev && styles.some((r) => r.code === prev)) $sel.val(prev);
+  if (styles.length <= 1) $row.hide(); else $row.show();
+}
+
+// Resolve price + mode (+ glass basis) for the current (material, style) and bake
+// it into the selected #bal_material option that priceCalc.js reads.
+function bdResolveSpindle() {
+  const mat = bdMaterialByKey(bdSelectedMaterialKey());
+  const $opt = jQuery('#bal_material option:selected');
+  if (!mat || !$opt.length) return;
+  const code = jQuery('#spindle_type').val();
+  const rows = bdSpindleRows().filter((r) => r.mode === mat.mode);
+  const row = rows.find((r) => r.code === code) || rows[0] || null;
+  const price = row ? (parseFloat(row[mat.field]) || 0) : 0;
+  $opt.attr('value', mat.key + ':' + price);
+  $opt.attr('data-material-mode', mat.mode);
+  if (mat.mode === 'glass' && row) {
+    $opt.attr('data-pricing-unit', row.pricing_unit || 'per_metre');
+    $opt.attr('data-panel-width', row.panel_width || 0);
+    $opt.attr('data-panel-gap', row.panel_gap || 0);
+  } else {
+    $opt.removeAttr('data-pricing-unit').removeAttr('data-panel-width').removeAttr('data-panel-gap');
+  }
+}
+
+function bdInitSpindle() {
+  bdPopulateMaterials();
+  bdPopulateStyles();
+  bdResolveSpindle();
+  jQuery('#bal_material').on('change', function () {
+    bdPopulateStyles();
+    bdResolveSpindle();
+    if (typeof calculateTotalPrice === 'function') calculateTotalPrice();
+  });
+  jQuery('#spindle_type').on('change', function () {
+    bdResolveSpindle();
+    if (typeof calculateTotalPrice === 'function') calculateTotalPrice();
+  });
 }
 
 // ==============================
 // DOM READY & EVENT HOOKS
 // ==============================
 jQuery(document).ready(function () {
+  bdInitSpindle();
   jQuery('#ball').hide();
   jQuery('#ball :input').prop('disabled', true);
 

@@ -416,19 +416,17 @@ foreach ($fields as $field) {
     </div>
 <div class="form-row">
     <label for="bal_material">Spindle Material</label>
-      <select id="bal_material" name="bal_material" class="bd-mat-select">
-        <option value="">Pine</option>
-        <option value="">Oak</option>
-      </select>
+      <?php // Material-first balustrading: formLogic.js fills the Material options
+            // (Pine/Oak/Metal/Glass, only those defined) from the localised spindle
+            // catalogue, then filters the Style list below to the chosen material. ?>
+      <select id="bal_material" name="bal_material" class="bd-mat-select"></select>
     </div>
-    <?php
-    // Spindle Style — collapses to a hidden field when only one type is defined.
-    $spindle_type_choices = array();
-    foreach ($spindle_type_options as $sp_option) {
-      $spindle_type_choices[] = array('value' => $sp_option['code'], 'label' => $sp_option['name']);
-    }
-    bd_stairbuilder_render_type_field('spindle_type', 'Spindle Style', $spindle_type_choices);
-    ?>
+    <div class="form-row" id="spindle_style_row">
+    <label for="spindle_type">Spindle Style</label>
+      <?php // Populated + filtered by formLogic.js; the row hides (style becomes a
+            // single hidden value) when the chosen material has only one style. ?>
+      <select id="spindle_type" name="spindle_type"></select>
+    </div>
 </div>
     </div>
  </div>

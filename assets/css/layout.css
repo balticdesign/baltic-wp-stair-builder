@@ -638,3 +638,45 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
     transform: rotate(180deg);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Measurements breakout — two-column list layout + small-screen tweaks */
+/* ------------------------------------------------------------------ */
+.bd-stairbuilder-layout .mm_breakout h4 {
+  margin-bottom: 0px;
+}
+
+.mm_breakout ul {
+  display: flex;
+  column-gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px;
+  margin: 0px auto;
+  list-style-type: none;
+}
+.mm_breakout li {
+  width: 45%;
+}
+
+@media (max-width: 480px) {
+  .bd-stairbuilder-layout .mm_breakout {
+    --bd-mm-h: 42vh;
+  }
+  .bd-stairbuilder-layout .bd-fab--measurements {
+    --bd-mm-h: 42vh;
+  }
+  .bd-stairbuilder-layout #stairbuild {
+    top: 85px;
+    background: transparent;
+    border: none;
+  }
+  .bd-stairbuilder-layout .bd-fab--form {
+    top: 95px;
+  }
+  .breakout span#total {
+    font-size: 28px;
+  }
+  .sb-buynow {
+    font-size: 18px;
+  }
+}

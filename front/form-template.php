@@ -582,15 +582,17 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
     <button type="button" class="bd-panel-close" data-bd-toggle="quote" aria-label="Close Quote">&times;</button>
   </div>
   <div class="mm_breakout">
-    <h4>Floor to Floor <span class="mm-sub">(Total Rise)</span></h4>
-    <span id="floor" class="msmnt">00</span>
-    <h4>Riser per tread <span class="mm-sub">(Individual Rise)</span></h4>
-    <span id="rise" class="msmnt">00</span>
-    <h4>Tread Depth <span class="mm-sub">(Going)</span></h4>
-    <span id="tread" class="msmnt">00</span>
-    <h4>Width <span class="mm-sub">(Outside to Outside String)</span></h4>
-    <span id="scwidth" class="msmnt">00</span>
-    <h4>Angle</h4>
-    <span id="angl" class="msmnt">00 &deg;</span>
+    <ul>
+      <li><h4>Floor to Floor <span class="mm-sub">(Total Rise)</span></h4>
+      <span id="floor" class="msmnt">00</span></li>
+      <li><h4>Riser per tread <span class="mm-sub">(Individual Rise)</span></h4>
+      <span id="rise" class="msmnt">00</span></li>
+      <li><h4>Tread Depth <span class="mm-sub">(Going)</span></h4>
+      <span id="tread" class="msmnt">00</span></li>
+      <li><h4>Width <span class="mm-sub">(Outside to Outside String)</span></h4>
+      <span id="scwidth" class="msmnt">00</span></li>
+      <li><h4>Angle</h4>
+      <span id="angl" class="msmnt">00 &deg;</span></li>
+    </ul>
   </div>
 </div><!-- /.bd-stairbuilder-layout -->

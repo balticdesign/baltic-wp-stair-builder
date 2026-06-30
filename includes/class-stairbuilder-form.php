@@ -34,6 +34,15 @@ class Stairbuilder_Plugin {
     /** Pre-select value for #treadit2. Empty string = not locked. */
     public static $current_treadit2 = '';
 
+    /** Default (pre-selected but editable) value for #treadit / #treadit2 — used by
+     *  winder configs. Empty string = template default (first visible option). */
+    public static $current_treadit_default  = '';
+    public static $current_treadit2_default = '';
+
+    /** Option values to hide from #treadit / #treadit2 for the current config. */
+    public static $current_treadit_hide  = array();
+    public static $current_treadit2_hide = array();
+
     public function __construct() {
         add_shortcode( 'stairbuilder_form', array( $this, 'generate_shortcode' ) );
     }
@@ -56,22 +65,55 @@ class Stairbuilder_Plugin {
         }
         self::$current_stair_config = $config;
 
-        // "{stair_type}:{stair_config}" => array( treadit, treadit2 ); '' = no lock.
-        $treadit_map = array(
-            'quarter:landing'     => array( '1', '' ),  // Quarter Landing
-            'quarter:winder'      => array( '', '' ),   // user choice (2/3 winders)
-            'half:landing'        => array( '4', '1' ), // Half Landing; treadit2 hidden/N-A
-            'half:winder'         => array( '', '' ),   // user choice
-            'half:double_quarter' => array( '1', '1' ), // two 90° quarter landings
+        // Reset to "open form" defaults.
+        self::$current_treadit          = self::$current_treadit2          = '';
+        self::$current_treadit_default  = self::$current_treadit2_default  = '';
+        self::$current_treadit_hide     = self::$current_treadit2_hide     = array();
+
+        // Per-config behaviour for #treadit / #treadit2. Per field:
+        //   lock    => option value to pre-select AND disable ('' = not locked)
+        //   default => option value to pre-select but leave editable (winders)
+        //   hide    => option values removed from the dropdown
+        // Real option values: 1 = Quarter Landing, 2 = 2 Winders, 3 = 3 Winders,
+        // 4 = Half Landing. half:landing locks treadit to 4; the half-turn JS then
+        // overrides treadit2, so its locked value is a harmless 1 (row hidden).
+        $map = array(
+            'quarter:landing'     => array(
+                'treadit' => array( 'lock' => '1' ),
+            ),
+            'quarter:winder'      => array(
+                'treadit' => array( 'default' => '3', 'hide' => array( '1' ) ), // drop Quarter Landing
+            ),
+            'half:landing'        => array(
+                'treadit'  => array( 'lock' => '4' ),
+                'treadit2' => array( 'lock' => '1' ),
+            ),
+            'half:winder'         => array(
+                'treadit'  => array( 'default' => '3', 'hide' => array( '4' ) ), // drop Half Landing
+                'treadit2' => array( 'default' => '3' ),                          // Quarter Landing stays
+            ),
+            'half:double_quarter' => array(
+                'treadit'  => array( 'lock' => '1' ),
+                'treadit2' => array( 'lock' => '1' ),
+            ),
         );
 
         $key = $stair_type . ':' . $config;
-        if ( $config && isset( $treadit_map[ $key ] ) ) {
-            self::$current_treadit  = $treadit_map[ $key ][0];
-            self::$current_treadit2 = $treadit_map[ $key ][1];
-        } else {
-            self::$current_treadit  = '';
-            self::$current_treadit2 = '';
+        if ( ! $config || ! isset( $map[ $key ] ) ) {
+            return;
+        }
+        $spec = $map[ $key ];
+        if ( isset( $spec['treadit'] ) ) {
+            $t = $spec['treadit'];
+            self::$current_treadit         = isset( $t['lock'] )    ? $t['lock']    : '';
+            self::$current_treadit_default = isset( $t['default'] ) ? $t['default'] : '';
+            self::$current_treadit_hide    = isset( $t['hide'] )    ? $t['hide']    : array();
+        }
+        if ( isset( $spec['treadit2'] ) ) {
+            $t = $spec['treadit2'];
+            self::$current_treadit2         = isset( $t['lock'] )    ? $t['lock']    : '';
+            self::$current_treadit2_default = isset( $t['default'] ) ? $t['default'] : '';
+            self::$current_treadit2_hide    = isset( $t['hide'] )    ? $t['hide']    : array();
         }
     }
 

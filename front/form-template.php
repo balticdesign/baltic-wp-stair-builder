@@ -50,6 +50,11 @@ $sb_treadit2      = Stairbuilder_Plugin::$current_treadit2;
 $sb_lock_treadit  = ( '' !== $sb_treadit );
 $sb_lock_treadit2 = ( '' !== $sb_treadit2 );
 $sb_hide_treadit2 = ( '4' === $sb_treadit );
+$sb_treadit_hide  = Stairbuilder_Plugin::$current_treadit_hide;
+$sb_treadit2_hide = Stairbuilder_Plugin::$current_treadit2_hide;
+// Selected value: the locked value when locked, else the (editable) config default.
+$sb_treadit_sel   = $sb_lock_treadit  ? $sb_treadit  : Stairbuilder_Plugin::$current_treadit_default;
+$sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$current_treadit2_default;
 ?>
 
 <div class="bd-stairbuilder-layout">
@@ -120,12 +125,14 @@ $sb_hide_treadit2 = ( '4' === $sb_treadit );
         <div class="form-row">
         <label for="treadit">Treads in Turn:</label>
         <select id="treadit" name="treadit"<?php disabled( $sb_lock_treadit ); ?>>
-        <option value="1" <?php selected( '1', $sb_treadit ); ?>>Quarter Landing</option>
-        <option value="2" <?php selected( '2', $sb_treadit ); ?>>2 Winders</option>
-        <option value="3" <?php selected( '3', $sb_treadit ); ?>>3 Winders</option>
-        <?php if ($flight3) {?>
-        <option value="4" <?php selected( '4', $sb_treadit ); ?>>Half Landing</option>
-        <?php } ?>
+        <?php
+        $treadit_opts = array( '1' => 'Quarter Landing', '2' => '2 Winders', '3' => '3 Winders' );
+        if ( $flight3 ) { $treadit_opts['4'] = 'Half Landing'; }
+        foreach ( $treadit_opts as $tv => $tl ) :
+          $tv = (string) $tv; // numeric array keys arrive as ints; compare as strings
+          if ( in_array( $tv, $sb_treadit_hide, true ) ) { continue; } ?>
+          <option value="<?php echo esc_attr( $tv ); ?>" <?php selected( $tv, $sb_treadit_sel ); ?>><?php echo esc_html( $tl ); ?></option>
+        <?php endforeach; ?>
         </select>
         <?php if ( $sb_lock_treadit ) : ?><input type="hidden" name="treadit" value="<?php echo esc_attr( $sb_treadit ); ?>"><?php endif; ?>
         </div>
@@ -138,9 +145,13 @@ $sb_hide_treadit2 = ( '4' === $sb_treadit );
          <div class="form-row"<?php if ( $sb_hide_treadit2 ) echo ' style="display:none"'; ?>>
         <label for="treadit2">Treads in Turn2:</label>
         <select id="treadit2" name="treadit2"<?php disabled( $sb_lock_treadit2 ); ?>>
-        <option value="1" <?php selected( '1', $sb_treadit2 ); ?>>Quarter Landing</option>
-        <option value="2" <?php selected( '2', $sb_treadit2 ); ?>>2 Winders</option>
-        <option value="3" <?php selected( '3', $sb_treadit2 ); ?>>3 Winders</option>
+        <?php
+        $treadit2_opts = array( '1' => 'Quarter Landing', '2' => '2 Winders', '3' => '3 Winders' );
+        foreach ( $treadit2_opts as $tv => $tl ) :
+          $tv = (string) $tv; // numeric array keys arrive as ints; compare as strings
+          if ( in_array( $tv, $sb_treadit2_hide, true ) ) { continue; } ?>
+          <option value="<?php echo esc_attr( $tv ); ?>" <?php selected( $tv, $sb_treadit2_sel ); ?>><?php echo esc_html( $tl ); ?></option>
+        <?php endforeach; ?>
         </select>
         <?php if ( $sb_lock_treadit2 ) : ?><input type="hidden" name="treadit2" value="<?php echo esc_attr( $sb_treadit2 ); ?>"><?php endif; ?>
         </div>

@@ -666,9 +666,11 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
     --bd-mm-h: 42vh;
   }
   .bd-stairbuilder-layout #stairbuild {
-    top: 85px;
-    background: transparent;
+    z-index: 1200;
+    --bd-form-w: min(100vw);
+    background: #ffffff;
     border: none;
+    top: 0px;
   }
   .bd-stairbuilder-layout .bd-fab--form {
     top: 95px;

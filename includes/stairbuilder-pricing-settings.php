@@ -785,7 +785,68 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		 * are rendered as 3-column component rows. Any remaining fields are
 		 * rendered via the standard form-table layout underneath.
 		 */
+		/**
+		 * Render the Help / Shortcodes documentation tab. Static reference for the
+		 * [stairbuilder_form] shortcode and its stair_type / stair_config attributes.
+		 */
+		private function render_help_tab() {
+			// Each row: shortcode, what page it represents, what it does.
+			$rows = array(
+				array( '[stairbuilder_form stair_type="straight"]', 'Straight Flight', 'Single straight flight. No turn.' ),
+				array( '[stairbuilder_form stair_type="quarter"]', 'Quarter Turn (open)', 'Quarter-turn form, customer chooses the turn type (landing / winders).' ),
+				array( '[stairbuilder_form stair_type="half"]', 'Half Turn (open)', 'Half-turn form, customer chooses both turns.' ),
+				array( '[stairbuilder_form stair_type="quarter" stair_config="landing"]', 'Quarter Landing', 'Locks the turn to a Quarter Landing.' ),
+				array( '[stairbuilder_form stair_type="quarter" stair_config="winder"]', 'Single Winder', 'Winder page — customer still picks 2 or 3 winders (not locked).' ),
+				array( '[stairbuilder_form stair_type="half" stair_config="landing"]', 'Half Landing', 'Locks the turn to a Half Landing (single 180° landing).' ),
+				array( '[stairbuilder_form stair_type="half" stair_config="winder"]', 'Double Winder', 'Winder page — both turns are customer choice (not locked).' ),
+				array( '[stairbuilder_form stair_type="half" stair_config="double_quarter"]', 'Double Quarter', 'Locks both turns to Quarter Landings (two 90° turns).' ),
+			);
+			?>
+			<div class="stairbuilder-help">
+				<h2><?php esc_html_e( 'Staircase Form Shortcode', 'stairbuilder' ); ?></h2>
+				<p><?php esc_html_e( 'Place a configurator on any page or post with the shortcode below. Two attributes control it:', 'stairbuilder' ); ?></p>
+				<ul style="list-style:disc;margin-left:20px;">
+					<li><code>stair_type</code> — <?php esc_html_e( 'which flight: ', 'stairbuilder' ); ?><code>straight</code>, <code>quarter</code>, <code>half</code>. <?php esc_html_e( 'Defaults to', 'stairbuilder' ); ?> <code>straight</code> <?php esc_html_e( 'if omitted.', 'stairbuilder' ); ?></li>
+					<li><code>stair_config</code> <?php esc_html_e( '(optional) — pre-selects and locks the turn for fixed-configuration pages: ', 'stairbuilder' ); ?><code>landing</code>, <code>winder</code>, <code>double_quarter</code>.</li>
+				</ul>
+
+				<h3><?php esc_html_e( 'Every variation', 'stairbuilder' ); ?></h3>
+				<table class="widefat striped" style="max-width:880px;">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Shortcode', 'stairbuilder' ); ?></th>
+							<th><?php esc_html_e( 'Page', 'stairbuilder' ); ?></th>
+							<th><?php esc_html_e( 'Behaviour', 'stairbuilder' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $rows as $r ) : ?>
+						<tr>
+							<td><code style="white-space:nowrap;"><?php echo esc_html( $r[0] ); ?></code></td>
+							<td><strong><?php echo esc_html( $r[1] ); ?></strong></td>
+							<td><?php echo esc_html( $r[2] ); ?></td>
+						</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+
+				<h3><?php esc_html_e( 'Notes', 'stairbuilder' ); ?></h3>
+				<ul style="list-style:disc;margin-left:20px;">
+					<li><?php esc_html_e( 'Locked configs (landing / double_quarter) pre-select the turn and disable the field, so the customer cannot change the staircase configuration on that page.', 'stairbuilder' ); ?></li>
+					<li><?php esc_html_e( 'Winder configs do NOT lock anything — the customer still chooses 2 or 3 winders. The stair_config value is recorded on the quote/PDF for identification only.', 'stairbuilder' ); ?></li>
+					<li><?php esc_html_e( 'stair_config only applies to quarter and half. It is ignored on straight, and any unknown value is ignored (falls back to the open form).', 'stairbuilder' ); ?></li>
+					<li><?php esc_html_e( 'The chosen type/config is shown on the generated PDF as the "Staircase Type" line.', 'stairbuilder' ); ?></li>
+				</ul>
+			</div>
+			<?php
+		}
+
 		private function render_tab_body( $slug, $tab ) {
+			// Documentation-only tab — static reference, no form fields.
+			if ( isset( $tab['layout'] ) && $tab['layout'] === 'help' ) {
+				$this->render_help_tab();
+				return;
+			}
 			// Bespoke layout: paired (toggle, price) rows rendered inline on one line.
 			// Fields flagged `sidebar => true` render in a right-hand column.
 			if ( isset( $tab['layout'] ) && $tab['layout'] === 'paired_rows' ) {
@@ -1614,6 +1675,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'postcode_areas',
 					'delivery_options',
 					'brand_colours',
+					'help',
 				),
 			);
 		}
@@ -2276,6 +2338,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'type' => 'color',
 							],
 						],
+					],
+					// Documentation-only tab (no saved fields) — rendered by the
+					// `help` layout branch in render_tab_body().
+					'help' => [
+						'label'  => 'Help / Shortcodes',
+						'layout' => 'help',
+						'fields' => [],
 					],
 				];
 			}

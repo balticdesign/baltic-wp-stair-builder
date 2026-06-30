@@ -40,6 +40,16 @@ foreach ($fields as $field) {
   $bonuslogic .= "<input type=\"hidden\" id=\"$field\" value=\"$value\">";
 }
 }
+
+// stair_config locking — pre-select + disable #treadit / #treadit2 (with a hidden
+// input so the value still POSTs and reaches priceCalc.js + the PDF). Half Landing
+// (treadit = 4) has no second turn, so its now-N/A treadit2 row is hidden.
+$sb_stair_config  = Stairbuilder_Plugin::$current_stair_config;
+$sb_treadit       = Stairbuilder_Plugin::$current_treadit;
+$sb_treadit2      = Stairbuilder_Plugin::$current_treadit2;
+$sb_lock_treadit  = ( '' !== $sb_treadit );
+$sb_lock_treadit2 = ( '' !== $sb_treadit2 );
+$sb_hide_treadit2 = ( '4' === $sb_treadit );
 ?>
 
 <div class="bd-stairbuilder-layout">
@@ -47,6 +57,9 @@ foreach ($fields as $field) {
     <canvas id="canvas" width="558" height="556"></canvas>
   </div>
   <form id="stairbuild" method="post">
+    <?php // Captured into the lead + PDF via the form serialise. ?>
+    <input type="hidden" name="stair_type" value="<?php echo esc_attr( $stair_type ); ?>">
+    <input type="hidden" name="stair_config" value="<?php echo esc_attr( $sb_stair_config ); ?>">
     <div class="form-tabs">
   <div class="form-tab"><!--- Measurments -->
   <input type="radio" class="form-chk" id="chck1" name="rd">
@@ -106,14 +119,15 @@ foreach ($fields as $field) {
         </div>
         <div class="form-row">
         <label for="treadit">Treads in Turn:</label>
-        <select id="treadit" name="treadit">
-        <option value="1">Quarter Landing</option>
-        <option value="2">2 Winders</option>
-        <option value="3">3 Winders</option>
+        <select id="treadit" name="treadit"<?php disabled( $sb_lock_treadit ); ?>>
+        <option value="1" <?php selected( '1', $sb_treadit ); ?>>Quarter Landing</option>
+        <option value="2" <?php selected( '2', $sb_treadit ); ?>>2 Winders</option>
+        <option value="3" <?php selected( '3', $sb_treadit ); ?>>3 Winders</option>
         <?php if ($flight3) {?>
-        <option value="4">Half Landing</option>
+        <option value="4" <?php selected( '4', $sb_treadit ); ?>>Half Landing</option>
         <?php } ?>
         </select>
+        <?php if ( $sb_lock_treadit ) : ?><input type="hidden" name="treadit" value="<?php echo esc_attr( $sb_treadit ); ?>"><?php endif; ?>
         </div>
         <h4>Flight 2</h4>
         <div class="form-row">
@@ -121,13 +135,14 @@ foreach ($fields as $field) {
         <input type="number" id="treadat" name="treadat" value="3">
         </div>
         <?php if ($flight3) {?>
-         <div class="form-row">
+         <div class="form-row"<?php if ( $sb_hide_treadit2 ) echo ' style="display:none"'; ?>>
         <label for="treadit2">Treads in Turn2:</label>
-        <select id="treadit2" name="treadit2">
-        <option value="1">Quarter Landing</option>
-        <option value="2">2 Winders</option>
-        <option value="3">3 Winders</option>
+        <select id="treadit2" name="treadit2"<?php disabled( $sb_lock_treadit2 ); ?>>
+        <option value="1" <?php selected( '1', $sb_treadit2 ); ?>>Quarter Landing</option>
+        <option value="2" <?php selected( '2', $sb_treadit2 ); ?>>2 Winders</option>
+        <option value="3" <?php selected( '3', $sb_treadit2 ); ?>>3 Winders</option>
         </select>
+        <?php if ( $sb_lock_treadit2 ) : ?><input type="hidden" name="treadit2" value="<?php echo esc_attr( $sb_treadit2 ); ?>"><?php endif; ?>
         </div>
         <h4>Flight 3</h4>
         <div class="form-row">

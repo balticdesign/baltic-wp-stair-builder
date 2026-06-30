@@ -94,6 +94,17 @@ $bd_code_label = function ( $option_key, $code ) {
             <h3 style="margin-top:20px;">Staircase Details</h3>
             <div class="table-wrapper" style="background-color:#e1e6f7;">
                 <table>
+                    <?php
+                    // Friendly staircase type/config label from the captured shortcode attrs.
+                    $bd_type_labels   = array( 'straight' => 'Straight Flight', 'quarter' => 'Quarter Turn', 'half' => 'Half Turn' );
+                    $bd_config_labels = array( 'landing' => 'Landing', 'winder' => 'Winder', 'double_quarter' => 'Double Quarter Landing' );
+                    $bd_type_label    = $bd_type_labels[ $content['stair_type'] ?? '' ] ?? '';
+                    $bd_config_label  = $bd_config_labels[ $content['stair_config'] ?? '' ] ?? '';
+                    $bd_staircase_type = trim( $bd_type_label . ( $bd_config_label ? ' — ' . $bd_config_label : '' ) );
+                    ?>
+                    <?php if ( $bd_staircase_type ) : ?>
+                    <tr><td class="lbl">Staircase Type:</td><td class="vl"><?php echo esc_html( $bd_staircase_type ); ?></td></tr>
+                    <?php endif; ?>
                     <tr><td class="lbl">Construction Type:</td><td class="vl"><?php echo esc_html( $content['construction_type'] ?? '' ); ?></td></tr>
                     <tr><td class="lbl">Tread Profile:</td><td class="vl"><?php echo esc_html( $content['tread-profile'] ?? '' ); ?></td></tr>
                     <tr><td class="lbl">String Material:</td><td class="vl"><?php echo esc_html( $content['stringer_material'] ?? '' ); ?></td></tr>

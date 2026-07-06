@@ -10,7 +10,12 @@
 // Map a stored component code back to its admin-defined human label for
 // display. Leads store codes in form_data; if a code is later renamed/removed
 // the raw code is shown (same fragility as the legacy plugin — out of scope).
-$bd_code_label = function ( $option_key, $code ) {
+//
+// $code_key / $name_key default to the plain 'code'/'name' sub-fields used by
+// the newel/cap/handrail/spindle repeaters. The stringer/tread/riser/
+// construction/profile repeaters use prefixed sub-keys (e.g. stringer_code /
+// stringer_name), so those callers pass the matching keys explicitly.
+$bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 'name' ) {
     $code = (string) $code;
     if ( $code === '' ) {
         return '';
@@ -18,8 +23,8 @@ $bd_code_label = function ( $option_key, $code ) {
     $rows = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( $option_key, array() ) : array();
     if ( is_array( $rows ) ) {
         foreach ( $rows as $row ) {
-            if ( is_array( $row ) && isset( $row['code'] ) && (string) $row['code'] === $code && ! empty( $row['name'] ) ) {
-                return $row['name'];
+            if ( is_array( $row ) && isset( $row[ $code_key ] ) && (string) $row[ $code_key ] === $code && ! empty( $row[ $name_key ] ) ) {
+                return $row[ $name_key ];
             }
         }
     }
@@ -105,11 +110,11 @@ $bd_code_label = function ( $option_key, $code ) {
                     <?php if ( $bd_staircase_type ) : ?>
                     <tr><td class="lbl">Staircase Type:</td><td class="vl"><?php echo esc_html( $bd_staircase_type ); ?></td></tr>
                     <?php endif; ?>
-                    <tr><td class="lbl">Construction Type:</td><td class="vl"><?php echo esc_html( $content['construction_type'] ?? '' ); ?></td></tr>
-                    <tr><td class="lbl">Tread Profile:</td><td class="vl"><?php echo esc_html( $content['tread-profile'] ?? '' ); ?></td></tr>
-                    <tr><td class="lbl">String Material:</td><td class="vl"><?php echo esc_html( $content['stringer_material'] ?? '' ); ?></td></tr>
-                    <tr><td class="lbl">Tread Material:</td><td class="vl"><?php echo esc_html( $content['tread_material'] ?? '' ); ?></td></tr>
-                    <tr><td class="lbl">Riser Material:</td><td class="vl"><?php echo esc_html( $content['riser_material'] ?? '' ); ?></td></tr>
+                    <tr><td class="lbl">Construction Type:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'construction_types', $content['construction_type'] ?? '', 'construction_code', 'construction_name' ) ); ?></td></tr>
+                    <tr><td class="lbl">Tread Profile:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'tread_profiles', $content['tread-profile'] ?? '', 'tread_profile_code', 'tread_profile_name' ) ); ?></td></tr>
+                    <tr><td class="lbl">String Material:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'stringer_types', $content['stringer_material'] ?? '', 'stringer_code', 'stringer_name' ) ); ?></td></tr>
+                    <tr><td class="lbl">Tread Material:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'tread_types', $content['tread_material'] ?? '', 'tread_code', 'tread_name' ) ); ?></td></tr>
+                    <tr><td class="lbl">Riser Material:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'riser_types', $content['riser_material'] ?? '', 'riser_code', 'riser_name' ) ); ?></td></tr>
                 </table>
             </div>
         </div>

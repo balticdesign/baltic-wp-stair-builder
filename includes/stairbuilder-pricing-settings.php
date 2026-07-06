@@ -94,6 +94,174 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		/* ------------------------------------------------------------------ */
+		/* Bulk price tool — schema walk                                       */
+		/* ------------------------------------------------------------------ */
+
+		/**
+		 * Walk the schema and return every adjustable price currently stored,
+		 * flat keys and repeater sub-rows alike. This is the data source for the
+		 * bulk price-increase tool — it decides what the %-sweep may touch purely
+		 * from the `'adjustable' => true` schema flag, never from a hardcoded key
+		 * list and never by inferring "is a price" from field type.
+		 *
+		 * Each entry:
+		 *   - id       Stable string key, unique per row (for form field names /
+		 *              preview mapping). 'flat:{field}' or 'rep:{field}:{i}:{sub}'.
+		 *   - path     Structured locator for writing the value back:
+		 *              ['kind'=>'flat','field'=>id] or
+		 *              ['kind'=>'repeater','field'=>id,'row'=>int,'sub'=>id].
+		 *   - section  Tab label the price lives under.
+		 *   - label    Human label (repeater rows include the row name/code).
+		 *   - material  '' | pine | oak | mdf | ply | metal | glass — drives the
+		 *              "All Oak / All Pine / …" quick-selects. '' = no material axis.
+		 *   - value    Current stored value (float, or '' when blank/unset).
+		 *
+		 * @return array<int,array<string,mixed>>
+		 */
+		public function get_adjustable_prices() {
+			$options = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $options ) ) {
+				$options = array();
+			}
+
+			$out = array();
+
+			foreach ( $this->schema as $tab_slug => $tab ) {
+				$section = isset( $tab['label'] ) ? $tab['label'] : $tab_slug;
+
+				foreach ( $tab['fields'] as $field ) {
+					$fid = $field['id'];
+
+					if ( 'repeater' === $field['type'] ) {
+						$subfields = isset( $field['subfields'] ) ? $field['subfields'] : array();
+
+						// Which sub-fields are adjustable? Skip the whole repeater if none.
+						$adj_subs = array();
+						foreach ( $subfields as $sf ) {
+							if ( ! empty( $sf['adjustable'] ) ) {
+								$adj_subs[] = $sf;
+							}
+						}
+						if ( empty( $adj_subs ) ) {
+							continue;
+						}
+
+						$rows = ( isset( $options[ $fid ] ) && is_array( $options[ $fid ] ) ) ? $options[ $fid ] : array();
+						foreach ( $rows as $i => $row ) {
+							if ( ! is_array( $row ) ) {
+								continue;
+							}
+							$identity  = $this->repeater_row_identity( $field, $row );
+							$row_label = $identity['name'] !== '' ? $identity['name']
+								: ( $identity['code'] !== '' ? $identity['code'] : 'Row ' . ( (int) $i + 1 ) );
+
+							foreach ( $adj_subs as $sf ) {
+								$sid       = $sf['id'];
+								$sub_label = isset( $sf['label'] ) ? $sf['label'] : $sid;
+								$out[]     = array(
+									'id'       => 'rep:' . $fid . ':' . $i . ':' . $sid,
+									'path'     => array( 'kind' => 'repeater', 'field' => $fid, 'row' => (int) $i, 'sub' => $sid ),
+									'section'  => $section,
+									'label'    => $row_label . ' — ' . $sub_label,
+									'material' => $this->derive_price_material( $sid ),
+									'value'    => isset( $row[ $sid ] ) ? $row[ $sid ] : '',
+								);
+							}
+						}
+					} else {
+						if ( empty( $field['adjustable'] ) ) {
+							continue;
+						}
+						$out[] = array(
+							'id'       => 'flat:' . $fid,
+							'path'     => array( 'kind' => 'flat', 'field' => $fid ),
+							'section'  => $section,
+							'label'    => isset( $field['label'] ) ? $field['label'] : $fid,
+							'material' => $this->derive_price_material( $fid ),
+							'value'    => isset( $options[ $fid ] ) ? $options[ $fid ] : '',
+						);
+					}
+				}
+			}
+
+			return $out;
+		}
+
+		/**
+		 * Derive a price's material tag from its (sub-)field id, for the bulk
+		 * tool's material quick-selects. Order matters — most specific first.
+		 * See STAIRBUILDER-BULK-PRICE-TOOL-2.6.0.md §4 for the contract.
+		 *
+		 * @param string $id Field or sub-field id.
+		 * @return string '' | pine | oak | mdf | ply | metal | glass
+		 */
+		private function derive_price_material( $id ) {
+			// Landing "no oak" figures carry no material axis (must precede the
+			// generic "contains oak" fallback below, which they would match).
+			if ( preg_match( '/_no_oak$/', $id ) ) {
+				return '';
+			}
+			// Explicit price sub-field keys (newel/cap/handrail/spindle rows).
+			switch ( $id ) {
+				case 'pine_price':
+					return 'pine';
+				case 'oak_price':
+					return 'oak';
+				case 'metal_price':
+					return 'metal';
+				case 'glass_price':
+					return 'glass';
+			}
+			// Flat featured-step / baserail prices are keyed by material prefix.
+			if ( 0 === strpos( $id, 'mdf_' ) ) {
+				return 'mdf';
+			}
+			if ( 0 === strpos( $id, 'ply_' ) ) {
+				return 'ply';
+			}
+			if ( 0 === strpos( $id, 'pine_' ) ) {
+				return 'pine';
+			}
+			if ( 0 === strpos( $id, 'oak_' ) ) {
+				return 'oak';
+			}
+			// Landing oak figures (all_oak / oak_string / oak_tr / oak_tread).
+			if ( false !== strpos( $id, 'oak' ) ) {
+				return 'oak';
+			}
+			// Single-value rows (stringer/tread/riser/construction/profile) and
+			// cut_string_price have no material dimension.
+			return '';
+		}
+
+		/**
+		 * Resolve a repeater row's display name + code, tolerating both the plain
+		 * `name`/`code` sub-keys (newel/cap/handrail/spindle rows) and the prefixed
+		 * `{thing}_name`/`{thing}_code` keys (stringer/tread/riser/construction).
+		 *
+		 * @param array $field Repeater field spec (needs 'subfields').
+		 * @param array $row   Stored row.
+		 * @return array{name:string,code:string}
+		 */
+		private function repeater_row_identity( $field, $row ) {
+			$name_key = null;
+			$code_key = null;
+			$subfields = isset( $field['subfields'] ) ? $field['subfields'] : array();
+			foreach ( $subfields as $sf ) {
+				$sid = $sf['id'];
+				if ( null === $name_key && ( 'name' === $sid || '_name' === substr( $sid, -5 ) ) ) {
+					$name_key = $sid;
+				}
+				if ( null === $code_key && ( 'code' === $sid || '_code' === substr( $sid, -5 ) ) ) {
+					$code_key = $sid;
+				}
+			}
+			$name = ( $name_key && isset( $row[ $name_key ] ) && is_scalar( $row[ $name_key ] ) ) ? (string) $row[ $name_key ] : '';
+			$code = ( $code_key && isset( $row[ $code_key ] ) && is_scalar( $row[ $code_key ] ) ) ? (string) $row[ $code_key ] : '';
+			return array( 'name' => $name, 'code' => $code );
+		}
+
+		/* ------------------------------------------------------------------ */
 		/* Admin menu                                                          */
 		/* ------------------------------------------------------------------ */
 

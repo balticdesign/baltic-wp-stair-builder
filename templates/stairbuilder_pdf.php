@@ -42,7 +42,7 @@ $bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 
     .col { width: 33%; float: left; }
     .panel { font-size: 1.2em; vertical-align: top; }
     .panel table { padding: 10px; width: 100%; }
-    .table-wrapper { height: 220px; margin-right: 10px; }
+    .table-wrapper { min-height: 220px; margin-right: 10px; }
     .lbl { font-weight: bold; width: 60%; }
     .vl { padding-left: 10px; text-transform: capitalize; }
     .vl.lc { text-transform: lowercase; }
@@ -76,7 +76,13 @@ $bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 
                     <tr><td class="lbl">Direction:</td><td class="vl"><?php echo esc_html( $content['sc-direction'] ); ?></td></tr>
                 <?php endif; ?>
                 <tr><td class="lbl">Floor to Floor:</td><td class="vl lc"><?php echo esc_html( $content['floor-height'] ?? '' ); ?>mm</td></tr>
-                <tr><td class="lbl">Staircase Width:</td><td class="vl lc"><?php echo esc_html( $content['stair-width'] ?? '' ); ?>mm</td></tr>
+                <tr><td class="lbl">Staircase Width<?php echo ( ! empty( $content['stair-width2'] ) ) ? ' (Flight 1)' : ''; ?>:</td><td class="vl lc"><?php echo esc_html( $content['stair-width'] ?? '' ); ?>mm</td></tr>
+                <?php if ( ! empty( $content['stair-width2'] ) ) : ?>
+                    <tr><td class="lbl">Staircase Width (Flight 2):</td><td class="vl lc"><?php echo esc_html( $content['stair-width2'] ); ?>mm</td></tr>
+                <?php endif; ?>
+                <?php if ( ! empty( $content['stair-width3'] ) ) : ?>
+                    <tr><td class="lbl">Staircase Width (Flight 3):</td><td class="vl lc"><?php echo esc_html( $content['stair-width3'] ); ?>mm</td></tr>
+                <?php endif; ?>
                 <tr><td class="lbl">Risers:</td><td class="vl lc"><?php echo esc_html( $content['risers'] ?? '' ); ?></td></tr>
                 <tr><td class="lbl">Going:</td><td class="vl lc"><?php echo esc_html( $content['going'] ?? '' ); ?>mm</td></tr>
             </table>
@@ -106,15 +112,57 @@ $bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 
                     $bd_type_label    = $bd_type_labels[ $content['stair_type'] ?? '' ] ?? '';
                     $bd_config_label  = $bd_config_labels[ $content['stair_config'] ?? '' ] ?? '';
                     $bd_staircase_type = trim( $bd_type_label . ( $bd_config_label ? ' — ' . $bd_config_label : '' ) );
+
+                    // Turn / featured-step value → label maps (fixed value sets).
+                    $bd_treadit_labels = array( '1' => 'Quarter Landing', '2' => '2 Winders', '3' => '3 Winders', '4' => 'Half Landing' );
+                    $bd_feat_labels    = array( '0' => 'None', '1' => 'Curtail', '2' => 'Bullnose', '4' => 'Full Curtail &amp; Bullnose' );
+                    $bd_map_label      = function ( $map, $key ) { $key = (string) $key; return $map[ $key ] ?? ''; };
+                    $bd_building_reg   = $bd_code_label( 'building_regs', $content['building_regs'] ?? '', 'building_reg_value', 'building_reg_name' );
                     ?>
                     <?php if ( $bd_staircase_type ) : ?>
                     <tr><td class="lbl">Staircase Type:</td><td class="vl"><?php echo esc_html( $bd_staircase_type ); ?></td></tr>
+                    <?php endif; ?>
+                    <?php if ( $bd_building_reg !== '' ) : ?>
+                    <tr><td class="lbl">Building Regs:</td><td class="vl"><?php echo esc_html( $bd_building_reg ); ?></td></tr>
                     <?php endif; ?>
                     <tr><td class="lbl">Construction Type:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'construction_types', $content['construction_type'] ?? '', 'construction_code', 'construction_name' ) ); ?></td></tr>
                     <tr><td class="lbl">Tread Profile:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'tread_profiles', $content['tread-profile'] ?? '', 'tread_profile_code', 'tread_profile_name' ) ); ?></td></tr>
                     <tr><td class="lbl">String Material:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'stringer_types', $content['stringer_material'] ?? '', 'stringer_code', 'stringer_name' ) ); ?></td></tr>
                     <tr><td class="lbl">Tread Material:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'tread_types', $content['tread_material'] ?? '', 'tread_code', 'tread_name' ) ); ?></td></tr>
                     <tr><td class="lbl">Riser Material:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'riser_types', $content['riser_material'] ?? '', 'riser_code', 'riser_name' ) ); ?></td></tr>
+
+                    <?php
+                    // Turns & Winders — only present for turned staircases.
+                    $bd_turn1 = $bd_map_label( $bd_treadit_labels, $content['treadit'] ?? '' );
+                    $bd_turn2 = $bd_map_label( $bd_treadit_labels, $content['treadit2'] ?? '' );
+                    ?>
+                    <?php if ( $bd_turn1 !== '' ) : ?>
+                    <tr><td class="lbl">Turn 1:</td><td class="vl"><?php echo esc_html( $bd_turn1 ); ?></td></tr>
+                    <?php endif; ?>
+                    <?php if ( isset( $content['treadbt'] ) && $content['treadbt'] !== '' ) : ?>
+                    <tr><td class="lbl">Treads before Turn:</td><td class="vl lc"><?php echo esc_html( $content['treadbt'] ); ?></td></tr>
+                    <?php endif; ?>
+                    <?php if ( isset( $content['treadat'] ) && $content['treadat'] !== '' ) : ?>
+                    <tr><td class="lbl">Treads after Turn:</td><td class="vl lc"><?php echo esc_html( $content['treadat'] ); ?></td></tr>
+                    <?php endif; ?>
+                    <?php if ( $bd_turn2 !== '' ) : ?>
+                    <tr><td class="lbl">Turn 2:</td><td class="vl"><?php echo esc_html( $bd_turn2 ); ?></td></tr>
+                    <?php endif; ?>
+                    <?php if ( isset( $content['treadat2'] ) && $content['treadat2'] !== '' ) : ?>
+                    <tr><td class="lbl">Treads after Turn 2:</td><td class="vl lc"><?php echo esc_html( $content['treadat2'] ); ?></td></tr>
+                    <?php endif; ?>
+
+                    <?php
+                    // Featured step — the customer's left/right step choice (0/1/2/4).
+                    $bd_left_step  = $bd_map_label( $bd_feat_labels, $content['left-featured-step'] ?? '' );
+                    $bd_right_step = $bd_map_label( $bd_feat_labels, $content['right-featured-step'] ?? '' );
+                    ?>
+                    <?php if ( $bd_left_step !== '' && $bd_left_step !== 'None' ) : ?>
+                    <tr><td class="lbl">Left Featured Step:</td><td class="vl"><?php echo esc_html( $bd_left_step ); ?></td></tr>
+                    <?php endif; ?>
+                    <?php if ( $bd_right_step !== '' && $bd_right_step !== 'None' ) : ?>
+                    <tr><td class="lbl">Right Featured Step:</td><td class="vl"><?php echo esc_html( $bd_right_step ); ?></td></tr>
+                    <?php endif; ?>
                 </table>
             </div>
         </div>
@@ -146,6 +194,12 @@ $bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 
             </div>
         </div>
     </div>
+    <?php
+    // Ballustrading is optional — the panel only appears when the customer chose
+    // it. Legacy leads with no `ballustrades` value default to shown.
+    $bd_show_bal = ( ( $content['ballustrades'] ?? 'true' ) !== 'false' );
+    ?>
+    <?php if ( $bd_show_bal ) : ?>
     <div class="col">
         <div class="panel">
             <h3 style="margin-top:20px;">Ballustrading</h3>
@@ -160,7 +214,45 @@ $bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 
             </div>
         </div>
     </div>
+    <?php endif; ?>
 </div>
+
+<?php
+// Delivery & Packaging — only rendered when the Packaging & Delivery section
+// was enabled on the form (so these fields were captured).
+$bd_deliv_map  = array( 'collected' => 'Collected', 'kerbside' => 'Kerb Side Delivery' );
+$bd_deliv      = $bd_deliv_map[ $content['delivery'] ?? '' ] ?? '';
+$bd_pkg        = $content['package'] ?? '';
+$bd_pkg_label  = ( $bd_pkg === '' ) ? '' : ( is_numeric( $bd_pkg ) ? 'Part Assembled' : 'Flat Packed' );
+$bd_two_man    = isset( $content['duodeliv'] );
+$bd_addons     = array();
+if ( isset( $content['addon_fixkit'] ) ) { $bd_addons[] = 'Fixing Kit'; }
+if ( isset( $content['addon_xtrap'] ) )  { $bd_addons[] = 'Extra Packaging'; }
+$bd_has_delivery = ( $bd_deliv !== '' || $bd_pkg_label !== '' || $bd_two_man || ! empty( $bd_addons ) );
+?>
+<?php if ( $bd_has_delivery ) : ?>
+<div class="wrapper" style="margin-top:20px;">
+    <div class="panel">
+        <h3>Delivery &amp; Packaging</h3>
+        <div class="table-wrapper" style="min-height:0; background-color:#e1e6f7;">
+            <table>
+                <?php if ( $bd_deliv !== '' ) : ?>
+                <tr><td class="lbl">Delivery Method:</td><td class="vl"><?php echo esc_html( $bd_deliv ); ?></td></tr>
+                <?php endif; ?>
+                <?php if ( $bd_two_man ) : ?>
+                <tr><td class="lbl">2 Man Delivery:</td><td class="vl">Yes</td></tr>
+                <?php endif; ?>
+                <?php if ( $bd_pkg_label !== '' ) : ?>
+                <tr><td class="lbl">Packaging:</td><td class="vl"><?php echo esc_html( $bd_pkg_label ); ?></td></tr>
+                <?php endif; ?>
+                <?php if ( ! empty( $bd_addons ) ) : ?>
+                <tr><td class="lbl">Add-Ons:</td><td class="vl"><?php echo esc_html( implode( ', ', $bd_addons ) ); ?></td></tr>
+                <?php endif; ?>
+            </table>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="wrapper" style="margin-top:20px;">
     <div class="leftcol">

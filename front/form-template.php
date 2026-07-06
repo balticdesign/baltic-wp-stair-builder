@@ -476,9 +476,9 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <?php } ?>
       <h5>Delivery Options</h5>
       <div class="delivery form-row rdbuttons">
-          <input id="collected" type="radio" name="delivery" class="p radio__radio" checked>
+          <input id="collected" type="radio" name="delivery" class="p radio__radio" value="collected" checked>
           <label for="collected" class="d radio__label vertical-icon"><img src="<?php echo plugin_dir_url( __FILE__ ) . '../assets/images/collected.svg' ?>" alt="icon"> Collected </label>
-          <input id="delivery" type="radio" name="delivery" class="p radio__radio">
+          <input id="delivery" type="radio" name="delivery" class="p radio__radio" value="kerbside">
           <label for="delivery" class="d radio__label vertical-icon"><img src="<?php echo plugin_dir_url( __FILE__ ) . '../assets/images/delivery.svg' ?>" alt="icon"> Kerb Side Delivery </label>
       </div>
       <?php if ($two_man_delivery_enabled) { ?>
@@ -508,13 +508,13 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <div class="addon form-row rdbuttons">
         <?php if ($fixing_kit_enabled) { ?>
         <div class="chkboxbttn">
-          <input id="fixkit" type="checkbox" name="addon" class="a chkbx" checked value="<?php echo $fixing_kit_price; ?>">
+          <input id="fixkit" type="checkbox" name="addon_fixkit" class="a chkbx" checked value="<?php echo $fixing_kit_price; ?>">
           <label for="fixkit" class="p chkbx__label">Fixing Kit </label>
           </div>
         <?php } ?>
         <?php if ($extra_packaging_enabled) { ?>
           <div class="chkboxbttn">
-          <input id="xtrap" type="checkbox" name="addon" class="a chkbx" value="<?php echo $extra_packaging_price; ?>">
+          <input id="xtrap" type="checkbox" name="addon_xtrap" class="a chkbx" value="<?php echo $extra_packaging_price; ?>">
           <label for="xtrap" class="p chkbx__label">Extra Packaging </label>
           </div>
         <?php } ?>

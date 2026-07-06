@@ -46,3 +46,29 @@ Low-risk cleanup pass first, to tidy the starting point:
 ## For deeper context
 
 Architectural decisions, the distribution pattern, the branding+licence pattern, the storage migration reasoning, the lead-gen pivot rationale — all captured in Baltic Mind under project `baltic-wp-stair-builder` and `bd-pricing-builder` (the latter is the earlier placeholder slug, still valid for search). When starting a new session, "pull all baltic-wp-stair-builder decisions from Baltic Mind" will surface the full context.
+
+## Baltic Mind (project memory)
+
+Baltic Mind is connected via MCP — it's the source of truth for this project's
+history, decisions, scope and work log. Tools are prefixed `mind_`.
+
+**At the start of work:** if I reference something as if it's already known
+("the tier logic", "what we decided about X", any FSI figure or scope detail)
+and it's not in front of you, search Baltic Mind before answering. Use
+`mind_search_memories` with a descriptive phrase, not short keywords — phrase
+queries retrieve better here. Client slug is `football-search-index`, project
+is `fsi` (the slug can be inconsistent, so lead with descriptive query text).
+
+**Do not trust the old proposal for scope/figures.** The April v3 proposal is
+stale. Canonical V1 scope lives in Baltic Mind — search it before quoting any
+number, price, or scope item.
+
+**At the end of a substantive session:** proactively offer to log to Baltic Mind
+before we finish.
+- Decisions/context → `mind_store_memory` (type: decision / context / correction).
+- Work done → `mind_log_work`, with an explicit `work_date` (don't default to
+  today for retrospective entries) and `memory_ids` linking related entries.
+- To supersede a stale memory, use a `correction` entry referencing the ID it
+  corrects.
+
+Don't narrate the search/retrieval — just use it and answer.

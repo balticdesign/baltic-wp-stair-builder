@@ -30,6 +30,15 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/** Admin page slug. */
 		const PAGE_SLUG = 'stairbuilder-pricing';
 
+		/** Bulk price-update tool page slug. */
+		const BULK_PAGE_SLUG = 'stairbuilder-bulk-price';
+
+		/** admin-post action name for applying a bulk price change. */
+		const BULK_ACTION = 'stairbuilder_bulk_price';
+
+		/** Nonce action for the bulk price form. */
+		const BULK_NONCE = 'stairbuilder_bulk_price_nonce';
+
 		/** Settings API page ID (distinct from menu slug). */
 		const PAGE_ID = 'stairbuilder-pricing-settings';
 
@@ -56,6 +65,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			add_action( 'admin_init', array( $this, 'maybe_migrate_repeaters_v2' ), 30 );
 			add_action( 'admin_init', array( $this, 'maybe_backfill_balustrade_modes' ), 40 );
 			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
+			add_action( 'admin_post_' . self::BULK_ACTION, array( $this, 'handle_bulk_apply' ) );
 		}
 
 		/* ------------------------------------------------------------------ */
@@ -262,6 +272,233 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		/* ------------------------------------------------------------------ */
+		/* Bulk price tool — screen                                            */
+		/* ------------------------------------------------------------------ */
+
+		/** Material tags offered as quick-select buttons, in display order. */
+		private function bulk_materials() {
+			return array(
+				'oak'   => __( 'Oak', 'stairbuilder' ),
+				'pine'  => __( 'Pine', 'stairbuilder' ),
+				'mdf'   => __( 'MDF', 'stairbuilder' ),
+				'ply'   => __( 'Ply', 'stairbuilder' ),
+				'metal' => __( 'Metal', 'stairbuilder' ),
+				'glass' => __( 'Glass', 'stairbuilder' ),
+			);
+		}
+
+		/**
+		 * Render the Bulk Price Update screen: every adjustable component/material
+		 * price with an include checkbox + material tag, material quick-selects, a
+		 * single % input, a client-side Preview, and an Apply & Save that posts to
+		 * the admin-post handler. Preview is pure (JS only); only Apply writes.
+		 */
+		public function render_bulk_page() {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return;
+			}
+
+			// Success / no-op notices after an Apply redirect.
+			if ( isset( $_GET['bulk-updated'] ) ) {
+				$n   = max( 0, (int) $_GET['bulk-updated'] );
+				$pct = isset( $_GET['bulk-pct'] ) ? sanitize_text_field( wp_unslash( $_GET['bulk-pct'] ) ) : '';
+				if ( $n > 0 ) {
+					printf(
+						'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+						esc_html( sprintf( _n( '%1$s price updated by %2$s%%.', '%1$s prices updated by %2$s%%.', $n, 'stairbuilder' ), number_format_i18n( $n ), $pct ) )
+					);
+				}
+			}
+			if ( isset( $_GET['bulk-noop'] ) ) {
+				echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'No changes applied — enter a non-zero percentage and select at least one price.', 'stairbuilder' ) . '</p></div>';
+			}
+
+			$rows = $this->get_adjustable_prices();
+
+			// Group rows by section, preserving schema order.
+			$grouped = array();
+			foreach ( $rows as $r ) {
+				$grouped[ $r['section'] ][] = $r;
+			}
+
+			$pricing_url = admin_url( 'options-general.php?page=' . self::PAGE_SLUG );
+			?>
+			<div class="wrap stairbuilder-bulk-wrap">
+				<h1><?php esc_html_e( 'Bulk Price Update', 'stairbuilder' ); ?></h1>
+				<p class="description">
+					<?php esc_html_e( 'Apply a single percentage change to the component & material prices you select. Use the material buttons to tick a whole column (e.g. every Oak price), set the percentage, Preview, then Apply. Values are rounded to 2 decimal places. Blank prices are left untouched.', 'stairbuilder' ); ?>
+					<a href="<?php echo esc_url( $pricing_url ); ?>">&larr; <?php esc_html_e( 'Back to Stair Builder Pricing', 'stairbuilder' ); ?></a>
+				</p>
+
+				<?php if ( empty( $rows ) ) : ?>
+					<div class="notice notice-info inline"><p><?php esc_html_e( 'No adjustable prices found. Add some pricing under Stair Builder Pricing first.', 'stairbuilder' ); ?></p></div>
+				<?php else : ?>
+
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="sb-bulk-form">
+					<input type="hidden" name="action" value="<?php echo esc_attr( self::BULK_ACTION ); ?>" />
+					<?php wp_nonce_field( self::BULK_NONCE ); ?>
+
+					<div class="sb-bulk-controls">
+						<label class="sb-bulk-pct-label">
+							<?php esc_html_e( 'Percentage change', 'stairbuilder' ); ?>
+							<input type="number" step="0.01" name="pct" id="sb-bulk-pct" class="small-text" placeholder="e.g. 5" />
+							<span>%</span>
+						</label>
+						<span class="sb-bulk-hint"><?php esc_html_e( 'Use a negative number to reduce (e.g. -2.5).', 'stairbuilder' ); ?></span>
+
+						<div class="sb-bulk-quickselect">
+							<span class="sb-bulk-qs-label"><?php esc_html_e( 'Toggle:', 'stairbuilder' ); ?></span>
+							<?php foreach ( $this->bulk_materials() as $key => $label ) : ?>
+								<button type="button" class="button sb-bulk-mat" data-mat="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></button>
+							<?php endforeach; ?>
+							<button type="button" class="button sb-bulk-all"><?php esc_html_e( 'Select all', 'stairbuilder' ); ?></button>
+							<button type="button" class="button sb-bulk-none"><?php esc_html_e( 'Select none', 'stairbuilder' ); ?></button>
+						</div>
+					</div>
+
+					<?php $this->render_bulk_table( $grouped ); ?>
+
+					<p class="sb-bulk-actions">
+						<button type="button" class="button button-secondary" id="sb-bulk-preview"><?php esc_html_e( 'Preview', 'stairbuilder' ); ?></button>
+						<button type="submit" class="button button-primary" id="sb-bulk-apply"><?php esc_html_e( 'Apply &amp; Save', 'stairbuilder' ); ?></button>
+						<span class="sb-bulk-summary" id="sb-bulk-summary"></span>
+					</p>
+				</form>
+
+				<?php endif; ?>
+			</div>
+			<?php
+		}
+
+		/**
+		 * Render the grouped price table. Each row carries data-* attributes the
+		 * Preview JS reads, and a checkbox whose value is the row's stable id.
+		 *
+		 * @param array $grouped section label => list of price rows.
+		 */
+		private function render_bulk_table( $grouped ) {
+			$mats = $this->bulk_materials();
+			?>
+			<table class="widefat striped sb-bulk-table" id="sb-bulk-table">
+				<thead>
+					<tr>
+						<th class="check-column"><input type="checkbox" id="sb-bulk-checkall" checked /></th>
+						<th><?php esc_html_e( 'Price', 'stairbuilder' ); ?></th>
+						<th><?php esc_html_e( 'Material', 'stairbuilder' ); ?></th>
+						<th class="sb-bulk-num"><?php esc_html_e( 'Current (£)', 'stairbuilder' ); ?></th>
+						<th class="sb-bulk-num"><?php esc_html_e( 'New (£)', 'stairbuilder' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $grouped as $section => $items ) : ?>
+						<tr class="sb-bulk-section"><td colspan="5"><strong><?php echo esc_html( $section ); ?></strong></td></tr>
+						<?php foreach ( $items as $r ) :
+							$is_num   = ( $r['value'] !== '' && is_numeric( $r['value'] ) );
+							$mat_lbl  = ( $r['material'] !== '' && isset( $mats[ $r['material'] ] ) ) ? $mats[ $r['material'] ] : '';
+							$cur_disp = $is_num ? number_format( (float) $r['value'], 2 ) : '—';
+							?>
+							<tr data-id="<?php echo esc_attr( $r['id'] ); ?>"
+								data-material="<?php echo esc_attr( $r['material'] ); ?>"
+								data-value="<?php echo $is_num ? esc_attr( (float) $r['value'] ) : ''; ?>">
+								<td class="check-column">
+									<input type="checkbox" class="sb-bulk-include" name="rows[]" value="<?php echo esc_attr( $r['id'] ); ?>" <?php checked( $is_num ); ?> <?php disabled( ! $is_num ); ?> />
+								</td>
+								<td><?php echo esc_html( $r['label'] ); ?></td>
+								<td><?php echo $mat_lbl ? '<span class="sb-bulk-tag sb-bulk-tag-' . esc_attr( $r['material'] ) . '">' . esc_html( $mat_lbl ) . '</span>' : '<span class="sb-bulk-tag sb-bulk-tag-none">&mdash;</span>'; ?></td>
+								<td class="sb-bulk-num sb-bulk-current"><?php echo esc_html( $cur_disp ); ?></td>
+								<td class="sb-bulk-num sb-bulk-new">&mdash;</td>
+							</tr>
+						<?php endforeach; ?>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+			<?php
+		}
+
+		/**
+		 * admin-post handler: recompute the selected prices server-side (never
+		 * trusting client maths), write them into the options blob in place, and
+		 * redirect back with a result notice.
+		 *
+		 * In-place write (rather than a full round-trip through sanitize()) is
+		 * deliberate: the stored blob is already in canonical shape, and re-running
+		 * the whole array through sanitize() would coerce any not-yet-saved toggle
+		 * defaults to 0. We only touch the selected price slots, casting each new
+		 * value to a 2dp float — same coercion sanitize() applies to a price.
+		 */
+		public function handle_bulk_apply() {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				wp_die( esc_html__( 'You do not have permission to do this.', 'stairbuilder' ) );
+			}
+			check_admin_referer( self::BULK_NONCE );
+
+			$redirect = admin_url( 'options-general.php?page=' . self::BULK_PAGE_SLUG );
+
+			$pct_raw  = isset( $_POST['pct'] ) ? sanitize_text_field( wp_unslash( $_POST['pct'] ) ) : '';
+			$pct      = is_numeric( $pct_raw ) ? (float) $pct_raw : 0.0;
+			$selected = isset( $_POST['rows'] ) && is_array( $_POST['rows'] )
+				? array_map( 'sanitize_text_field', wp_unslash( $_POST['rows'] ) )
+				: array();
+
+			if ( 0.0 === $pct || empty( $selected ) ) {
+				wp_safe_redirect( add_query_arg( 'bulk-noop', '1', $redirect ) );
+				exit;
+			}
+
+			// Authoritative current values + paths, keyed by stable id.
+			$catalogue = array();
+			foreach ( $this->get_adjustable_prices() as $r ) {
+				$catalogue[ $r['id'] ] = $r;
+			}
+
+			$options = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $options ) ) {
+				$options = array();
+			}
+
+			$factor  = 1 + ( $pct / 100 );
+			$changed = 0;
+
+			foreach ( $selected as $id ) {
+				if ( ! isset( $catalogue[ $id ] ) ) {
+					continue; // Unknown / stale id — ignore.
+				}
+				$entry = $catalogue[ $id ];
+				if ( $entry['value'] === '' || ! is_numeric( $entry['value'] ) ) {
+					continue; // Blank prices stay blank.
+				}
+				$new = round( (float) $entry['value'] * $factor, 2 );
+				if ( $new === (float) $entry['value'] ) {
+					continue; // No effective change (e.g. value 0).
+				}
+
+				$path = $entry['path'];
+				if ( 'flat' === $path['kind'] ) {
+					$options[ $path['field'] ] = $new;
+					$changed++;
+				} elseif ( 'repeater' === $path['kind'] ) {
+					if ( isset( $options[ $path['field'] ][ $path['row'] ] ) && is_array( $options[ $path['field'] ][ $path['row'] ] ) ) {
+						$options[ $path['field'] ][ $path['row'] ][ $path['sub'] ] = $new;
+						$changed++;
+					}
+				}
+			}
+
+			if ( $changed > 0 ) {
+				update_option( self::OPTION_KEY, $options );
+				$redirect = add_query_arg(
+					array( 'bulk-updated' => $changed, 'bulk-pct' => rawurlencode( $pct_raw ) ),
+					$redirect
+				);
+			} else {
+				$redirect = add_query_arg( 'bulk-noop', '1', $redirect );
+			}
+
+			wp_safe_redirect( $redirect );
+			exit;
+		}
+
+		/* ------------------------------------------------------------------ */
 		/* Admin menu                                                          */
 		/* ------------------------------------------------------------------ */
 
@@ -272,6 +509,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				'manage_options',
 				self::PAGE_SLUG,
 				array( $this, 'render_page' )
+			);
+			add_options_page(
+				__( 'Bulk Price Update', 'stairbuilder' ),
+				__( 'Bulk Price Update', 'stairbuilder' ),
+				'manage_options',
+				self::BULK_PAGE_SLUG,
+				array( $this, 'render_bulk_page' )
 			);
 		}
 
@@ -906,7 +1150,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			$groups = $this->get_tab_groups();
 			?>
 			<div class="wrap stairbuilder-pricing-wrap">
-				<h1><?php esc_html_e( 'Stair Builder Pricing', 'stairbuilder' ); ?></h1>
+				<h1 class="wp-heading-inline"><?php esc_html_e( 'Stair Builder Pricing', 'stairbuilder' ); ?></h1>
+				<a href="<?php echo esc_url( admin_url( 'options-general.php?page=' . self::BULK_PAGE_SLUG ) ); ?>" class="page-title-action"><?php esc_html_e( 'Bulk Price Update', 'stairbuilder' ); ?></a>
+				<hr class="wp-header-end" />
 
 				<form action="options.php" method="post">
 					<?php settings_fields( self::OPTION_GROUP ); ?>
@@ -1361,7 +1607,119 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/* Admin assets                                                         */
 		/* ------------------------------------------------------------------ */
 
+		/** Inline CSS + JS for the Bulk Price Update screen. */
+		private function enqueue_bulk() {
+			wp_enqueue_script( 'jquery' );
+
+			wp_add_inline_style(
+				'common',
+				'.stairbuilder-bulk-wrap .sb-bulk-controls { background:#fff; border:1px solid #c3c4c7; border-radius:4px; padding:14px 16px; margin:16px 0; display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; }
+				.stairbuilder-bulk-wrap .sb-bulk-pct-label { font-weight:600; }
+				.stairbuilder-bulk-wrap .sb-bulk-pct-label input { margin:0 4px; }
+				.stairbuilder-bulk-wrap .sb-bulk-hint { color:#646970; font-size:12px; }
+				.stairbuilder-bulk-wrap .sb-bulk-quickselect { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-left:auto; }
+				.stairbuilder-bulk-wrap .sb-bulk-qs-label { font-weight:600; margin-right:2px; }
+				.stairbuilder-bulk-wrap .sb-bulk-mat.is-active { background:#2271b1; border-color:#2271b1; color:#fff; }
+				.stairbuilder-bulk-wrap .sb-bulk-table { margin-top:8px; }
+				.stairbuilder-bulk-wrap .sb-bulk-table .sb-bulk-num { text-align:right; font-variant-numeric:tabular-nums; }
+				.stairbuilder-bulk-wrap .sb-bulk-section td { background:#f0f0f1; }
+				.stairbuilder-bulk-wrap tr.sb-changed td { background:#fcf0f1 !important; }
+				.stairbuilder-bulk-wrap tr.sb-changed .sb-bulk-new { color:#b32d2e; font-weight:600; }
+				.stairbuilder-bulk-wrap .sb-bulk-tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; background:#e5e5e5; color:#1d2327; }
+				.stairbuilder-bulk-wrap .sb-bulk-tag-oak { background:#dbead5; } .stairbuilder-bulk-wrap .sb-bulk-tag-pine { background:#f4e8cf; }
+				.stairbuilder-bulk-wrap .sb-bulk-tag-none { background:transparent; color:#a7aaad; }
+				.stairbuilder-bulk-wrap .sb-bulk-actions { margin-top:16px; display:flex; align-items:center; gap:12px; }
+				.stairbuilder-bulk-wrap .sb-bulk-summary { color:#646970; }'
+			);
+
+			wp_add_inline_script(
+				'jquery',
+				'jQuery(function($){
+					var $rows = $("#sb-bulk-table tbody tr[data-id]");
+
+					function num(v){ v = parseFloat(v); return isNaN(v) ? null : v; }
+
+					function recompute(){
+						var pct = num($("#sb-bulk-pct").val());
+						var changed = 0, selected = 0;
+						$rows.each(function(){
+							var $tr = $(this);
+							var on  = $tr.find(".sb-bulk-include").prop("checked");
+							var old = num($tr.attr("data-value"));
+							var $new = $tr.find(".sb-bulk-new");
+							if (on) { selected++; }
+							if (on && old !== null && pct !== null && pct !== 0){
+								var nv = Math.round(old * (1 + pct/100) * 100) / 100;
+								$new.text(nv.toFixed(2));
+								if (nv !== old) { $tr.addClass("sb-changed"); changed++; }
+								else { $tr.removeClass("sb-changed"); }
+							} else {
+								$new.html("&mdash;");
+								$tr.removeClass("sb-changed");
+							}
+						});
+						var msg = selected + " selected";
+						if (pct !== null && pct !== 0) { msg += ", " + changed + " will change"; }
+						$("#sb-bulk-summary").text(msg);
+						refreshMatButtons();
+					}
+
+					// A material button is "active" when every enabled row of that
+					// material is currently ticked.
+					function refreshMatButtons(){
+						$(".sb-bulk-mat").each(function(){
+							var mat = $(this).data("mat");
+							var $g = $rows.filter("[data-material=" + mat + "]").find(".sb-bulk-include:enabled");
+							var all = $g.length > 0 && $g.filter(":checked").length === $g.length;
+							$(this).toggleClass("is-active", all);
+						});
+					}
+
+					$("#sb-bulk-checkall").on("change", function(){
+						$rows.find(".sb-bulk-include:enabled").prop("checked", $(this).prop("checked"));
+						recompute();
+					});
+
+					$(".sb-bulk-mat").on("click", function(){
+						var mat = $(this).data("mat");
+						var $g = $rows.filter("[data-material=" + mat + "]").find(".sb-bulk-include:enabled");
+						var allOn = $g.length > 0 && $g.filter(":checked").length === $g.length;
+						$g.prop("checked", !allOn); // toggle the whole material group
+						recompute();
+					});
+
+					$(".sb-bulk-all").on("click", function(){ $rows.find(".sb-bulk-include:enabled").prop("checked", true); recompute(); });
+					$(".sb-bulk-none").on("click", function(){ $rows.find(".sb-bulk-include:enabled").prop("checked", false); recompute(); });
+
+					$("#sb-bulk-pct").on("input", recompute);
+					$("#sb-bulk-preview").on("click", recompute);
+					$("#sb-bulk-table").on("change", ".sb-bulk-include", recompute);
+
+					$("#sb-bulk-form").on("submit", function(e){
+						var pct = num($("#sb-bulk-pct").val());
+						var selected = $rows.find(".sb-bulk-include:checked").length;
+						if (pct === null || pct === 0 || selected === 0){
+							e.preventDefault();
+							window.alert("Enter a non-zero percentage and select at least one price.");
+							return;
+						}
+						if (!window.confirm("Apply " + pct + "% to " + selected + " selected price(s)? This overwrites the stored prices.")){
+							e.preventDefault();
+						}
+					});
+
+					recompute();
+				});'
+			);
+		}
+
 		public function enqueue( $hook ) {
+			// Bulk price-update page has its own lightweight assets.
+			if ( 'settings_page_' . self::BULK_PAGE_SLUG === $hook ) {
+				$this->enqueue_bulk();
+				return;
+			}
+
 			// Only load on our settings page.
 			if ( $hook !== 'settings_page_' . self::PAGE_SLUG ) {
 				return;

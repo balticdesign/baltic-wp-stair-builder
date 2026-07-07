@@ -135,7 +135,16 @@ function baltic_stair_generate_pdf( array $lead_data ) {
 		require_once plugin_dir_path( __FILE__ ) . '../vendor/autoload.php';
 	}
 
-	$mpdf = new Mpdf\Mpdf();
+	// Zero page margins so the quote's header/footer bands run full-bleed.
+	// Setting them here (not via `@page { margin: 0 }` in the template) avoids an
+	// mPDF divide-by-zero in its nested-table column-width calc. Content columns
+	// carry their own padding, so nothing is jammed to the page edge.
+	$mpdf = new Mpdf\Mpdf( array(
+		'margin_left'   => 0,
+		'margin_right'  => 0,
+		'margin_top'    => 0,
+		'margin_bottom' => 0,
+	) );
 
 	$title   = 'Staircase Quote – Ref ' . $lead_data['lead_id'];
 	$content = is_array( $lead_data['form'] ) ? $lead_data['form'] : array();

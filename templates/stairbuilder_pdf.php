@@ -5,6 +5,13 @@
  * Variables in scope from baltic_stair_generate_pdf():
  *   $title   — heading
  *   $content — assoc array merging form fields + contact info + price totals
+ *
+ * Layout follows _reference/quote_2_mpdf.html (Claude Design), rebuilt for
+ * mPDF (table/float layout, no flexbox). Brand colours, logo and the four
+ * header/footer strings come from the Brand Colours → "Quote PDF" settings
+ * group; contact detail lives in those four fields, not hard-coded here.
+ * Font: the design's Jost falls back to DejaVu Sans (mPDF core) — bundle Jost
+ * in mPDF's font config later for the exact typeface.
  */
 
 // Map a stored component code back to its admin-defined human label for
@@ -30,290 +37,328 @@ $bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 
     }
     return $code;
 };
-?>
-<style>
-    @page { margin: 20px; font-family: Arial, Helvetica, sans-serif; width: 100%; }
-    h1, h2, h3, h4, h5, h6 { font-family: Arial, Helvetica, sans-serif; }
-    h1 { font-size: 1em; }
-    h3 { font-size: 1em; margin: 0; padding: 0; }
-    .wrapper { overflow: hidden; }
-    .leftcol { width: 59%; float: left; }
-    .rightcol { width: 39%; float: right; }
-    .col { width: 33%; float: left; }
-    .panel { font-size: 1.2em; vertical-align: top; }
-    .panel table { padding: 10px; width: 100%; }
-    .table-wrapper { min-height: 220px; margin-right: 10px; }
-    .lbl { font-weight: bold; width: 60%; }
-    .vl { padding-left: 10px; text-transform: capitalize; }
-    .vl.lc { text-transform: lowercase; }
-    .clear { clear: both; width: 100%; display: block; }
-</style>
-<table style="margin-bottom:20px;">
-    <tr>
-        <td><strong style="font-size:18px;"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></strong></td>
-        <td style="text-align: right;"><h1><?php echo esc_html( $title ); ?></h1></td>
-    </tr>
-</table>
 
-<div class="wrapper">
-    <div class="leftcol">
-        <div class="panel">
-            <h3>Staircase Plan</h3>
-            <div style="background-color:#e1e6f7; text-align:left;">
-                <?php if ( ! empty( $content['canvas_image_path'] ) && file_exists( $content['canvas_image_path'] ) ) : ?>
-                    <img src="<?php echo esc_attr( $content['canvas_image_path'] ); ?>" alt="Staircase Diagram" width="100%">
-                <?php else : ?>
-                    <p style="padding:20px;">Diagram not available.</p>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-    <div class="rightcol">
-        <div class="panel">
-            <h3>Staircase Essentials</h3>
-            <table style="background-color:#e1e6f7;">
-                <?php if ( ! empty( $content['sc-direction'] ) ) : ?>
-                    <tr><td class="lbl">Direction:</td><td class="vl"><?php echo esc_html( $content['sc-direction'] ); ?></td></tr>
-                <?php endif; ?>
-                <tr><td class="lbl">Floor to Floor:</td><td class="vl lc"><?php echo esc_html( $content['floor-height'] ?? '' ); ?>mm</td></tr>
-                <tr><td class="lbl">Staircase Width<?php echo ( ! empty( $content['stair-width2'] ) ) ? ' (Flight 1)' : ''; ?>:</td><td class="vl lc"><?php echo esc_html( $content['stair-width'] ?? '' ); ?>mm</td></tr>
-                <?php if ( ! empty( $content['stair-width2'] ) ) : ?>
-                    <tr><td class="lbl">Staircase Width (Flight 2):</td><td class="vl lc"><?php echo esc_html( $content['stair-width2'] ); ?>mm</td></tr>
-                <?php endif; ?>
-                <?php if ( ! empty( $content['stair-width3'] ) ) : ?>
-                    <tr><td class="lbl">Staircase Width (Flight 3):</td><td class="vl lc"><?php echo esc_html( $content['stair-width3'] ); ?>mm</td></tr>
-                <?php endif; ?>
-                <tr><td class="lbl">Risers:</td><td class="vl lc"><?php echo esc_html( $content['risers'] ?? '' ); ?></td></tr>
-                <tr><td class="lbl">Going:</td><td class="vl lc"><?php echo esc_html( $content['going'] ?? '' ); ?>mm</td></tr>
-            </table>
-        </div>
-        <div class="panel">
-            <h3 style="margin-top:20px;">Indicative Quote</h3>
-            <table style="background-color:#e1e6f7;">
-                <tr><td class="lbl">Subtotal:</td><td>£<?php echo esc_html( number_format( (float) ( $content['price'] ?? 0 ), 2 ) ); ?></td></tr>
-                <tr><td class="lbl">VAT:</td><td>£<?php echo esc_html( number_format( (float) ( $content['vat'] ?? 0 ), 2 ) ); ?></td></tr>
-                <tr><td colspan="2" style="border-top: 1px solid #154782;"></td></tr>
-                <tr><td class="lbl">Total (inc VAT):</td><td><strong>£<?php echo esc_html( number_format( (float) ( $content['total'] ?? 0 ), 2 ) ); ?></strong></td></tr>
-            </table>
-        </div>
-    </div>
-</div>
+/* ------------------------------------------------------------------ */
+/* Branding — Brand Colours → "Quote PDF" group                        */
+/* ------------------------------------------------------------------ */
+$bd_opt = function ( $key, $default = '' ) {
+    $v = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( $key, '' ) : '';
+    return ( $v !== '' && $v !== null ) ? $v : $default;
+};
+$c_accent = $bd_opt( 'pdf_accent', '#A6914E' ); // brand / rules / headings
+$c_dark   = $bd_opt( 'pdf_dark',   '#35332F' ); // header + footer + price box
+$c_muted  = $bd_opt( 'pdf_muted',  '#7A756A' ); // secondary text / spec keys
+$c_panel  = $bd_opt( 'pdf_panel',  '#EBE8E0' ); // hairlines / light panels
 
-<div class="wrapper">
-    <div class="col">
-        <div class="panel">
-            <h3 style="margin-top:20px;">Staircase Details</h3>
-            <div class="table-wrapper" style="background-color:#e1e6f7;">
-                <table>
-                    <?php
-                    // Friendly staircase type/config label from the captured shortcode attrs.
-                    $bd_type_labels   = array( 'straight' => 'Straight Flight', 'quarter' => 'Quarter Turn', 'half' => 'Half Turn' );
-                    $bd_config_labels = array( 'landing' => 'Landing', 'winder' => 'Winder', 'double_quarter' => 'Double Quarter Landing' );
-                    $bd_type_label    = $bd_type_labels[ $content['stair_type'] ?? '' ] ?? '';
-                    $bd_config_label  = $bd_config_labels[ $content['stair_config'] ?? '' ] ?? '';
-                    $bd_staircase_type = trim( $bd_type_label . ( $bd_config_label ? ' — ' . $bd_config_label : '' ) );
+$hdr_l = $bd_opt( 'pdf_header_left', '' );
+$hdr_r = $bd_opt( 'pdf_header_right', '' );
+$ftr_l = $bd_opt( 'pdf_footer_left', '' );
+$ftr_r = $bd_opt( 'pdf_footer_right', '' );
 
-                    // Turn / featured-step value → label maps (fixed value sets).
-                    $bd_treadit_labels = array( '1' => 'Quarter Landing', '2' => '2 Winders', '3' => '3 Winders', '4' => 'Half Landing' );
-                    $bd_feat_labels    = array( '0' => 'None', '1' => 'Curtail', '2' => 'Bullnose', '4' => 'Full Curtail &amp; Bullnose' );
-                    $bd_map_label      = function ( $map, $key ) { $key = (string) $key; return $map[ $key ] ?? ''; };
-                    $bd_building_reg   = $bd_code_label( 'building_regs', $content['building_regs'] ?? '', 'building_reg_value', 'building_reg_name' );
-                    ?>
-                    <?php if ( $bd_staircase_type ) : ?>
-                    <tr><td class="lbl">Staircase Type:</td><td class="vl"><?php echo esc_html( $bd_staircase_type ); ?></td></tr>
-                    <?php endif; ?>
-                    <?php if ( $bd_building_reg !== '' ) : ?>
-                    <tr><td class="lbl">Building Regs:</td><td class="vl"><?php echo esc_html( $bd_building_reg ); ?></td></tr>
-                    <?php endif; ?>
-                    <tr><td class="lbl">Construction Type:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'construction_types', $content['construction_type'] ?? '', 'construction_code', 'construction_name' ) ); ?></td></tr>
-                    <tr><td class="lbl">Tread Profile:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'tread_profiles', $content['tread-profile'] ?? '', 'tread_profile_code', 'tread_profile_name' ) ); ?></td></tr>
-                    <tr><td class="lbl">String Material:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'stringer_types', $content['stringer_material'] ?? '', 'stringer_code', 'stringer_name' ) ); ?></td></tr>
-                    <tr><td class="lbl">Tread Material:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'tread_types', $content['tread_material'] ?? '', 'tread_code', 'tread_name' ) ); ?></td></tr>
-                    <tr><td class="lbl">Riser Material:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'riser_types', $content['riser_material'] ?? '', 'riser_code', 'riser_name' ) ); ?></td></tr>
+$logo_id  = absint( $bd_opt( 'pdf_logo', 0 ) );
+$logo_src = '';
+if ( $logo_id ) {
+    $lp       = get_attached_file( $logo_id );
+    $logo_src = ( $lp && file_exists( $lp ) ) ? $lp : (string) wp_get_attachment_image_url( $logo_id, 'medium' );
+}
 
-                    <?php
-                    // Turns & Winders — only present for turned staircases.
-                    $bd_turn1 = $bd_map_label( $bd_treadit_labels, $content['treadit'] ?? '' );
-                    $bd_turn2 = $bd_map_label( $bd_treadit_labels, $content['treadit2'] ?? '' );
-                    ?>
-                    <?php if ( $bd_turn1 !== '' ) : ?>
-                    <tr><td class="lbl">Turn 1:</td><td class="vl"><?php echo esc_html( $bd_turn1 ); ?></td></tr>
-                    <?php endif; ?>
-                    <?php if ( isset( $content['treadbt'] ) && $content['treadbt'] !== '' ) : ?>
-                    <tr><td class="lbl">Treads before Turn:</td><td class="vl lc"><?php echo esc_html( $content['treadbt'] ); ?></td></tr>
-                    <?php endif; ?>
-                    <?php if ( isset( $content['treadat'] ) && $content['treadat'] !== '' ) : ?>
-                    <tr><td class="lbl">Treads after Turn:</td><td class="vl lc"><?php echo esc_html( $content['treadat'] ); ?></td></tr>
-                    <?php endif; ?>
-                    <?php if ( $bd_turn2 !== '' ) : ?>
-                    <tr><td class="lbl">Turn 2:</td><td class="vl"><?php echo esc_html( $bd_turn2 ); ?></td></tr>
-                    <?php endif; ?>
-                    <?php if ( isset( $content['treadat2'] ) && $content['treadat2'] !== '' ) : ?>
-                    <tr><td class="lbl">Treads after Turn 2:</td><td class="vl lc"><?php echo esc_html( $content['treadat2'] ); ?></td></tr>
-                    <?php endif; ?>
+$company    = get_bloginfo( 'name' );
+$ref        = (int) ( $content['lead_id'] ?? 0 );
+$quote_date = current_time( 'j F Y' );
+$cust_name  = (string) ( $content['name'] ?? '' );
 
-                    <?php
-                    // Featured step — the customer's left/right step choice (0/1/2/4).
-                    $bd_left_step  = $bd_map_label( $bd_feat_labels, $content['left-featured-step'] ?? '' );
-                    $bd_right_step = $bd_map_label( $bd_feat_labels, $content['right-featured-step'] ?? '' );
-                    ?>
-                    <?php if ( $bd_left_step !== '' && $bd_left_step !== 'None' ) : ?>
-                    <tr><td class="lbl">Left Featured Step:</td><td class="vl"><?php echo esc_html( $bd_left_step ); ?></td></tr>
-                    <?php endif; ?>
-                    <?php if ( $bd_right_step !== '' && $bd_right_step !== 'None' ) : ?>
-                    <tr><td class="lbl">Right Featured Step:</td><td class="vl"><?php echo esc_html( $bd_right_step ); ?></td></tr>
-                    <?php endif; ?>
-                </table>
-            </div>
-        </div>
-    </div>
-    <div class="col">
-        <div class="panel">
-            <h3 style="margin-top:20px;">Newel Posts</h3>
-            <div class="table-wrapper" style="background-color:#e1e6f7;">
-                <table>
-                    <tr><td class="lbl">Type:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'newel_types', $content['newel_type'] ?? '' ) ); ?></td></tr>
-                    <tr><td class="lbl">Material:</td><td class="vl"><?php echo esc_html( $content['newel_material'] ?? '' ); ?></td></tr>
-                    <?php
-                    // Newel count: prefer the exact figure priceCalc.js captured into
-                    // #newel-count, so the quote matches the price by construction.
-                    // Leads captured before that field existed fall back to rebuilding
-                    // it from the saved fields.
-                    //
-                    // Fallback: the submit-time colon strip stores `newel-posts` as its
-                    // label only (none/left/right/both/custom), so map presets to their
-                    // count and, for custom flights, sum the saved per-corner checkboxes
-                    // (each saved as "1"). Then add the mandatory box-corner posts every
-                    // turn structurally includes — boxes = flights - 1 (straight 0,
-                    // quarter 1, half 2), matching the canvas drawing, which shows those
-                    // posts with no checkboxes ticked.
-                    if ( isset( $content['newel-count'] ) && is_numeric( $content['newel-count'] ) ) {
-                        $newel_number = (int) $content['newel-count'];
-                    } else {
-                        $flights_by_type = array( 'straight' => 1, 'quarter' => 2, 'half' => 3 );
-                        $flights         = $flights_by_type[ $content['stair_type'] ?? 'straight' ] ?? 1;
-                        $mandatory_posts = max( 0, $flights - 1 );
+/* ------------------------------------------------------------------ */
+/* Derived spec values                                                 */
+/* ------------------------------------------------------------------ */
+$bd_type_labels    = array( 'straight' => 'Straight Flight', 'quarter' => 'Quarter Turn', 'half' => 'Half Turn' );
+$bd_config_labels  = array( 'landing' => 'Landing', 'winder' => 'Winder', 'double_quarter' => 'Double Quarter Landing' );
+$bd_type_label     = $bd_type_labels[ $content['stair_type'] ?? '' ] ?? '';
+$bd_config_label   = $bd_config_labels[ $content['stair_config'] ?? '' ] ?? '';
+$bd_staircase_type = trim( $bd_type_label . ( $bd_config_label ? ' — ' . $bd_config_label : '' ) );
 
-                        $np = (string) ( $content['newel-posts'] ?? '' );
-                        if ( 'custom' === $np ) {
-                            $corner_posts   = array( 'tl-post', 'tr-post', 'to-post', 'bo-post', 'box-post', 'bl-post', 'br-post', 'to-post2', 'bo-post2', 'box-post2' );
-                            $optional_posts = 0;
-                            foreach ( $corner_posts as $cp ) {
-                                $optional_posts += ! empty( $content[ $cp ] ) ? 1 : 0;
-                            }
-                        } else {
-                            $preset_counts  = array( 'none' => 0, 'left' => 2, 'right' => 2, 'both' => 4 );
-                            $optional_posts = $preset_counts[ $np ] ?? 0;
-                        }
+$bd_treadit_labels = array( '1' => 'Quarter Landing', '2' => '2 Winders', '3' => '3 Winders', '4' => 'Half Landing' );
+$bd_feat_labels    = array( '0' => 'None', '1' => 'Curtail', '2' => 'Bullnose', '4' => 'Full Curtail & Bullnose' );
+$bd_map_label      = function ( $map, $key ) { $key = (string) $key; return $map[ $key ] ?? ''; };
+$bd_building_reg   = $bd_code_label( 'building_regs', $content['building_regs'] ?? '', 'building_reg_value', 'building_reg_name' );
 
-                        $newel_number = $optional_posts + $mandatory_posts;
-                    }
-                    ?>
-                    <tr><td class="lbl">Number:</td><td class="vl"><?php echo (int) $newel_number; ?></td></tr>
-                    <tr><td class="lbl">Caps:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'cap_types', $content['newel_cap'] ?? '' ) ); ?></td></tr>
-                    <?php if ( ( $content['newel_cap'] ?? '' ) !== 'none' ) : ?>
-                        <tr><td class="lbl">Cap Number:</td><td class="vl"><?php echo (int) $newel_number; ?></td></tr>
-                    <?php endif; ?>
-                </table>
-            </div>
-        </div>
-    </div>
-    <?php
-    // Ballustrading is optional — the panel only appears when the customer chose
-    // it. Legacy leads with no `ballustrades` value default to shown.
-    $bd_show_bal = ( ( $content['ballustrades'] ?? 'true' ) !== 'false' );
-    ?>
-    <?php if ( $bd_show_bal ) : ?>
-    <div class="col">
-        <div class="panel">
-            <h3 style="margin-top:20px;">Ballustrading</h3>
-            <div class="table-wrapper" style="background-color:#e1e6f7; margin-right: 0px;">
-                <table>
-                    <tr><td class="lbl">Handrail Type:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'handrail_types', $content['handrail_type'] ?? '' ) ); ?></td></tr>
-                    <tr><td class="lbl">Handrail Material:</td><td class="vl"><?php echo esc_html( $content['hdr_material'] ?? '' ); ?></td></tr>
-                    <tr><td class="lbl">Baserail Material:</td><td class="vl"><?php echo esc_html( $content['bsr_material'] ?? '' ); ?></td></tr>
-                    <tr><td class="lbl">Spindles:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'spindle_types', $content['spindle_type'] ?? '' ) ); ?></td></tr>
-                    <tr><td class="lbl">Spindle Material:</td><td class="vl"><?php echo esc_html( $content['bal_material'] ?? '' ); ?></td></tr>
-                    <?php
-                    // Spindle count captured from priceCalc.js (#spindle-count): wood
-                    // spindles / metal spindles / glass panels. Zero for a continuous
-                    // per-metre glass run, so only shown when there is a discrete count.
-                    $bd_spindle_count = ( isset( $content['spindle-count'] ) && is_numeric( $content['spindle-count'] ) ) ? (int) $content['spindle-count'] : 0;
-                    ?>
-                    <?php if ( $bd_spindle_count > 0 ) : ?>
-                    <tr><td class="lbl">Spindle Number:</td><td class="vl"><?php echo (int) $bd_spindle_count; ?></td></tr>
-                    <?php endif; ?>
-                </table>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-</div>
+$bd_turn1      = $bd_map_label( $bd_treadit_labels, $content['treadit'] ?? '' );
+$bd_turn2      = $bd_map_label( $bd_treadit_labels, $content['treadit2'] ?? '' );
+$bd_left_step  = $bd_map_label( $bd_feat_labels, $content['left-featured-step'] ?? '' );
+$bd_right_step = $bd_map_label( $bd_feat_labels, $content['right-featured-step'] ?? '' );
 
-<?php
-// Delivery & Packaging — only rendered when the Packaging & Delivery section
-// was enabled on the form (so these fields were captured).
-$bd_deliv_map  = array( 'collected' => 'Collected', 'kerbside' => 'Kerb Side Delivery' );
-$bd_deliv      = $bd_deliv_map[ $content['delivery'] ?? '' ] ?? '';
-$bd_pkg        = $content['package'] ?? '';
-$bd_pkg_label  = ( $bd_pkg === '' ) ? '' : ( is_numeric( $bd_pkg ) ? 'Part Assembled' : 'Flat Packed' );
-$bd_two_man    = isset( $content['duodeliv'] );
-$bd_addons     = array();
+// Newel count: prefer the exact figure priceCalc.js captured into #newel-count,
+// so the quote matches the price by construction. Leads captured before that
+// field existed fall back to rebuilding it from the saved fields. Fallback: the
+// submit-time colon strip stores `newel-posts` as its label only
+// (none/left/right/both/custom), so map presets to their count and, for custom
+// flights, sum the saved per-corner checkboxes; then add the mandatory
+// box-corner posts every turn structurally includes — boxes = flights - 1
+// (straight 0, quarter 1, half 2), matching the canvas drawing.
+if ( isset( $content['newel-count'] ) && is_numeric( $content['newel-count'] ) ) {
+    $newel_number = (int) $content['newel-count'];
+} else {
+    $flights_by_type = array( 'straight' => 1, 'quarter' => 2, 'half' => 3 );
+    $flights         = $flights_by_type[ $content['stair_type'] ?? 'straight' ] ?? 1;
+    $mandatory_posts = max( 0, $flights - 1 );
+
+    $np = (string) ( $content['newel-posts'] ?? '' );
+    if ( 'custom' === $np ) {
+        $corner_posts   = array( 'tl-post', 'tr-post', 'to-post', 'bo-post', 'box-post', 'bl-post', 'br-post', 'to-post2', 'bo-post2', 'box-post2' );
+        $optional_posts = 0;
+        foreach ( $corner_posts as $cp ) {
+            $optional_posts += ! empty( $content[ $cp ] ) ? 1 : 0;
+        }
+    } else {
+        $preset_counts  = array( 'none' => 0, 'left' => 2, 'right' => 2, 'both' => 4 );
+        $optional_posts = $preset_counts[ $np ] ?? 0;
+    }
+    $newel_number = $optional_posts + $mandatory_posts;
+}
+
+// Spindle count captured from priceCalc.js (#spindle-count): wood / metal
+// spindles or glass panels. Zero for a continuous per-metre glass run.
+$bd_spindle_count = ( isset( $content['spindle-count'] ) && is_numeric( $content['spindle-count'] ) ) ? (int) $content['spindle-count'] : 0;
+
+// Ballustrading panel only appears when chosen; legacy leads default to shown.
+$bd_show_bal = ( ( $content['ballustrades'] ?? 'true' ) !== 'false' );
+
+// Delivery & packaging — only present when that section was enabled on the form.
+$bd_deliv_map = array( 'collected' => 'Collected', 'kerbside' => 'Kerb Side Delivery' );
+$bd_deliv     = $bd_deliv_map[ $content['delivery'] ?? '' ] ?? '';
+$bd_pkg       = $content['package'] ?? '';
+$bd_pkg_label = ( $bd_pkg === '' ) ? '' : ( is_numeric( $bd_pkg ) ? 'Part Assembled' : 'Flat Packed' );
+$bd_two_man   = isset( $content['duodeliv'] );
+$bd_addons    = array();
 if ( isset( $content['addon_fixkit'] ) ) { $bd_addons[] = 'Fixing Kit'; }
 if ( isset( $content['addon_xtrap'] ) )  { $bd_addons[] = 'Extra Packaging'; }
 $bd_has_delivery = ( $bd_deliv !== '' || $bd_pkg_label !== '' || $bd_two_man || ! empty( $bd_addons ) );
+
+$bd_price   = (float) ( $content['price'] ?? 0 );
+$bd_vat     = (float) ( $content['vat'] ?? 0 );
+$bd_total   = (float) ( $content['total'] ?? 0 );
+$bd_vat_pct = ( $bd_price > 0 ) ? round( $bd_vat / $bd_price * 100 ) : 0;
+
+// Emit one spec row (label / value), skipping empty values.
+$bd_row = function ( $label, $value ) {
+    $value = trim( (string) $value );
+    if ( $value === '' ) {
+        return;
+    }
+    echo '<tr><td class="k">' . esc_html( $label ) . '</td><td class="v">' . esc_html( $value ) . '</td></tr>';
+};
 ?>
-<?php if ( $bd_has_delivery ) : ?>
-<div class="wrapper" style="margin-top:20px;">
-    <div class="panel">
-        <h3>Delivery &amp; Packaging</h3>
-        <div class="table-wrapper" style="min-height:0; background-color:#e1e6f7;">
-            <table>
-                <?php if ( $bd_deliv !== '' ) : ?>
-                <tr><td class="lbl">Delivery Method:</td><td class="vl"><?php echo esc_html( $bd_deliv ); ?></td></tr>
-                <?php endif; ?>
-                <?php if ( $bd_two_man ) : ?>
-                <tr><td class="lbl">2 Man Delivery:</td><td class="vl">Yes</td></tr>
-                <?php endif; ?>
-                <?php if ( $bd_pkg_label !== '' ) : ?>
-                <tr><td class="lbl">Packaging:</td><td class="vl"><?php echo esc_html( $bd_pkg_label ); ?></td></tr>
-                <?php endif; ?>
-                <?php if ( ! empty( $bd_addons ) ) : ?>
-                <tr><td class="lbl">Add-Ons:</td><td class="vl"><?php echo esc_html( implode( ', ', $bd_addons ) ); ?></td></tr>
-                <?php endif; ?>
-            </table>
-        </div>
-    </div>
-</div>
+<style>
+  /* No @page rule: the page size (A4) and zero margins are set in the mPDF
+     constructor (see baltic_stair_generate_pdf). An @page rule here is buggy in
+     this mPDF build — `size` spawns extra blank pages and `margin:0` triggers a
+     divide-by-zero with nested tables. */
+  body { margin: 0; font-family: 'Jost', 'DejaVu Sans', sans-serif; color: <?php echo $c_dark; ?>; }
+
+  .band { width: 100%; border-collapse: collapse; }
+  .band td { vertical-align: middle; }
+  .topstrip td { background: <?php echo $c_accent; ?>; color: #ffffff; padding: 9px 40px; font-size: 12.5px; letter-spacing: 0.4px; }
+  .masthead td { background: <?php echo $c_dark; ?>; color: #ffffff; padding: 24px 40px; }
+  .status td { background: <?php echo $c_accent; ?>; color: #ffffff; padding: 10px 40px; font-size: 14px; letter-spacing: 1.2px; text-transform: uppercase; text-align: center; font-weight: 500; }
+  .footer td { background: <?php echo $c_dark; ?>; color: <?php echo $c_panel; ?>; padding: 14px 40px; font-size: 11.5px; letter-spacing: 0.5px; }
+
+  .sectlabel { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: <?php echo $c_accent; ?>; border-bottom: 2px solid <?php echo $c_accent; ?>; padding-bottom: 6px; margin-bottom: 4px; }
+  .spec { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .spec td { padding: 8px 0; border-bottom: 1px solid <?php echo $c_panel; ?>; }
+  .spec tr:last-child td { border-bottom: none; }
+  .spec .k { color: <?php echo $c_muted; ?>; }
+  .spec .v { text-align: right; font-weight: 500; }
+
+  .block { margin-bottom: 22px; }
+  /* Coloured boxes below carry their fill/border inline on a wrapper <td> —
+     mPDF fills td backgrounds behind nested content, but not div backgrounds. */
+  .plan { border: 1px solid <?php echo $c_panel; ?>; background: <?php echo $c_panel; ?>; color: <?php echo $c_muted; ?>; font-size: 13px; }
+  .notes .lbl { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: <?php echo $c_accent; ?>; margin-bottom: 6px; }
+  .notes p { margin: 0; font-size: 13px; line-height: 1.55; color: <?php echo $c_muted; ?>; }
+</style>
+
+<?php if ( $hdr_l !== '' || $hdr_r !== '' ) : ?>
+<table class="band topstrip"><tr>
+  <td><?php echo esc_html( $hdr_l ); ?></td>
+  <td style="text-align: right;"><?php echo esc_html( $hdr_r ); ?></td>
+</tr></table>
 <?php endif; ?>
 
-<div class="wrapper" style="margin-top:20px;">
-    <div class="leftcol">
-        <div class="panel">
-            <h3>Your Details</h3>
-            <div style="background-color:#e1e6f7; padding:10px; font-size:14px;">
-                <strong><?php echo esc_html( $content['name'] ?? '' ); ?></strong><br>
-                <?php echo esc_html( $content['email'] ?? '' ); ?><br>
-                <?php if ( ! empty( $content['phone'] ) ) : ?>
-                    <?php echo esc_html( $content['phone'] ); ?><br>
-                <?php endif; ?>
-                <?php if ( ! empty( $content['postcode'] ) ) : ?>
-                    Postcode: <?php echo esc_html( $content['postcode'] ); ?><br>
-                <?php endif; ?>
-                <?php if ( ! empty( $content['project_delivery_date'] ) ) : ?>
-                    Project Delivery Date: <strong><?php echo esc_html( $content['project_delivery_date'] ); ?></strong>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-    <div class="rightcol">
-        <div class="panel">
-            <h3>Notes</h3>
-            <p style="font-size:11px;">This is an indicative quote based on the configuration submitted. Final pricing is subject to a follow-up consultation.</p>
-        </div>
-    </div>
-</div>
+<table class="band masthead"><tr>
+  <td>
+    <?php if ( $logo_src ) : ?>
+      <img src="<?php echo esc_attr( $logo_src ); ?>" style="max-height: 46px;" alt="<?php echo esc_attr( $company ); ?>">
+    <?php else : ?>
+      <div style="font-size: 28px; font-weight: 600; letter-spacing: 0.5px; line-height: 1;"><?php echo esc_html( $company ); ?></div>
+    <?php endif; ?>
+  </td>
+  <td style="text-align: right;">
+    <div style="font-size: 22px; font-weight: 500; letter-spacing: 2.5px; text-transform: uppercase;">Staircase Quote</div>
+    <div style="font-size: 13px; color: #C9BC93; margin-top: 5px; letter-spacing: 1px;">Reference <?php echo $ref; ?> &nbsp;&middot;&nbsp; <?php echo esc_html( $quote_date ); ?></div>
+  </td>
+</tr></table>
 
-<div style="margin-top:10px; text-align:center; padding-top:15px; border-top:1px solid #154782;">
-    <?php echo esc_html( get_bloginfo( 'name' ) ); ?> &mdash; Quote Ref <?php echo (int) ( $content['lead_id'] ?? 0 ); ?>
-</div>
+<table class="band status"><tr><td>Indicative Quote<?php echo $cust_name !== '' ? ' &mdash; Prepared for ' . esc_html( $cust_name ) : ''; ?></td></tr></table>
+
+<table style="width: 100%; border-collapse: collapse;">
+<tr>
+  <!-- LEFT: specification -->
+  <td style="width: 57%; vertical-align: top; padding: 30px 14px 26px 40px;">
+
+    <div class="block">
+      <div class="sectlabel">Staircase Plan</div>
+      <?php if ( ! empty( $content['canvas_image_path'] ) && file_exists( $content['canvas_image_path'] ) ) : ?>
+        <img src="<?php echo esc_attr( $content['canvas_image_path'] ); ?>" alt="Staircase diagram" style="width: 100%; border: 1px solid <?php echo $c_panel; ?>;">
+      <?php else : ?>
+        <table style="width: 100%; border-collapse: collapse;"><tr><td class="plan" style="height: 180px; vertical-align: middle; text-align: center;">Staircase plan drawing not available</td></tr></table>
+      <?php endif; ?>
+    </div>
+
+    <div class="block">
+      <div class="sectlabel">Staircase Essentials</div>
+      <table class="spec">
+        <?php
+        $bd_row( 'Staircase Type', $bd_staircase_type );
+        $bd_row( 'Building Regs', $bd_building_reg );
+        $bd_row( 'Direction', $content['sc-direction'] ?? '' );
+        $bd_row( 'Floor to Floor', ( $content['floor-height'] ?? '' ) !== '' ? $content['floor-height'] . 'mm' : '' );
+        $bd_row( ! empty( $content['stair-width2'] ) ? 'Staircase Width (Flight 1)' : 'Staircase Width', ( $content['stair-width'] ?? '' ) !== '' ? $content['stair-width'] . 'mm' : '' );
+        $bd_row( 'Staircase Width (Flight 2)', ! empty( $content['stair-width2'] ) ? $content['stair-width2'] . 'mm' : '' );
+        $bd_row( 'Staircase Width (Flight 3)', ! empty( $content['stair-width3'] ) ? $content['stair-width3'] . 'mm' : '' );
+        $bd_row( 'Risers', $content['risers'] ?? '' );
+        $bd_row( 'Going', ( $content['going'] ?? '' ) !== '' ? $content['going'] . 'mm' : '' );
+        ?>
+      </table>
+    </div>
+
+    <div class="block">
+      <div class="sectlabel">Staircase Details</div>
+      <table class="spec">
+        <?php
+        $bd_row( 'Construction Type', $bd_code_label( 'construction_types', $content['construction_type'] ?? '', 'construction_code', 'construction_name' ) );
+        $bd_row( 'Tread Profile', $bd_code_label( 'tread_profiles', $content['tread-profile'] ?? '', 'tread_profile_code', 'tread_profile_name' ) );
+        $bd_row( 'String Material', $bd_code_label( 'stringer_types', $content['stringer_material'] ?? '', 'stringer_code', 'stringer_name' ) );
+        $bd_row( 'Tread Material', $bd_code_label( 'tread_types', $content['tread_material'] ?? '', 'tread_code', 'tread_name' ) );
+        $bd_row( 'Riser Material', $bd_code_label( 'riser_types', $content['riser_material'] ?? '', 'riser_code', 'riser_name' ) );
+        $bd_row( 'Turn 1', $bd_turn1 );
+        $bd_row( 'Treads before Turn', $content['treadbt'] ?? '' );
+        $bd_row( 'Treads after Turn', $content['treadat'] ?? '' );
+        $bd_row( 'Turn 2', $bd_turn2 );
+        $bd_row( 'Treads after Turn 2', $content['treadat2'] ?? '' );
+        if ( $bd_left_step !== '' && $bd_left_step !== 'None' )  { $bd_row( 'Left Featured Step', $bd_left_step ); }
+        if ( $bd_right_step !== '' && $bd_right_step !== 'None' ) { $bd_row( 'Right Featured Step', $bd_right_step ); }
+        ?>
+      </table>
+    </div>
+
+    <div class="block">
+      <div class="sectlabel">Newel Posts</div>
+      <table class="spec">
+        <?php
+        $bd_row( 'Type', $bd_code_label( 'newel_types', $content['newel_type'] ?? '' ) );
+        $bd_row( 'Material', $content['newel_material'] ?? '' );
+        $bd_row( 'Number', (string) (int) $newel_number );
+        $bd_row( 'Caps', $bd_code_label( 'cap_types', $content['newel_cap'] ?? '' ) );
+        if ( ( $content['newel_cap'] ?? '' ) !== 'none' ) { $bd_row( 'Cap Number', (string) (int) $newel_number ); }
+        ?>
+      </table>
+    </div>
+
+    <?php if ( $bd_show_bal ) : ?>
+    <div class="block">
+      <div class="sectlabel">Balustrading</div>
+      <table class="spec">
+        <?php
+        $bd_row( 'Handrail Type', $bd_code_label( 'handrail_types', $content['handrail_type'] ?? '' ) );
+        $bd_row( 'Handrail Material', $content['hdr_material'] ?? '' );
+        $bd_row( 'Baserail Material', $content['bsr_material'] ?? '' );
+        $bd_row( 'Spindles', $bd_code_label( 'spindle_types', $content['spindle_type'] ?? '' ) );
+        $bd_row( 'Spindle Material', $content['bal_material'] ?? '' );
+        if ( $bd_spindle_count > 0 ) { $bd_row( 'Spindle Number', (string) $bd_spindle_count ); }
+        ?>
+      </table>
+    </div>
+    <?php endif; ?>
+
+    <?php if ( $bd_has_delivery ) : ?>
+    <div class="block">
+      <div class="sectlabel">Delivery &amp; Packaging</div>
+      <table class="spec">
+        <?php
+        $bd_row( 'Delivery Method', $bd_deliv );
+        if ( $bd_two_man ) { $bd_row( '2 Man Delivery', 'Yes' ); }
+        $bd_row( 'Packaging', $bd_pkg_label );
+        if ( ! empty( $bd_addons ) ) { $bd_row( 'Add-Ons', implode( ', ', $bd_addons ) ); }
+        ?>
+      </table>
+    </div>
+    <?php endif; ?>
+
+  </td>
+
+  <!-- RIGHT: price + customer -->
+  <td style="width: 43%; vertical-align: top; padding: 30px 40px 26px 14px;">
+
+    <?php
+    // Flat 2-column table (not a nested one) so mPDF renders every cell — deeply
+    // nested tables drop cells here. Dark fill is on each <td>, which mPDF paints
+    // reliably, so the whole box reads as one charcoal block.
+    $pb_cell = 'background: ' . $c_dark . '; padding: 9px 24px; border-bottom: 1px solid #4A4741; font-size: 14px;';
+    $pb_tot  = 'background: ' . $c_dark . '; padding: 14px 24px 22px; font-size: 14px;';
+    ?>
+    <table class="block pricebox" style="width: 100%; border-collapse: collapse;">
+      <tr><td colspan="2" style="background: <?php echo $c_dark; ?>; color: #C9BC93; padding: 22px 24px 12px; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">Indicative Quote</td></tr>
+      <tr>
+        <td style="<?php echo $pb_cell; ?> width: 45%; color: <?php echo $c_panel; ?>;">Subtotal</td>
+        <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;">&pound;<?php echo esc_html( number_format( $bd_price, 2 ) ); ?></td>
+      </tr>
+      <tr>
+        <td style="<?php echo $pb_cell; ?> width: 45%; color: <?php echo $c_panel; ?>;">VAT<?php echo $bd_vat_pct ? ' (' . (int) $bd_vat_pct . '%)' : ''; ?></td>
+        <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;">&pound;<?php echo esc_html( number_format( $bd_vat, 2 ) ); ?></td>
+      </tr>
+      <tr>
+        <td style="<?php echo $pb_tot; ?> width: 45%; color: #ffffff; font-weight: 500;">Total inc VAT</td>
+        <td style="<?php echo $pb_tot; ?> width: 55%; color: #D3B96A; font-size: 22px; font-weight: 600; text-align: right;">&pound;<?php echo esc_html( number_format( $bd_total, 2 ) ); ?></td>
+      </tr>
+    </table>
+
+    <?php if ( ! empty( $content['project_delivery_date'] ) ) : ?>
+    <table class="block badge" style="width: 100%; border-collapse: collapse;"><tr>
+      <td style="border: 1px solid <?php echo $c_accent; ?>; padding: 12px 16px;">
+        <table style="width: 100%; border-collapse: collapse;"><tr>
+          <td style="width: 28px; font-size: 20px; color: <?php echo $c_accent; ?>; vertical-align: middle;">&#10003;</td>
+          <td style="vertical-align: middle;">
+            <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.5px;">Project Delivery</div>
+            <div style="font-size: 13px; color: <?php echo $c_muted; ?>;"><?php echo esc_html( $content['project_delivery_date'] ); ?></div>
+          </td>
+        </tr></table>
+      </td>
+    </tr></table>
+    <?php endif; ?>
+
+    <div class="block">
+      <div class="sectlabel">Your Details</div>
+      <table class="spec">
+        <?php
+        $bd_row( 'Name', $content['name'] ?? '' );
+        $bd_row( 'Email', $content['email'] ?? '' );
+        $bd_row( 'Phone', $content['phone'] ?? '' );
+        $bd_row( 'Postcode', $content['postcode'] ?? '' );
+        ?>
+      </table>
+    </div>
+
+    <table class="block notes" style="width: 100%; border-collapse: collapse;"><tr>
+      <td style="background: <?php echo $c_panel; ?>; border-left: 3px solid <?php echo $c_accent; ?>; padding: 14px 16px;">
+        <div class="lbl">Notes</div>
+        <p>This is an indicative quote based on the configuration submitted. Final pricing is subject to a follow-up consultation.</p>
+      </td>
+    </tr></table>
+
+  </td>
+</tr>
+</table>
+
+<table class="band footer"><tr>
+  <td><?php echo esc_html( $ftr_l !== '' ? $ftr_l : $company ); ?> &mdash; Quote Ref <?php echo $ref; ?></td>
+  <td style="text-align: right;"><?php echo esc_html( $ftr_r ); ?></td>
+</tr></table>

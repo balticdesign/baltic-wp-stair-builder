@@ -662,6 +662,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				case 'color':
 					$this->render_color( $id, $name, $value, $field );
 					break;
+				case 'image':
+					$this->render_image( $id, $name, $value, $field );
+					break;
 				case 'select':
 					$this->render_select( $id, $name, $value, $field );
 					break;
@@ -761,6 +764,25 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				name="<?php echo esc_attr( $name ); ?>"
 				value="<?php echo esc_attr( $value ); ?>"
 				class="stairbuilder-color-picker" />
+			<?php
+		}
+
+		/**
+		 * Media-library image picker. Stores the attachment ID (so the PDF can
+		 * resolve a local file path for mPDF, which is more reliable than a URL).
+		 */
+		private function render_image( $id, $name, $value, $field ) {
+			$att_id  = absint( $value );
+			$img_url = $att_id ? wp_get_attachment_image_url( $att_id, 'medium' ) : '';
+			?>
+			<div class="stairbuilder-image-field">
+				<input type="hidden" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( $att_id ? $att_id : '' ); ?>" />
+				<div class="stairbuilder-image-preview">
+					<?php if ( $img_url ) : ?><img src="<?php echo esc_url( $img_url ); ?>" alt="" /><?php endif; ?>
+				</div>
+				<button type="button" class="button stairbuilder-image-select"><?php esc_html_e( 'Select image', 'stairbuilder' ); ?></button>
+				<button type="button" class="button-link stairbuilder-image-remove"<?php echo $att_id ? '' : ' style="display:none"'; ?>><?php esc_html_e( 'Remove', 'stairbuilder' ); ?></button>
+			</div>
 			<?php
 		}
 
@@ -1091,6 +1113,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					case 'color':
 						$hex = is_scalar( $raw ) ? sanitize_hex_color( (string) $raw ) : '';
 						$clean[ $id ] = $hex ? $hex : '';
+						break;
+					case 'image':
+						$clean[ $id ] = absint( $raw );
 						break;
 					case 'select':
 						$choices = isset( $field['choices'] ) ? array_keys( $field['choices'] ) : array();
@@ -1827,10 +1852,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 
 			wp_enqueue_style( 'wp-color-picker' );
 			wp_enqueue_script( 'wp-color-picker' );
+			wp_enqueue_media(); // for the 'image' field media picker (PDF logo)
 
 			wp_add_inline_style(
 				'wp-color-picker',
-				'.stairbuilder-pricing-wrap .stairbuilder-tab-group { margin-bottom: 24px; }
+				'.stairbuilder-pricing-wrap .stairbuilder-image-preview img { max-width: 200px; max-height: 100px; display: block; margin-bottom: 8px; border: 1px solid #dcdcde; background: #fff; padding: 4px; }
+				.stairbuilder-pricing-wrap .stairbuilder-image-remove { margin-left: 8px; color: #b32d2e; }
+				.stairbuilder-pricing-wrap .stairbuilder-tab-group { margin-bottom: 24px; }
 				.stairbuilder-pricing-wrap .stairbuilder-tab-panel { display: none; background: #fff; padding: 16px 20px; border: 1px solid #c3c4c7; border-top: none; }
 				.stairbuilder-pricing-wrap .stairbuilder-tab-panel.is-active { display: block; }
 				.stairbuilder-pricing-wrap .stairbuilder-currency { font-weight: 600; margin-right: 4px; }
@@ -1991,6 +2019,28 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				'jQuery(function($){
 					// Colour pickers
 					$(".stairbuilder-color-picker").wpColorPicker();
+
+					// Media picker for image fields (e.g. the Quote PDF logo).
+					$(document).on("click", ".stairbuilder-image-select", function(e){
+						e.preventDefault();
+						var $wrap = $(this).closest(".stairbuilder-image-field");
+						var frame = wp.media({ title: "Select image", multiple: false, library: { type: "image" }, button: { text: "Use image" } });
+						frame.on("select", function(){
+							var att = frame.state().get("selection").first().toJSON();
+							var url = (att.sizes && att.sizes.medium) ? att.sizes.medium.url : att.url;
+							$wrap.find("input[type=hidden]").val(att.id);
+							$wrap.find(".stairbuilder-image-preview").html("<img src=\"" + url + "\" alt=\"\" />");
+							$wrap.find(".stairbuilder-image-remove").show();
+						});
+						frame.open();
+					});
+					$(document).on("click", ".stairbuilder-image-remove", function(e){
+						e.preventDefault();
+						var $wrap = $(this).closest(".stairbuilder-image-field");
+						$wrap.find("input[type=hidden]").val("");
+						$wrap.find(".stairbuilder-image-preview").empty();
+						$(this).hide();
+					});
 
 					// Tab switching — scoped per tab-group so each row of tabs is independent
 					$(".stairbuilder-tabs .nav-tab").on("click", function(e){
@@ -3000,6 +3050,62 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'id' => 'spindles',
 								'label' => 'Spindles',
 								'type' => 'color',
+							],
+							// --- Quote PDF branding (templates/stairbuilder_pdf.php) ---
+							[
+								'id' => 'pdf_accent',
+								'label' => 'PDF — Accent (brand)',
+								'type' => 'color',
+								'default' => '#A6914E',
+								'group' => 'Quote PDF',
+							],
+							[
+								'id' => 'pdf_dark',
+								'label' => 'PDF — Dark (header / footer)',
+								'type' => 'color',
+								'default' => '#35332F',
+							],
+							[
+								'id' => 'pdf_muted',
+								'label' => 'PDF — Muted text',
+								'type' => 'color',
+								'default' => '#7A756A',
+							],
+							[
+								'id' => 'pdf_panel',
+								'label' => 'PDF — Panel background',
+								'type' => 'color',
+								'default' => '#EBE8E0',
+							],
+							[
+								'id' => 'pdf_logo',
+								'label' => 'PDF — Logo',
+								'type' => 'image',
+								'description' => 'Shown top-left of the quote masthead. A PNG with a transparent background works best on the dark band.',
+							],
+							[
+								'id' => 'pdf_header_left',
+								'label' => 'PDF — Top strip (left)',
+								'type' => 'text',
+								'placeholder' => 'e.g. Call today on 0191 341 0077',
+							],
+							[
+								'id' => 'pdf_header_right',
+								'label' => 'PDF — Top strip (right)',
+								'type' => 'text',
+								'placeholder' => 'e.g. yourdomain.co.uk',
+							],
+							[
+								'id' => 'pdf_footer_left',
+								'label' => 'PDF — Footer (left)',
+								'type' => 'text',
+								'placeholder' => 'e.g. Your Company Ltd',
+							],
+							[
+								'id' => 'pdf_footer_right',
+								'label' => 'PDF — Footer (right)',
+								'type' => 'text',
+								'placeholder' => 'e.g. 0191 341 0077 · yourdomain.co.uk',
 							],
 						],
 					],

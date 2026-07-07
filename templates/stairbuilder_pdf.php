@@ -175,15 +175,39 @@ $bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 
                     <tr><td class="lbl">Type:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'newel_types', $content['newel_type'] ?? '' ) ); ?></td></tr>
                     <tr><td class="lbl">Material:</td><td class="vl"><?php echo esc_html( $content['newel_material'] ?? '' ); ?></td></tr>
                     <?php
-                    $box   = ! empty( $content['box-post'] ) ? 1 : 0;
-                    $newel_number = $box
-                        + intval( $content['tl-post'] ?? 0 )
-                        + intval( $content['tr-post'] ?? 0 )
-                        + intval( $content['to-post'] ?? 0 )
-                        + intval( $content['bo-post'] ?? 0 )
-                        + intval( $content['box-post'] ?? 0 )
-                        + intval( $content['bl-post'] ?? 0 )
-                        + intval( $content['br-post'] ?? 0 );
+                    // Newel count: prefer the exact figure priceCalc.js captured into
+                    // #newel-count, so the quote matches the price by construction.
+                    // Leads captured before that field existed fall back to rebuilding
+                    // it from the saved fields.
+                    //
+                    // Fallback: the submit-time colon strip stores `newel-posts` as its
+                    // label only (none/left/right/both/custom), so map presets to their
+                    // count and, for custom flights, sum the saved per-corner checkboxes
+                    // (each saved as "1"). Then add the mandatory box-corner posts every
+                    // turn structurally includes — boxes = flights - 1 (straight 0,
+                    // quarter 1, half 2), matching the canvas drawing, which shows those
+                    // posts with no checkboxes ticked.
+                    if ( isset( $content['newel-count'] ) && is_numeric( $content['newel-count'] ) ) {
+                        $newel_number = (int) $content['newel-count'];
+                    } else {
+                        $flights_by_type = array( 'straight' => 1, 'quarter' => 2, 'half' => 3 );
+                        $flights         = $flights_by_type[ $content['stair_type'] ?? 'straight' ] ?? 1;
+                        $mandatory_posts = max( 0, $flights - 1 );
+
+                        $np = (string) ( $content['newel-posts'] ?? '' );
+                        if ( 'custom' === $np ) {
+                            $corner_posts   = array( 'tl-post', 'tr-post', 'to-post', 'bo-post', 'box-post', 'bl-post', 'br-post', 'to-post2', 'bo-post2', 'box-post2' );
+                            $optional_posts = 0;
+                            foreach ( $corner_posts as $cp ) {
+                                $optional_posts += ! empty( $content[ $cp ] ) ? 1 : 0;
+                            }
+                        } else {
+                            $preset_counts  = array( 'none' => 0, 'left' => 2, 'right' => 2, 'both' => 4 );
+                            $optional_posts = $preset_counts[ $np ] ?? 0;
+                        }
+
+                        $newel_number = $optional_posts + $mandatory_posts;
+                    }
                     ?>
                     <tr><td class="lbl">Number:</td><td class="vl"><?php echo (int) $newel_number; ?></td></tr>
                     <tr><td class="lbl">Caps:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'cap_types', $content['newel_cap'] ?? '' ) ); ?></td></tr>
@@ -210,6 +234,15 @@ $bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 
                     <tr><td class="lbl">Baserail Material:</td><td class="vl"><?php echo esc_html( $content['bsr_material'] ?? '' ); ?></td></tr>
                     <tr><td class="lbl">Spindles:</td><td class="vl"><?php echo esc_html( $bd_code_label( 'spindle_types', $content['spindle_type'] ?? '' ) ); ?></td></tr>
                     <tr><td class="lbl">Spindle Material:</td><td class="vl"><?php echo esc_html( $content['bal_material'] ?? '' ); ?></td></tr>
+                    <?php
+                    // Spindle count captured from priceCalc.js (#spindle-count): wood
+                    // spindles / metal spindles / glass panels. Zero for a continuous
+                    // per-metre glass run, so only shown when there is a discrete count.
+                    $bd_spindle_count = ( isset( $content['spindle-count'] ) && is_numeric( $content['spindle-count'] ) ) ? (int) $content['spindle-count'] : 0;
+                    ?>
+                    <?php if ( $bd_spindle_count > 0 ) : ?>
+                    <tr><td class="lbl">Spindle Number:</td><td class="vl"><?php echo (int) $bd_spindle_count; ?></td></tr>
+                    <?php endif; ?>
                 </table>
             </div>
         </div>

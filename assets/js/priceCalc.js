@@ -5,20 +5,24 @@
 //          agrees with the live spindle-calculator product page (divisors 141/112).
 //   glass: per linear metre  -> (run / 1000) × price
 //          per panel         -> ceil(run / panelWidth) × price
+// Returns { price, count }. `count` is the discrete unit count captured for the
+// quote PDF: metal = spindles, glass per-panel = panels, glass per-metre = 0
+// (a continuous run has no discrete count).
 function altBalustradePrice(mode, g) {
   if (mode === 'metal') {
     let n = Math.ceil(g.runStairs / 141);
     if (g.runLanding > 0) n += Math.ceil(g.runLanding / 112);
-    return Math.max(1, n) * g.unitCost;
+    n = Math.max(1, n);
+    return { price: n * g.unitCost, count: n };
   }
   // glass
   if (g.glassUnit === 'per_panel') {
     // Panels don't butt together — the effective pitch is panel width + gap.
     const pitch = g.panelWidth + (g.panelGap || 0);
     const panels = pitch > 0 ? Math.ceil(g.glassRun / pitch) : 0;
-    return panels * g.unitCost;
+    return { price: panels * g.unitCost, count: panels };
   }
-  return (g.glassRun / 1000) * g.unitCost;
+  return { price: (g.glassRun / 1000) * g.unitCost, count: 0 };
 }
 
 function calculateTotalPrice() {
@@ -97,7 +101,14 @@ function calculateTotalPrice() {
   if ($risers < 7) $setup_fee = parseFloat(jQuery('#setupfee').val());
 
   // === Newels/Caps/Spindles/Handrails/Baserails ===
-  const $newel_amt = BuilderUtils.getNumber('newel-posts');
+  // The newel-posts value carries only the OPTIONAL posts the customer selected.
+  // Every turn also structurally includes one mandatory box-corner post per box
+  // that joins two flights (straight 0, quarter 1, half 2) — drawn by default on
+  // the canvas. Add those so the price matches the drawing and the PDF quote
+  // (see the same +mandatory logic in templates/stairbuilder_pdf.php).
+  const $stairType = jQuery('input[name="stair_type"]').val() || 'straight';
+  const $mandatoryPosts = $stairType === 'half' ? 2 : ($stairType === 'quarter' ? 1 : 0);
+  const $newel_amt = BuilderUtils.getNumber('newel-posts') + $mandatoryPosts;
   const $newel_cost = BuilderUtils.getNumber('newel_material');
   const $caps = BuilderUtils.getNumber('newel_cap');
   const $cap_cost = $caps * BuilderUtils.getNumber('cap_material');
@@ -122,7 +133,8 @@ function calculateTotalPrice() {
   let $spindle_price = 0,
     $hdr_price = 0,
     $bsr_price = 0,
-    $ball_price = 0;
+    $ball_price = 0,
+    $spindleCount = 0; // captured into #spindle-count for the quote PDF
 
   if ($qtBefore) {
     // Multi-flight (quarter/half-turn) logic
@@ -142,6 +154,7 @@ function calculateTotalPrice() {
     const boxSpindles = $boxSpindleNo * (boxBal1 + boxBal2 + boxBal3 + boxBal4);
     totalSpindles = parseInt(flight1Spindles + flight2Spindles + flight3Spindles + boxSpindles);
     $spindle_price = totalSpindles * $spindle_cost;
+    $spindleCount = totalSpindles; // wood; overridden below for metal/glass
 
     // Handrail/baserail per "length"
     const section1Length = $qtBefore * rakeDivided * (rightBal + leftBal);
@@ -165,7 +178,7 @@ function calculateTotalPrice() {
         ($qtBefore * (rightBal + leftBal)) +
         ($qtAfter * (rightBal2 + leftBal2)) +
         ($htAfter2 ? $htAfter2 * (rightBal3 + leftBal3) : 0);
-      $spindle_price = altBalustradePrice(spMode, {
+      const altT = altBalustradePrice(spMode, {
         unitCost: $spindle_cost,
         glassUnit: spGlassUnit,
         panelWidth: spPanelW,
@@ -174,11 +187,14 @@ function calculateTotalPrice() {
         runLanding: activeBoxWidth,
         glassRun: totalLength,
       });
+      $spindle_price = altT.price;
+      $spindleCount = altT.count;
     }
   } else {
     // Simple/straight logic
     const $spindles_needed = ($risers * 2) * ($spLmod + $spRmod);
     $spindle_price = $spindles_needed * $spindle_cost;
+    $spindleCount = $spindles_needed; // wood; overridden below for metal/glass
 
     const $hdrUnits = Math.ceil($rake / 1000);
     $hdr_price = $hdr_cost * $hdrUnits;
@@ -191,7 +207,7 @@ function calculateTotalPrice() {
     if (spMode === 'metal' || spMode === 'glass') {
       const sides = $spLmod + $spRmod;
       const rakePerStep = 240 / Math.cos(42 * Math.PI / 180);
-      $spindle_price = altBalustradePrice(spMode, {
+      const altS = altBalustradePrice(spMode, {
         unitCost: $spindle_cost,
         glassUnit: spGlassUnit,
         panelWidth: spPanelW,
@@ -200,6 +216,8 @@ function calculateTotalPrice() {
         runLanding: 0,
         glassRun: parseFloat($rake) * sides,
       });
+      $spindle_price = altS.price;
+      $spindleCount = altS.count;
     }
   }
 
@@ -238,6 +256,11 @@ function calculateTotalPrice() {
   jQuery("#priceCalc").text('£' + price.toFixed(2));
   jQuery("#vat").text('£' + vatAmount.toFixed(2));
   jQuery("#total").text('£' + priceWithVat.toFixed(2));
+
+  // Capture the computed counts so the quote PDF shows exactly what was priced
+  // (both are plain integers, so the submit-time colon strip leaves them intact).
+  jQuery('#newel-count').val($newel_amt);
+  jQuery('#spindle-count').val($spindleCount);
 }
 
 // Auto-recalculate on form input change

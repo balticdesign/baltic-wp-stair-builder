@@ -57,6 +57,12 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/** @var array Parsed schema (tabs + fields). */
 		private $schema;
 
+		/** @var string Hook suffix for the Pricing page (set in add_menu). */
+		private $hook_pricing = '';
+
+		/** @var string Hook suffix for the Bulk Price Update page (set in add_menu). */
+		private $hook_bulk = '';
+
 		public function __construct() {
 			$this->schema = $this->get_schema();
 			add_action( 'admin_menu', array( $this, 'add_menu' ) );
@@ -135,6 +141,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			}
 
 			$out = array();
+			$bulk_mats = $this->bulk_materials();
 
 			foreach ( $this->schema as $tab_slug => $tab ) {
 				$section = isset( $tab['label'] ) ? $tab['label'] : $tab_slug;
@@ -165,15 +172,31 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							$row_label = $identity['name'] !== '' ? $identity['name']
 								: ( $identity['code'] !== '' ? $identity['code'] : 'Row ' . ( (int) $i + 1 ) );
 
+							// Rows whose material is chosen per-row (stringer/tread/riser,
+							// marked by 'material_source' on the code select) carry a single
+							// price; tag it with the row's material so the bulk quick-selects
+							// can sweep e.g. "all Oak" across those rows too.
+							$row_material = '';
+							foreach ( $subfields as $sf ) {
+								if ( ! empty( $sf['material_source'] ) ) {
+									$mv = isset( $row[ $sf['id'] ] ) ? (string) $row[ $sf['id'] ] : '';
+									if ( isset( $bulk_mats[ $mv ] ) ) {
+										$row_material = $mv;
+									}
+									break;
+								}
+							}
+
 							foreach ( $adj_subs as $sf ) {
-								$sid       = $sf['id'];
-								$sub_label = isset( $sf['label'] ) ? $sf['label'] : $sid;
-								$out[]     = array(
+								$sid          = $sf['id'];
+								$sub_label    = isset( $sf['label'] ) ? $sf['label'] : $sid;
+								$sid_material = $this->derive_price_material( $sid );
+								$out[]        = array(
 									'id'       => 'rep:' . $fid . ':' . $i . ':' . $sid,
 									'path'     => array( 'kind' => 'repeater', 'field' => $fid, 'row' => (int) $i, 'sub' => $sid ),
 									'section'  => $section,
 									'label'    => $row_label . ' — ' . $sub_label,
-									'material' => $this->derive_price_material( $sid ),
+									'material' => '' !== $sid_material ? $sid_material : $row_material,
 									'value'    => isset( $row[ $sid ] ) ? $row[ $sid ] : '',
 								);
 							}
@@ -275,6 +298,24 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/* Bulk price tool — screen                                            */
 		/* ------------------------------------------------------------------ */
 
+		/**
+		 * Material options for the stringer/tread/riser "code" selects. These rows
+		 * carry a single price whose material is chosen here (unlike newel/handrail
+		 * rows, which price pine + oak side by side). Kept as one array so a new
+		 * material (e.g. plywood) drops in for every panel at once, and so the bulk
+		 * price tool can tag these rows by material. Keys must match bulk_materials().
+		 *
+		 * @return array<string,string> value => label, in display order.
+		 */
+		private function material_code_choices() {
+			return array(
+				'mdf'  => __( 'MDF', 'stairbuilder' ),
+				'pine' => __( 'Pine', 'stairbuilder' ),
+				'oak'  => __( 'Oak', 'stairbuilder' ),
+				'ply'  => __( 'Plywood', 'stairbuilder' ),
+			);
+		}
+
 		/** Material tags offered as quick-select buttons, in display order. */
 		private function bulk_materials() {
 			return array(
@@ -321,7 +362,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				$grouped[ $r['section'] ][] = $r;
 			}
 
-			$pricing_url = admin_url( 'options-general.php?page=' . self::PAGE_SLUG );
+			$pricing_url = admin_url( 'admin.php?page=' . self::PAGE_SLUG );
 			?>
 			<div class="wrap stairbuilder-bulk-wrap">
 				<h1><?php esc_html_e( 'Bulk Price Update', 'stairbuilder' ); ?></h1>
@@ -379,7 +420,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		private function render_bulk_table( $grouped ) {
 			$mats = $this->bulk_materials();
 			?>
-			<table class="widefat striped sb-bulk-table" id="sb-bulk-table">
+			<table class="widefat sb-bulk-table" id="sb-bulk-table">
 				<thead>
 					<tr>
 						<th class="check-column"><input type="checkbox" id="sb-bulk-checkall" checked /></th>
@@ -397,7 +438,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							$mat_lbl  = ( $r['material'] !== '' && isset( $mats[ $r['material'] ] ) ) ? $mats[ $r['material'] ] : '';
 							$cur_disp = $is_num ? number_format( (float) $r['value'], 2 ) : '—';
 							?>
-							<tr data-id="<?php echo esc_attr( $r['id'] ); ?>"
+							<tr class="sb-bulk-row" data-id="<?php echo esc_attr( $r['id'] ); ?>"
 								data-material="<?php echo esc_attr( $r['material'] ); ?>"
 								data-value="<?php echo $is_num ? esc_attr( (float) $r['value'] ) : ''; ?>">
 								<td class="check-column">
@@ -432,7 +473,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			}
 			check_admin_referer( self::BULK_NONCE );
 
-			$redirect = admin_url( 'options-general.php?page=' . self::BULK_PAGE_SLUG );
+			$redirect = admin_url( 'admin.php?page=' . self::BULK_PAGE_SLUG );
 
 			$pct_raw  = isset( $_POST['pct'] ) ? sanitize_text_field( wp_unslash( $_POST['pct'] ) ) : '';
 			$pct      = is_numeric( $pct_raw ) ? (float) $pct_raw : 0.0;
@@ -503,14 +544,29 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/* ------------------------------------------------------------------ */
 
 		public function add_menu() {
-			add_options_page(
+			// Top-level "Stairbuilder" menu. The parent slug reuses PAGE_SLUG so the
+			// pricing screen is the menu's landing page and its first submenu (below,
+			// sharing the slug) simply relabels the auto-generated child to "Pricing"
+			// rather than adding a duplicate entry.
+			$this->hook_pricing = add_menu_page(
 				__( 'Stair Builder Pricing', 'stairbuilder' ),
+				__( 'Stairbuilder', 'stairbuilder' ),
+				'manage_options',
+				self::PAGE_SLUG,
+				array( $this, 'render_page' ),
+				'dashicons-building',
+				58
+			);
+			add_submenu_page(
+				self::PAGE_SLUG,
 				__( 'Stair Builder Pricing', 'stairbuilder' ),
+				__( 'Pricing', 'stairbuilder' ),
 				'manage_options',
 				self::PAGE_SLUG,
 				array( $this, 'render_page' )
 			);
-			add_options_page(
+			$this->hook_bulk = add_submenu_page(
+				self::PAGE_SLUG,
 				__( 'Bulk Price Update', 'stairbuilder' ),
 				__( 'Bulk Price Update', 'stairbuilder' ),
 				'manage_options',
@@ -815,16 +871,32 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			?>
 			<div class="stairbuilder-component stairbuilder-card-row stairbuilder-card-row-generic">
 				<?php foreach ( $subfields as $sf ) :
-					$fname = $name . '[' . $i . '][' . $sf['id'] . ']';
-					$rv    = isset( $row[ $sf['id'] ] ) ? $row[ $sf['id'] ] : '';
-					$is_num = ( isset( $sf['type'] ) && $sf['type'] === 'number' );
+					$fname   = $name . '[' . $i . '][' . $sf['id'] . ']';
+					$rv      = isset( $row[ $sf['id'] ] ) ? $row[ $sf['id'] ] : '';
+					$sf_type = isset( $sf['type'] ) ? $sf['type'] : 'text';
 					?>
 					<div class="stairbuilder-card-field">
 						<label class="stairbuilder-card-label"><?php echo esc_html( $sf['label'] ); ?>
-							<input type="<?php echo $is_num ? 'number' : 'text'; ?>" <?php echo $is_num ? 'step="any"' : ''; ?>
-								name="<?php echo esc_attr( $fname ); ?>"
-								value="<?php echo esc_attr( $rv ); ?>"
-								class="widefat" />
+							<?php if ( 'select' === $sf_type ) :
+								$choices = isset( $sf['choices'] ) ? $sf['choices'] : array();
+								// Keep any legacy stored value that predates the fixed list so
+								// a save never silently rewrites it (see §2 conversion note).
+								if ( $rv !== '' && ! isset( $choices[ $rv ] ) ) {
+									$choices = array( (string) $rv => (string) $rv ) + $choices;
+								}
+								$sel = ( $rv !== '' ) ? (string) $rv : ( isset( $sf['default'] ) ? (string) $sf['default'] : '' );
+								?>
+								<select name="<?php echo esc_attr( $fname ); ?>" class="widefat">
+									<?php foreach ( $choices as $cv => $cl ) : ?>
+										<option value="<?php echo esc_attr( $cv ); ?>" <?php selected( $sel, (string) $cv ); ?>><?php echo esc_html( $cl ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							<?php else : ?>
+								<input type="<?php echo 'number' === $sf_type ? 'number' : 'text'; ?>" <?php echo 'number' === $sf_type ? 'step="any"' : ''; ?>
+									name="<?php echo esc_attr( $fname ); ?>"
+									value="<?php echo esc_attr( $rv ); ?>"
+									class="widefat" />
+							<?php endif; ?>
 						</label>
 					</div>
 				<?php endforeach; ?>
@@ -859,8 +931,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			// flips .bd-variant-price ↔ .bd-variant-id via CSS, so metal/glass single
 			// columns get the same Use-Product-ID behaviour as Pine/Oak for free.
 			// $flat collapses the title + "Price"/"£" sub-rows into one label line
-			// ("Pine £" / "Price £") so it aligns with Name on the single-line spindle
-			// rows. Non-flat keeps the original stacked layout for newel/cap/handrail.
+			// ("Pine £" / "Price £") so it aligns with Name on the single-line rows.
+			// All panels now pass $flat = true; the non-flat branch below is the
+			// original stacked layout, kept as a fallback but no longer called.
 			$variant_col = function( $label, $price_key, $id_key, $flat = false ) use ( $fname, $val ) {
 				if ( $flat ) {
 					$base       = ( $label === '' ) ? __( 'Price', 'stairbuilder' ) : $label;
@@ -915,9 +988,11 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						</label>
 					<?php endif; ?>
 					<?php if ( $has_caps ) : ?>
-					<label class="stairbuilder-card-label stairbuilder-card-qty"><?php esc_html_e( 'Caps / Newel', 'stairbuilder' ); ?>
-						<input type="number" step="any" min="0" name="<?php echo esc_attr( $fname( 'caps_per_newel' ) ); ?>" value="<?php echo esc_attr( $val( 'caps_per_newel', '1' ) ); ?>" class="small-text" />
-					</label>
+						<?php // A newel takes exactly one cap, so this is hard-wired to 1 and
+						// hidden from the UI. Kept as a submitted field so the front-end cap
+						// select preserves its `{code}:{caps_per_newel}` encoding (see
+						// stairbuilder-prices.php). ?>
+						<input type="hidden" name="<?php echo esc_attr( $fname( 'caps_per_newel' ) ); ?>" value="1" />
 					<?php endif; ?>
 					<?php if ( $has_modes ) : ?>
 					<label class="stairbuilder-card-label stairbuilder-card-mode"><?php esc_html_e( 'Material Type', 'stairbuilder' ); ?>
@@ -950,8 +1025,8 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				</div>
 
 				<?php if ( ! $has_modes ) : ?>
-					<?php $variant_col( __( 'Pine', 'stairbuilder' ), 'pine_price', 'pine_id' ); ?>
-					<?php $variant_col( __( 'Oak', 'stairbuilder' ), 'oak_price', 'oak_id' ); ?>
+					<?php $variant_col( __( 'Pine', 'stairbuilder' ), 'pine_price', 'pine_id', true ); ?>
+					<?php $variant_col( __( 'Oak', 'stairbuilder' ), 'oak_price', 'oak_id', true ); ?>
 				<?php else : ?>
 					<div class="bd-mode-block bd-mode-wood">
 						<?php $variant_col( __( 'Pine', 'stairbuilder' ), 'pine_price', 'pine_id', true ); ?>
@@ -1151,7 +1226,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			?>
 			<div class="wrap stairbuilder-pricing-wrap">
 				<h1 class="wp-heading-inline"><?php esc_html_e( 'Stair Builder Pricing', 'stairbuilder' ); ?></h1>
-				<a href="<?php echo esc_url( admin_url( 'options-general.php?page=' . self::BULK_PAGE_SLUG ) ); ?>" class="page-title-action"><?php esc_html_e( 'Bulk Price Update', 'stairbuilder' ); ?></a>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::BULK_PAGE_SLUG ) ); ?>" class="page-title-action"><?php esc_html_e( 'Bulk Price Update', 'stairbuilder' ); ?></a>
 				<hr class="wp-header-end" />
 
 				<form action="options.php" method="post">
@@ -1619,17 +1694,41 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				.stairbuilder-bulk-wrap .sb-bulk-hint { color:#646970; font-size:12px; }
 				.stairbuilder-bulk-wrap .sb-bulk-quickselect { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-left:auto; }
 				.stairbuilder-bulk-wrap .sb-bulk-qs-label { font-weight:600; margin-right:2px; }
-				.stairbuilder-bulk-wrap .sb-bulk-mat.is-active { background:#2271b1; border-color:#2271b1; color:#fff; }
-				.stairbuilder-bulk-wrap .sb-bulk-table { margin-top:8px; }
-				.stairbuilder-bulk-wrap .sb-bulk-table .sb-bulk-num { text-align:right; font-variant-numeric:tabular-nums; }
-				.stairbuilder-bulk-wrap .sb-bulk-section td { background:#f0f0f1; }
-				.stairbuilder-bulk-wrap tr.sb-changed td { background:#fcf0f1 !important; }
-				.stairbuilder-bulk-wrap tr.sb-changed .sb-bulk-new { color:#b32d2e; font-weight:600; }
+				/* Active material quick-select: keep the blue through hover/focus so it
+				   repaints instantly on click. WP core .button:focus otherwise repaints
+				   the default grey over .is-active until the button loses focus. */
+				.stairbuilder-bulk-wrap .sb-bulk-mat.is-active,
+				.stairbuilder-bulk-wrap .sb-bulk-mat.is-active:hover,
+				.stairbuilder-bulk-wrap .sb-bulk-mat.is-active:focus { background:#2271b1; border-color:#2271b1; color:#fff; box-shadow:none; }
+				/* Two-column price grid. Rendered as a grid over the table elements so
+				   the Preview JS keeps its tr[data-id] / .sb-bulk-new selectors. thead
+				   is dropped (a single header row cannot label two columns); a "->"
+				   glyph before the New value carries the current->new meaning instead. */
+				.stairbuilder-bulk-wrap .sb-bulk-table { margin-top:8px; border:0; background:transparent; }
+				.stairbuilder-bulk-wrap .sb-bulk-table thead { display:none; }
+				.stairbuilder-bulk-wrap .sb-bulk-table,
+				.stairbuilder-bulk-wrap .sb-bulk-table tbody { display:block; }
+				.stairbuilder-bulk-wrap .sb-bulk-table tbody { display:grid; grid-template-columns:1fr 1fr; gap:6px 18px; }
+				.stairbuilder-bulk-wrap .sb-bulk-section { grid-column:1 / -1; }
+				.stairbuilder-bulk-wrap .sb-bulk-section td { display:block; background:#f0f0f1; padding:6px 10px; margin-top:6px; border-radius:3px; }
+				.stairbuilder-bulk-wrap .sb-bulk-row { display:grid; grid-template-columns:auto auto minmax(0,1fr) auto auto; align-items:center; column-gap:10px; padding:5px 10px; border:1px solid #e0e0e0; border-radius:4px; background:#fff; }
+				.stairbuilder-bulk-wrap .sb-bulk-row td { display:block; border:0; padding:0; }
+				.stairbuilder-bulk-wrap .sb-bulk-row .check-column { width:auto; padding-left:10px; }
+				.stairbuilder-bulk-wrap .sb-bulk-num { text-align:right; font-variant-numeric:tabular-nums; padding-right:15px; }
+				.stairbuilder-bulk-wrap .sb-bulk-new::before { content:"\2192"; color:#a7aaad; margin-right:6px; font-weight:400; }
+				/* Preview highlight: rows whose value will change go red. */
+				.stairbuilder-bulk-wrap .sb-bulk-row.sb-changed { background:#fcf0f1; border-color:#f0c0c2; }
+				.stairbuilder-bulk-wrap .sb-bulk-row.sb-changed .sb-bulk-new { color:#b32d2e; font-weight:600; }
+				/* Selection highlight: ticked rows get a blue left border + faint tint,
+				   kept visually distinct from the red change highlight above. */
+				.stairbuilder-bulk-wrap .sb-bulk-row.sb-checked { border-left:3px solid #2271b1; background:#f3f8fc; }
+				.stairbuilder-bulk-wrap .sb-bulk-row.sb-checked.sb-changed { background:#fcf0f1; }
 				.stairbuilder-bulk-wrap .sb-bulk-tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; background:#e5e5e5; color:#1d2327; }
 				.stairbuilder-bulk-wrap .sb-bulk-tag-oak { background:#dbead5; } .stairbuilder-bulk-wrap .sb-bulk-tag-pine { background:#f4e8cf; }
 				.stairbuilder-bulk-wrap .sb-bulk-tag-none { background:transparent; color:#a7aaad; }
 				.stairbuilder-bulk-wrap .sb-bulk-actions { margin-top:16px; display:flex; align-items:center; gap:12px; }
-				.stairbuilder-bulk-wrap .sb-bulk-summary { color:#646970; }'
+				.stairbuilder-bulk-wrap .sb-bulk-summary { color:#646970; }
+				@media (max-width:782px){ .stairbuilder-bulk-wrap .sb-bulk-table tbody { grid-template-columns:1fr; } }'
 			);
 
 			wp_add_inline_script(
@@ -1647,6 +1746,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							var on  = $tr.find(".sb-bulk-include").prop("checked");
 							var old = num($tr.attr("data-value"));
 							var $new = $tr.find(".sb-bulk-new");
+							$tr.toggleClass("sb-checked", on);
 							if (on) { selected++; }
 							if (on && old !== null && pct !== null && pct !== 0){
 								var nv = Math.round(old * (1 + pct/100) * 100) / 100;
@@ -1715,13 +1815,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 
 		public function enqueue( $hook ) {
 			// Bulk price-update page has its own lightweight assets.
-			if ( 'settings_page_' . self::BULK_PAGE_SLUG === $hook ) {
+			if ( $this->hook_bulk && $hook === $this->hook_bulk ) {
 				$this->enqueue_bulk();
 				return;
 			}
 
-			// Only load on our settings page.
-			if ( $hook !== 'settings_page_' . self::PAGE_SLUG ) {
+			// Only load on our pricing page.
+			if ( ! $this->hook_pricing || $hook !== $this->hook_pricing ) {
 				return;
 			}
 
@@ -1822,8 +1922,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				.stairbuilder-pricing-wrap .stairbuilder-card-block > .stairbuilder-component-title { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-repeater .stairbuilder-cards { display: flex; flex-direction: column; gap: 12px; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-row {
-					grid-template-columns: minmax(220px, 1.4fr) 1fr 1fr 44px;
-					align-items: start;
+					display: flex;
+					flex-wrap: wrap;
+					align-items: flex-end;
+					gap: 14px;
 					margin: 0;
 				}
 				/* Generic card rows (strings, construction, treads, risers) —
@@ -1851,31 +1953,35 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				/* Spindle material-mode rows: the fixed Pine/Oak 3-col grid does not fit
 				   the variable mode blocks (wood = 2 cols, metal = 1, glass = opts + 1),
 				   so switch those rows to a flex layout and show only the active block. */
-				/* Balustrading rows render as a SINGLE compact line: name / material
-				   type (+ glass pricing / panel width / gap in glass mode) / price
-				   column(s) / toggle. The header and the active price block use
+				/* Every card row (newel posts/caps, handrails & baserails, spindles)
+				   renders as a SINGLE compact line: each field a labelled column with
+				   the label above its input, toggle + remove pushed to the right. The
+				   header wrapper (and, on spindle rows, the active price block) use
 				   display:contents so their fields become direct flex items of the row;
 				   `order` keeps the toggle + remove button on the right regardless of
-				   DOM order. Code is hidden on these rows (see render_card_row). */
-				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-wood,
-				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-metal,
-				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-glass { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
-				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-component-header { display: contents; }
-				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-card-label { flex: 0 1 150px; margin-bottom: 0; order: 1; }
-				/* Glass basis fields appear only when the row is in glass mode. */
+				   DOM order. Spindle rows additionally carry material-mode fields
+				   (material type / glass basis) shown per mode below. */
+				.stairbuilder-pricing-wrap .stairbuilder-card-row .stairbuilder-component-header { display: contents; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row .stairbuilder-card-label { flex: 0 1 150px; margin-bottom: 0; order: 1; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row .stairbuilder-component-variant { flex: 0 1 150px; min-width: 130px; order: 2; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row .stairbuilder-card-switch { flex: 0 0 auto; order: 3; margin-left: auto; align-self: center; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row .stairbuilder-card-actions { flex: 0 0 auto; order: 4; align-self: center; }
+				/* Spindle material-mode blocks: show only the active block; glass basis
+				   fields appear only when the row is in glass mode. Inert on non-spindle
+				   rows (they carry no .bd-mode-block / .bd-glass-inline elements). */
 				.stairbuilder-pricing-wrap .stairbuilder-card-row .bd-glass-inline { display: none; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-glass .bd-glass-inline { display: block; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-row .bd-mode-block { display: none; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-wood .bd-mode-wood,
 				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-metal .bd-mode-metal,
 				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-glass .bd-mode-glass { display: contents; }
-				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-component-variant { flex: 0 1 150px; min-width: 130px; order: 2; }
-				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-card-switch { flex: 0 0 auto; order: 3; margin-left: auto; align-self: center; }
-				.stairbuilder-pricing-wrap .stairbuilder-card-row[class*="mode-"] .stairbuilder-card-actions { flex: 0 0 auto; order: 4; align-self: center; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-mode select { font-weight: 400; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-add { margin-top: 14px; }
 				@media (max-width: 960px) {
-					.stairbuilder-pricing-wrap .stairbuilder-card-row { grid-template-columns: 1fr; }
+					.stairbuilder-pricing-wrap .stairbuilder-card-row { flex-direction: column; align-items: stretch; }
+					.stairbuilder-pricing-wrap .stairbuilder-card-row .stairbuilder-card-label,
+					.stairbuilder-pricing-wrap .stairbuilder-card-row .stairbuilder-component-variant { flex-basis: auto; }
+					.stairbuilder-pricing-wrap .stairbuilder-card-row .stairbuilder-card-switch { margin-left: 0; }
 					.stairbuilder-pricing-wrap .stairbuilder-card-actions { text-align: left; }
 				}'
 			);
@@ -2211,6 +2317,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/* ------------------------------------------------------------------ */
 
 			private function get_schema() {
+				// Stringer/tread/riser "code" is really a material choice (single
+				// price per row), so those rows use a fixed material dropdown.
+				$material_choices = $this->material_code_choices();
 				// Shared sub-field set for the rich "card" repeaters (newels,
 				// handrails, spindles). Each row carries its own name/code, a
 				// per-row Use-Product-ID switch, and pine/oak price + product ID.
@@ -2278,7 +2387,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Add Stringer Types',
 								'type' => 'repeater',
 								'style' => 'card',
-								'subfields' => [['id' => 'stringer_name', 'label' => 'Stringer Name', 'type' => 'text'], ['id' => 'stringer_code', 'label' => 'Stringer Code', 'type' => 'text'], ['id' => 'stringer_value', 'label' => 'Stringer Value', 'type' => 'number', 'adjustable' => true]],
+								'subfields' => [['id' => 'stringer_name', 'label' => 'Stringer Name', 'type' => 'text'], ['id' => 'stringer_code', 'label' => 'Stringer Material', 'type' => 'select', 'choices' => $material_choices, 'default' => 'mdf', 'material_source' => true], ['id' => 'stringer_value', 'label' => 'Stringer Value', 'type' => 'number', 'adjustable' => true]],
 							],
 						],
 					],
@@ -2309,7 +2418,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Add Tread Types',
 								'type' => 'repeater',
 								'style' => 'card',
-								'subfields' => [['id' => 'tread_name', 'label' => 'Tread Name', 'type' => 'text'], ['id' => 'tread_code', 'label' => 'Tread Code', 'type' => 'text'], ['id' => 'tread_value', 'label' => 'Tread Value', 'type' => 'number', 'adjustable' => true]],
+								'subfields' => [['id' => 'tread_name', 'label' => 'Tread Name', 'type' => 'text'], ['id' => 'tread_code', 'label' => 'Tread Material', 'type' => 'select', 'choices' => $material_choices, 'default' => 'mdf', 'material_source' => true], ['id' => 'tread_value', 'label' => 'Tread Value', 'type' => 'number', 'adjustable' => true]],
 							],
 							[
 								'id' => 'tread_profiles',
@@ -2328,7 +2437,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Add Riser Types',
 								'type' => 'repeater',
 								'style' => 'card',
-								'subfields' => [['id' => 'riser_name', 'label' => 'Riser Name', 'type' => 'text'], ['id' => 'riser_code', 'label' => 'Riser Code', 'type' => 'text'], ['id' => 'riser_value', 'label' => 'Riser Value', 'type' => 'number', 'adjustable' => true]],
+								'subfields' => [['id' => 'riser_name', 'label' => 'Riser Name', 'type' => 'text'], ['id' => 'riser_code', 'label' => 'Riser Material', 'type' => 'select', 'choices' => $material_choices, 'default' => 'mdf', 'material_source' => true], ['id' => 'riser_value', 'label' => 'Riser Value', 'type' => 'number', 'adjustable' => true]],
 							],
 						],
 					],

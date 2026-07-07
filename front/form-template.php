@@ -65,6 +65,10 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
     <?php // Captured into the lead + PDF via the form serialise. ?>
     <input type="hidden" name="stair_type" value="<?php echo esc_attr( $stair_type ); ?>">
     <input type="hidden" name="stair_config" value="<?php echo esc_attr( $sb_stair_config ); ?>">
+    <?php // Newel + spindle counts, populated by priceCalc.js so the PDF quote
+    // shows exactly the priced figures (see assets/js/priceCalc.js). ?>
+    <input type="hidden" id="newel-count" name="newel-count" value="">
+    <input type="hidden" id="spindle-count" name="spindle-count" value="">
     <div class="form-tabs">
   <div class="form-tab"><!--- Measurments -->
   <input type="radio" class="form-chk" id="chck1" name="rd">

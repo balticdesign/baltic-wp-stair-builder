@@ -16,8 +16,13 @@ function grabFormValues() {
   const width = parseFloat(jQuery("#stair-width").val()) || 800;
   let modifier = 0;
 
-  // Risers, treads, etc
-  const risers = Math.ceil(adj / going);
+  // Risers, treads, etc. The riser count comes from the #risers dropdown
+  // (populated by getStaircaseConfig in onLoad) so the angle, price and canvas
+  // all describe the SAME staircase — matching the half/quarter turn scripts.
+  // The legacy going-based estimate (adj) is only a fallback for an empty
+  // dropdown; on its own it ignored the user's selection and produced an angle
+  // for the wrong riser count (e.g. 40.96° instead of 38.66° at 2600mm/250mm).
+  const risers = parseFloat(jQuery("#risers").val()) || Math.ceil(adj / going);
   const regcheck = Math.ceil(height / risers);
   if (regcheck > 220) modifier = 1;
   const treads = risers + modifier;
@@ -75,20 +80,15 @@ window.grabFormValues = grabFormValues;
 
 // MAIN 2D RENDER FUNCTION
 function onLoad(changedElement = null) {
+  // Resolve the #risers dropdown FIRST (keeps a still-valid selection, else
+  // falls back to the lowest valid config) so it is the single source of truth
+  // for the riser count used by grabFormValues (angle/price) and the canvas.
+  const going = parseFloat(jQuery("#going").val()) || 240;
+  const height = parseFloat((jQuery("#floor-height").val() || '2600').replace(/,/g, ''));
+  BuilderUtils.getStaircaseConfig(going, height);
+
   const variables = grabFormValues();
-  const { going, height, width } = variables;
-
-  const { selectedRiserHeight, numberOfStairs, lowestStairNumber } =
-    BuilderUtils.getStaircaseConfig(going, height);
-
-  let RiserNo = numberOfStairs;
-  if (changedElement) {
-    if (changedElement === 'floor-height' || changedElement === 'going') {
-      RiserNo = lowestStairNumber;
-    } else if (changedElement === 'risers') {
-      RiserNo = numberOfStairs;
-    }
-  }
+  const { width } = variables;
 
   // Going input feedback (building-regs warning) is handled centrally in
   // formLogic.js from admin-configured Construction Settings.
@@ -99,7 +99,7 @@ function onLoad(changedElement = null) {
     backgroundColor: bd_diagram_colours.canvas_bg || 'transparent',
     font: 'Varela Round',
     treads: {
-      amount: RiserNo,
+      amount: variables.risers,
       width: width,
       height: going,
       fillColor: bd_diagram_colours.treads_fill,
@@ -139,7 +139,7 @@ function onLoad(changedElement = null) {
 // INITIALISATION
 jQuery(document).ready(function () {
   jQuery('#floor-height').val(2600);
-  jQuery('#going').val(grabFormValues().going);
+  jQuery('#going').val(parseFloat(jQuery('#going').val()) || 240);
   jQuery('#stair-width').val(800);
   jQuery('#custom').hide();
 

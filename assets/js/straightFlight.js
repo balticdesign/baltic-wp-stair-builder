@@ -24,7 +24,7 @@ function grabFormValues() {
   const riserh = Math.ceil(height / treads);
   const total_run = going * treads;
   const rake = BuilderUtils.calculateRake(height, total_run).toFixed(2);
-  const pitch = BuilderUtils.calculatePitch(height, total_run);
+  const pitch = BuilderUtils.calculateStepPitch(riserh, going); // Doc K per-step pitch
 
   // Newel post positions
   let tl = false, tr = false, bl = false, br = false;

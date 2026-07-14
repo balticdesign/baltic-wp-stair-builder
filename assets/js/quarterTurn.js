@@ -25,7 +25,7 @@ function grabFormValues() {
   let riserh = Math.ceil(height / treads);
   let total_run = going * treads;
   let rake = BuilderUtils.calculateRake(height, total_run).toFixed(2);
-  let pitch = BuilderUtils.calculatePitch(height, total_run);
+  let pitch = BuilderUtils.calculateStepPitch(riserh, going); // Doc K per-step pitch
 
   // Feature tread config
   let fl = 0, fr = 0;

@@ -55,7 +55,13 @@ function getNumber(formElementId, $ = window.jQuery) {
 // =============================================================================
 
 /**
- * Calculates the pitch angle of a staircase
+ * Calculates the pitch angle of a staircase.
+ *
+ * @deprecated Mixes full floor-to-floor height with total run, which double-counts
+ * the off-by-one between risers and goings (see calculateStepPitch). Retained only
+ * as a safety shim for any external caller; all internal call sites now use
+ * calculateStepPitch. Do not use for new code.
+ *
  * @param {number} height - Total height of the staircase
  * @param {number} totalRun - Total horizontal run of the staircase
  * @returns {number} Pitch angle in degrees
@@ -63,6 +69,23 @@ function getNumber(formElementId, $ = window.jQuery) {
 function calculatePitch(height, totalRun) {
   if (totalRun === 0) return 0;
   return Math.atan(height / totalRun) * (180 / Math.PI);
+}
+
+/**
+ * Calculates the Doc K pitch: the angle of the line joining the tread nosings.
+ *
+ * From the first nosing to the floor nosing there are (risers - 1) rises and
+ * (risers - 1) goings, so the pitch reduces to the per-step angle
+ * atan(riserHeight / going). This is definitionally correct, has no off-by-one
+ * risk, and is what UK Building Regs (Approved Document K) mean by "pitch".
+ *
+ * @param {number} riserHeight - Individual rise in millimetres
+ * @param {number} going - Individual going in millimetres
+ * @returns {number} Pitch angle in degrees
+ */
+function calculateStepPitch(riserHeight, going) {
+  if (going === 0) return 0;
+  return Math.atan(riserHeight / going) * (180 / Math.PI);
 }
 
 /**
@@ -123,10 +146,12 @@ function getStaircaseConfig(going, height, $ = window.jQuery) {
     }
     
     uniqueRiserCounts.add(possibleRisers);
-    
-    let newTotalRun = going * (possibleRisers - 1);
-    let newPitch = calculatePitch(height, newTotalRun);
-    
+
+    // Doc K per-step pitch: atan(rise / going). The previous formula divided the
+    // full height by (risers - 1) goings, inflating the angle and wrongly excluding
+    // valid riser configurations near the 42 degree limit.
+    let newPitch = calculateStepPitch(possibleRiserHeight, going);
+
     if (going >= 220 && going <= 300 && newPitch <= 42) {
       validConfigs.push({
         risers: possibleRisers,
@@ -257,7 +282,7 @@ function grabFormValues($ = window.jQuery) {
   let riserh = Math.ceil(height / treads);
   let total_run = (going * treads);
   let rake = Math.sqrt((height * height) + (total_run * total_run)).toFixed(2);
-  let pitch = Math.atan(height / total_run) * (180 / Math.PI);
+  let pitch = calculateStepPitch(riserh, going); // Doc K per-step pitch: atan(rise / going)
   let tl = false;
   let tr = false;
   let br = false;
@@ -445,6 +470,7 @@ if (typeof module !== 'undefined' && module.exports) {
     getString,
     getNumber,
     calculatePitch,
+    calculateStepPitch,
     calculateRake,
     calculateRiserHeight,
     getLowestStairNumber,
@@ -466,6 +492,7 @@ if (typeof window !== 'undefined') {
     getString,
     getNumber,
     calculatePitch,
+    calculateStepPitch,
     calculateRake,
     calculateRiserHeight,
     getLowestStairNumber,

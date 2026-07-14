@@ -1,21 +1,103 @@
 let wasFour = false;
 
+// First-load guard: true once the flight treads have been seeded with derived
+// defaults. Before that we distribute the budget evenly; afterwards we preserve
+// the user's values and only clamp what doesn't fit.
+let flightsInitialised = false;
+
 // Hide featured steps on load
 jQuery('#left-featured-step').hide();
 jQuery('#right-featured-step').hide();
 
 /**
+ * Derives / clamps the three straight flights of a half-turn staircase and
+ * writes the corrected values back into the tread inputs. Half Landing
+ * (treadit === 4) pins the middle flight to 0 and distributes only across
+ * flights 1 and 3. Returns the tread counts actually used.
+ */
+function allocateHalfTurnFlights(budget, tits, tits2, isHalfLanding) {
+  const w1 = parseInt(tits, 10) || 0;
+  const w2 = parseInt(tits2, 10) || 0;
+  const available = budget - w1 - w2;
+
+  const invalidMsg =
+    'This staircase has too few risers for the selected turns — increase the floor height or reduce the turns.';
+  const clampMsg = 'Only ' + Math.max(0, available) + ' treads available across the flights — values adjusted.';
+
+  if (isHalfLanding) {
+    if (!flightsInitialised) {
+      const [f1, f3] = BuilderUtils.distributeFlightTreads(available, 2);
+      flightsInitialised = true;
+      writeHalfInputs(f1, 0, f3);
+      window.bdFlightInvalid = false;
+      BuilderUtils.setFlightAllocationWarning('treadat2', '');
+      return { beforeturn: f1, afterturn1: 0, afterturn2: f3 };
+    }
+    const res = BuilderUtils.allocateFlightTreads(
+      budget, [w1, w2], [jQuery('#treadbt').val()],
+      [BuilderUtils.MIN_FLIGHT_FIRST, BuilderUtils.MIN_FLIGHT_LAST]
+    );
+    if (!res.valid) {
+      window.bdFlightInvalid = true;
+      jQuery('#treadat').val(0);
+      jQuery('#treadat2').val(0);
+      BuilderUtils.setFlightAllocationWarning('treadat2', invalidMsg);
+      return { beforeturn: parseInt(jQuery('#treadbt').val(), 10) || 0, afterturn1: 0, afterturn2: 0 };
+    }
+    const [f1, f3] = res.flights;
+    writeHalfInputs(f1, 0, f3);
+    window.bdFlightInvalid = false;
+    BuilderUtils.setFlightAllocationWarning('treadat2', res.clamped ? clampMsg : '');
+    return { beforeturn: f1, afterturn1: 0, afterturn2: f3 };
+  }
+
+  // Normal winders: three straight flights.
+  if (!flightsInitialised) {
+    const [f1, f2, f3] = BuilderUtils.distributeFlightTreads(available, 3);
+    flightsInitialised = true;
+    writeHalfInputs(f1, f2, f3);
+    window.bdFlightInvalid = false;
+    BuilderUtils.setFlightAllocationWarning('treadat2', '');
+    return { beforeturn: f1, afterturn1: f2, afterturn2: f3 };
+  }
+  const res = BuilderUtils.allocateFlightTreads(
+    budget, [w1, w2], [jQuery('#treadbt').val(), jQuery('#treadat').val()],
+    [BuilderUtils.MIN_FLIGHT_FIRST, BuilderUtils.MIN_FLIGHT_MID, BuilderUtils.MIN_FLIGHT_LAST]
+  );
+  if (!res.valid) {
+    window.bdFlightInvalid = true;
+    jQuery('#treadat2').val(0);
+    BuilderUtils.setFlightAllocationWarning('treadat2', invalidMsg);
+    return {
+      beforeturn: parseInt(jQuery('#treadbt').val(), 10) || 0,
+      afterturn1: parseInt(jQuery('#treadat').val(), 10) || 0,
+      afterturn2: 0
+    };
+  }
+  const [f1, f2, f3] = res.flights;
+  writeHalfInputs(f1, f2, f3);
+  window.bdFlightInvalid = false;
+  BuilderUtils.setFlightAllocationWarning('treadat2', res.clamped ? clampMsg : '');
+  return { beforeturn: f1, afterturn1: f2, afterturn2: f3 };
+}
+
+function writeHalfInputs(f1, f2, f3) {
+  jQuery('#treadbt').val(f1);
+  jQuery('#treadat').val(f2);
+  jQuery('#treadat2').val(f3);
+}
+
+/**
  * Extracts and returns all variables for half-turn staircases.
  */
 function grabFormValues() {
-  let tits = parseFloat(jQuery("#treadit").val());
+  const titsRaw = parseFloat(jQuery("#treadit").val());
+  let tits = titsRaw;
   let tits2 = parseFloat(jQuery("#treadit2").val());
-  let beforeturn = parseFloat(jQuery("#treadbt").val());
-  let afterturn1 = parseFloat(jQuery("#treadat").val());
-  if (parseFloat(jQuery("#treadit").val()) === 4) {
+  const isHalfLanding = (titsRaw === 4);
+  if (isHalfLanding) {
     tits = 1;
     tits2 = 1;
-    afterturn1 = 0;
     wasFour = true;
   }
   let going = parseFloat(jQuery("#going").val()) || 240;
@@ -31,7 +113,14 @@ function grabFormValues() {
   let modifier = 0;
   let risers = parseFloat(jQuery("#risers").val()) || 14;
   let treads = risers;
-  let afterturn2 = parseInt(treads - (tits + tits2) - beforeturn - afterturn1);
+
+  // Flight tread allocation: derive/clamp the straight flights so none is ever
+  // negative and the derived flight 3 always fits the tread budget.
+  const alloc = allocateHalfTurnFlights(treads, tits, tits2, isHalfLanding);
+  let beforeturn = alloc.beforeturn;
+  let afterturn1 = alloc.afterturn1;
+  let afterturn2 = alloc.afterturn2;
+
   let riserh = Math.ceil(height / treads);
   let total_run = going * treads;
   let rake = BuilderUtils.calculateRake(height, total_run).toFixed(2);
@@ -141,17 +230,13 @@ function bonuslogic() {
 
 // MAIN 2D RENDER FUNCTION
 function onLoad(changedElement = null) {
+  // Resolve the riser dropdown FIRST so the tread budget (treads = risers) is
+  // settled before grabFormValues runs the flight allocation.
+  const going = parseFloat(jQuery("#going").val()) || 240;
+  const height = parseFloat((jQuery("#floor-height").val() || '0').replace(/,/g, ''));
+  BuilderUtils.getStaircaseConfig(going, height);
+
   const variables = grabFormValues();
-  const { going, height } = variables;
-  const { selectedRiserHeight, numberOfStairs, lowestStairNumber } = BuilderUtils.getStaircaseConfig(going, height);
-  let RiserNo = numberOfStairs;
-  if (changedElement) {
-    if (changedElement === 'floor-height' || changedElement === 'going') {
-      RiserNo = lowestStairNumber;
-    } else if (changedElement === 'risers') {
-      RiserNo = numberOfStairs;
-    }
-  }
   // Going input feedback (building-regs warning) is handled centrally in
   // formLogic.js from admin-configured Construction Settings.
   const halfturnStairsConfig = {
@@ -230,12 +315,13 @@ function onLoad(changedElement = null) {
 // UI and event handling
 jQuery(document).ready(function () {
   jQuery('#floor-height').val(2600);
-  jQuery('#going').val(grabFormValues().going);
+  jQuery('#going').val(parseFloat(jQuery('#going').val()) || 240);
   jQuery('#stair-width').val(800);
   jQuery('#stair-width2').val(800);
   jQuery('#stair-width3').val(800);
   jQuery('#custom').hide();
 
+  // First draw: grabFormValues (via onLoad) seeds the derived flight defaults.
   onLoad();
 
   jQuery('#stairbuild').on('change', ':input', function () {
@@ -248,7 +334,8 @@ jQuery(document).ready(function () {
       jQuery('#stair-width2').val(v);
       jQuery('#stair-width3').val(v);
     }
-    jQuery("#treadat2").val(grabFormValues().afterturn2);
+    // Flight allocation (incl. writing the derived #treadat2) now runs inside
+    // grabFormValues, which onLoad calls.
     onLoad(changedElement);
   });
 });

@@ -3,8 +3,8 @@
  * 
  * This file contains pure helper functions used across different stair types.
  * All functions are designed to be pure (no side effects) and not rely on globals.
- * 
- * @version 1.0.0
+ *
+ * @version 2.11.0
  */
 
 // =============================================================================
@@ -201,6 +201,90 @@ function getStaircaseConfig(going, height, $ = window.jQuery) {
 }
 
 // =============================================================================
+// FLIGHT TREAD ALLOCATION (turned / multi-flight staircases)
+// =============================================================================
+
+// Per-flight minimum straight-tread counts. These are domain decisions,
+// confirmed by Dan (2026-07-14): a staircase MAY open directly onto a winder,
+// MAY run winder-into-winder (a six-winder 180 turn), and MAY end on the winder
+// box (the last riser lands on the upper floor). So every minimum is 0. They are
+// kept as named constants so the rules can be tightened later without touching
+// the allocation maths.
+const MIN_FLIGHT_FIRST = 0; // treads before the first turn
+const MIN_FLIGHT_MID   = 0; // treads between two turns (half turn only)
+const MIN_FLIGHT_LAST  = 0; // treads after the final turn
+
+/**
+ * Distributes a tread budget as evenly as possible across N straight flights,
+ * giving any remainder to the earliest flights. Used for first-load defaults.
+ * e.g. distributeFlightTreads(7, 3) -> [3, 2, 2]
+ * @param {number} available - treads to distribute
+ * @param {number} nFlights  - number of straight flights
+ * @returns {number[]} tread count per flight
+ */
+function distributeFlightTreads(available, nFlights) {
+  const total = Math.max(0, parseInt(available, 10) || 0);
+  const base = Math.floor(total / nFlights);
+  const remainder = total - base * nFlights;
+  const out = [];
+  for (let i = 0; i < nFlights; i++) {
+    out.push(base + (i < remainder ? 1 : 0));
+  }
+  return out;
+}
+
+/**
+ * Allocates the tread budget across the straight flights of a turned staircase,
+ * honouring per-flight minimums and never producing a negative flight. Pure and
+ * deterministic: identical inputs always yield the same allocation.
+ *
+ * @param {number} budget      total tread units (as computed in grabFormValues)
+ * @param {number[]} winders   winder treads per turn, e.g. [tits] or [tits, tits2]
+ * @param {number[]} requested user values for the non-derived flights, in order
+ *                             (half: [beforeturn, afterturn1]; quarter: [beforeturn])
+ * @param {number[]} mins      per-flight minimums INCLUDING the derived last flight
+ * @returns {{ flights: number[], clamped: boolean, valid: boolean }}
+ *          flights = [...requested, derivedLast]; empty when valid === false.
+ */
+function allocateFlightTreads(budget, winders, requested, mins) {
+  const toInt = (n, fallback) => {
+    const v = parseInt(n, 10);
+    return isNaN(v) ? fallback : v;
+  };
+
+  const winderSum = winders.reduce((sum, w) => sum + toInt(w, 0), 0);
+  const available = toInt(budget, 0) - winderSum;
+  const minsSum = mins.reduce((sum, m) => sum + m, 0);
+
+  // Structurally impossible: the winders (plus flight minimums) don't fit the
+  // tread budget for this riser count.
+  if (available < minsSum) {
+    return { flights: [], clamped: false, valid: false };
+  }
+
+  // Floor each requested flight at its own minimum (NaN -> that flight's min).
+  const req = requested.map((n, i) => Math.max(toInt(n, mins[i]), mins[i]));
+  const lastMin = mins[mins.length - 1];
+  let clamped = false;
+
+  // Derived last flight is whatever budget remains after the user flights.
+  let last = available - req.reduce((sum, n) => sum + n, 0);
+
+  // If the last flight would fall below its minimum, reclaim treads from the
+  // user flights, taking from the LAST user flight first, never below each min.
+  if (last < lastMin) {
+    let deficit = lastMin - last;
+    for (let i = req.length - 1; i >= 0 && deficit > 0; i--) {
+      const take = Math.min(req[i] - mins[i], deficit);
+      if (take > 0) { req[i] -= take; deficit -= take; clamped = true; }
+    }
+    last = available - req.reduce((sum, n) => sum + n, 0);
+  }
+
+  return { flights: [...req, last], clamped, valid: true };
+}
+
+// =============================================================================
 // UI HELPER FUNCTIONS
 // =============================================================================
 
@@ -229,6 +313,32 @@ function hideSpinner() {
   const spinner = document.querySelector(".spinner");
   if (spinner) {
     spinner.parentNode.removeChild(spinner);
+  }
+}
+
+/**
+ * Shows / updates an inline flight-allocation warning placed after a reference
+ * input, reusing the red .sb-limit-msg styling that formLogic.js uses for the
+ * going/width limits. The message element is created once and then toggled.
+ * @param {string} afterId - id of the input to insert the message after
+ * @param {string} message - text to show; pass '' to hide
+ */
+function setFlightAllocationWarning(afterId, message) {
+  let el = document.getElementById('sb-flight-msg');
+  if (!el) {
+    const ref = document.getElementById(afterId);
+    if (!ref) return;
+    el = document.createElement('p');
+    el.id = 'sb-flight-msg';
+    el.className = 'sb-limit-msg';
+    el.style.cssText = 'display:none;color:#d63638;margin:4px 0 0;font-size:13px;font-weight:600;';
+    ref.insertAdjacentElement('afterend', el);
+  }
+  if (message) {
+    el.textContent = message;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
   }
 }
 
@@ -475,8 +585,14 @@ if (typeof module !== 'undefined' && module.exports) {
     calculateRiserHeight,
     getLowestStairNumber,
     getStaircaseConfig,
+    MIN_FLIGHT_FIRST,
+    MIN_FLIGHT_MID,
+    MIN_FLIGHT_LAST,
+    distributeFlightTreads,
+    allocateFlightTreads,
     showSpinner,
     hideSpinner,
+    setFlightAllocationWarning,
     grab3dValues,
     grabFormValues,
     getNewelIds,
@@ -497,8 +613,14 @@ if (typeof window !== 'undefined') {
     calculateRiserHeight,
     getLowestStairNumber,
     getStaircaseConfig,
+    MIN_FLIGHT_FIRST,
+    MIN_FLIGHT_MID,
+    MIN_FLIGHT_LAST,
+    distributeFlightTreads,
+    allocateFlightTreads,
     showSpinner,
     hideSpinner,
+    setFlightAllocationWarning,
     grab3dValues,
     grabFormValues,
     getNewelIds,

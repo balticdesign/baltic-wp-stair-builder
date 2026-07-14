@@ -124,7 +124,8 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
           <div class="form-row">
             <h4>Flight 1</h4>
         <label for="treadit">Treads before Turn:</label>
-        <input type="number" id="treadbt" name="treadbt" value="6">
+        <?php // Default is derived on load by the flight script (even distribution), not hardcoded. ?>
+        <input type="number" id="treadbt" name="treadbt" value="" min="0">
         </div>
         <div class="form-row">
         <label for="treadit">Treads in Turn:</label>
@@ -143,7 +144,10 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         <h4>Flight 2</h4>
         <div class="form-row">
         <label for="treadat">Treads after Turn:</label>
-        <input type="number" id="treadat" name="treadat" value="3">
+        <?php // Quarter turn: #treadat is the DERIVED flight (auto-filled, readonly) — it must
+        // stay readonly (not disabled) so its value still POSTs into the lead + PDF.
+        // Half turn: #treadat is a real user input (treads between the two turns). ?>
+        <input type="number" id="treadat" name="treadat" value="" min="0"<?php echo ( $flight2 && ! $flight3 ) ? ' readonly style="background:#f3f3f3;color:#555;"' : ''; ?>>
         </div>
         <?php if ($flight3) {?>
          <div class="form-row"<?php if ( $sb_hide_treadit2 ) echo ' style="display:none"'; ?>>
@@ -162,7 +166,8 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         <h4>Flight 3</h4>
         <div class="form-row">
         <label for="treadat2">Treads after Turn2:</label>
-        <input type="number" id="treadat2" name="treadat2" value="" readonly>
+        <?php // Derived flight 3 (auto-filled). readonly (not disabled) so it still POSTs. ?>
+        <input type="number" id="treadat2" name="treadat2" value="" min="0" readonly style="background:#f3f3f3;color:#555;">
         </div>
         <?php } ?>
         </div>

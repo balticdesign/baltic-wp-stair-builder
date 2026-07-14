@@ -36,6 +36,17 @@ function calculateTotalPrice() {
 
   if (!formValues) return;
 
+  // Flight allocation (run inside grabFormValues for turned staircases) may flag
+  // the configuration as structurally impossible for the current riser count.
+  // Never price an invalid staircase — blank the outputs and bail until the user
+  // resolves it (increases risers / reduces the turns).
+  if (window.bdFlightInvalid) {
+    jQuery("#priceCalc").text('—');
+    jQuery("#vat").text('—');
+    jQuery("#total").text('—');
+    return;
+  }
+
   // === Core Inputs ===
   const $height = formValues.height;
   const treads = formValues.treads;

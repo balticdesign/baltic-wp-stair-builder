@@ -1,6 +1,50 @@
+// First-load guard: true once the flight treads have been seeded with derived
+// defaults. Before that we distribute the budget evenly; afterwards we preserve
+// the user's flight 1 value and only clamp what doesn't fit.
+let flightsInitialised = false;
+
 // Hide featured steps on load
 jQuery('#left-featured-step').hide();
 jQuery('#right-featured-step').hide();
+
+/**
+ * Derives flight 2 (after the turn) and clamps flight 1 so neither is ever
+ * negative, then writes the corrected values back into the tread inputs.
+ * #treadat is the derived (readonly) field for quarter turns.
+ */
+function allocateQuarterTurnFlights(budget, tits) {
+  const w1 = parseInt(tits, 10) || 0;
+  const available = budget - w1;
+  const invalidMsg =
+    'This staircase has too few risers for the selected turn — increase the floor height or reduce the winders.';
+  const clampMsg = 'Only ' + Math.max(0, available) + ' treads available after the turn — values adjusted.';
+
+  if (!flightsInitialised) {
+    const [f1, f2] = BuilderUtils.distributeFlightTreads(available, 2);
+    flightsInitialised = true;
+    jQuery('#treadbt').val(f1);
+    jQuery('#treadat').val(f2);
+    window.bdFlightInvalid = false;
+    BuilderUtils.setFlightAllocationWarning('treadat', '');
+    return { beforeturn: f1, afterturn1: f2 };
+  }
+  const res = BuilderUtils.allocateFlightTreads(
+    budget, [w1], [jQuery('#treadbt').val()],
+    [BuilderUtils.MIN_FLIGHT_FIRST, BuilderUtils.MIN_FLIGHT_LAST]
+  );
+  if (!res.valid) {
+    window.bdFlightInvalid = true;
+    jQuery('#treadat').val(0);
+    BuilderUtils.setFlightAllocationWarning('treadat', invalidMsg);
+    return { beforeturn: parseInt(jQuery('#treadbt').val(), 10) || 0, afterturn1: 0 };
+  }
+  const [f1, f2] = res.flights;
+  jQuery('#treadbt').val(f1);
+  jQuery('#treadat').val(f2);
+  window.bdFlightInvalid = false;
+  BuilderUtils.setFlightAllocationWarning('treadat', res.clamped ? clampMsg : '');
+  return { beforeturn: f1, afterturn1: f2 };
+}
 
 /**
  * Extracts and returns all variables for quarter-turn staircases.
@@ -18,10 +62,13 @@ function grabFormValues() {
   let width2 = parseFloat(jQuery("#stair-width2").val()) || 800;
   let modifier = 0;
   let risers = parseFloat(jQuery("#risers").val()) || 14;
-  let beforeturn = parseFloat(jQuery("#treadbt").val());
-  let afterturn1 = parseInt(risers - beforeturn - tits);
-  jQuery("#treadat").val(afterturn1); // auto-update hidden field
   let treads = risers;
+
+  // Flight tread allocation: derive flight 2 and clamp flight 1 (never negative).
+  const alloc = allocateQuarterTurnFlights(treads, tits);
+  let beforeturn = alloc.beforeturn;
+  let afterturn1 = alloc.afterturn1;
+
   let riserh = Math.ceil(height / treads);
   let total_run = going * treads;
   let rake = BuilderUtils.calculateRake(height, total_run).toFixed(2);
@@ -120,17 +167,13 @@ function getStaircaseConfig(going, height) {
 }
 
 function onLoad(changedElement = null) {
+  // Resolve the riser dropdown FIRST so the tread budget (treads = risers) is
+  // settled before grabFormValues runs the flight allocation.
+  const going = parseFloat(jQuery("#going").val()) || 240;
+  const height = parseFloat((jQuery("#floor-height").val() || '0').replace(/,/g, ''));
+  getStaircaseConfig(going, height);
+
   const variables = grabFormValues();
-  const { going, height } = variables;
-  const { selectedRiserHeight, numberOfStairs, lowestStairNumber } = getStaircaseConfig(going, height);
-  let RiserNo = numberOfStairs;
-  if (changedElement) {
-    if (changedElement === 'floor-height' || changedElement === 'going') {
-      RiserNo = lowestStairNumber;
-    } else if (changedElement === 'risers') {
-      RiserNo = numberOfStairs;
-    }
-  }
   // Going input feedback (building-regs warning) is handled centrally in
   // formLogic.js from admin-configured Construction Settings.
 
@@ -149,7 +192,11 @@ function onLoad(changedElement = null) {
     },
     turnTreadsAmount: variables.tits,
     flight2Treads: {
-      maxAmount: variables.afterturn1,
+      // Stairs.js divides by maxAmount when scaling tread height, so a legit
+      // 0-tread flight after the turn would divide by zero and NaN the canvas.
+      // Floor it at 1 to keep the drawing sane; proper zero-tread final-flight
+      // rendering is a separate Stairs.js fix (see debrief).
+      maxAmount: Math.max(variables.afterturn1, 1),
       amount: variables.afterturn1,
       width: variables.width2,
       fillColor: bd_diagram_colours.treads_fill,
@@ -195,11 +242,12 @@ function onLoad(changedElement = null) {
 // UI/event handling
 jQuery(document).ready(function () {
   jQuery('#floor-height').val(2600);
-  jQuery('#going').val(grabFormValues().going);
+  jQuery('#going').val(parseFloat(jQuery('#going').val()) || 240);
   jQuery('#stair-width').val(800);
   jQuery('#stair-width2').val(800);
   jQuery('#custom').hide();
 
+  // First draw: grabFormValues (via onLoad) seeds the derived flight defaults.
   onLoad();
 
   jQuery('#stairbuild').on('change', ':input', function () {

@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.12.1
+Version:		2.15.3
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.12.1' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.15.3' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -132,20 +132,24 @@ function custom_enqueue_files() {
 	// settings. Only set vars override layout.css's built-in fallbacks, so
 	// an unconfigured box keeps its default appearance.
 	$bd_brand_colour_vars = array(
-		'--bd-form-bg'    => stairbuilder_get_option( 'form_bg' ),
-		'--bd-form-text'  => stairbuilder_get_option( 'form_text' ),
-		'--bd-form-link'  => stairbuilder_get_option( 'form_link' ),
-		'--bd-tab-bg'          => stairbuilder_get_option( 'tab_bg' ),
-		'--bd-tab-text'        => stairbuilder_get_option( 'tab_text' ),
-		'--bd-tab-hover-bg'    => stairbuilder_get_option( 'tab_hover_bg' ),
-		'--bd-tab-active-bg'   => stairbuilder_get_option( 'tab_active_bg' ),
-		'--bd-tab-active-text' => stairbuilder_get_option( 'tab_active_text' ),
+		// Configure panel (left)
+		'--bd-form-bg'          => stairbuilder_get_option( 'form_bg' ),
+		'--bd-form-text'        => stairbuilder_get_option( 'form_text' ),
+		'--bd-form-link'        => stairbuilder_get_option( 'form_link' ),
+		'--bd-section-open-bg'  => stairbuilder_get_option( 'section_open_bg' ),
+		'--bd-line'             => stairbuilder_get_option( 'panel_hairline' ),
+		'--bd-muted'            => stairbuilder_get_option( 'panel_muted' ),
+		// Measurements panel (right)
 		'--bd-mm-bg'      => stairbuilder_get_option( 'measurements_bg' ),
 		'--bd-mm-text'    => stairbuilder_get_option( 'measurements_text' ),
 		'--bd-mm-link'    => stairbuilder_get_option( 'measurements_link' ),
+		// Primary action (Get free quote button + mobile Configure bar).
+		// Kept under the legacy 'quote_*' keys — that box moved into the footer.
 		'--bd-quote-bg'   => stairbuilder_get_option( 'quote_bg' ),
 		'--bd-quote-text' => stairbuilder_get_option( 'quote_text' ),
-		'--bd-quote-link' => stairbuilder_get_option( 'quote_link' ),
+		// Selected delivery / packaging pills
+		'--bd-tab-active-bg'   => stairbuilder_get_option( 'tab_active_bg' ),
+		'--bd-tab-active-text' => stairbuilder_get_option( 'tab_active_text' ),
 	);
 	$bd_brand_colour_decls = '';
 	foreach ( $bd_brand_colour_vars as $var => $val ) {

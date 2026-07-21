@@ -19,8 +19,7 @@
 
   const STORAGE_KEYS = {
     form:         'stairbuilder_panel_form',
-    measurements: 'stairbuilder_panel_measurements',
-    quote:        'stairbuilder_panel_quote'
+    measurements: 'stairbuilder_panel_measurements'
   };
 
   // Canvas sizing. 1.7.0+ owns container height in CSS (viewport model);
@@ -33,22 +32,15 @@
 
   const PANEL_TARGETS = {
     form:         '#stairbuild',
-    measurements: '.mm_breakout',
-    quote:        '.breakout'
+    measurements: '.mm_breakout'
   };
 
   const PANEL_LABELS = {
     form:         'Configure',
-    measurements: 'Measurements',
-    quote:        'Quote'
+    measurements: 'Measurements'
   };
 
   function readStoredState(panel) {
-    // 1.7.0: quote always defaults to 'open' on page load — it's the
-    // lead-gen entry point so a stale localStorage 'collapsed' from
-    // earlier sessions shouldn't hide it. Users can still collapse it
-    // via the tab in-session; that just doesn't persist for quote.
-    if (panel === 'quote') return 'open';
     try {
       const v = window.localStorage.getItem(STORAGE_KEYS[panel]);
       if (v === 'open' || v === 'collapsed') return v;
@@ -66,9 +58,20 @@
     resizeCanvas();
   }
 
+  function isMobile() {
+    return window.matchMedia('(max-width: 767px)').matches;
+  }
+
   function togglePanel(layout, panel) {
     const collapsed = layout.classList.contains('is-' + panel + '-collapsed');
-    setPanelState(layout, panel, collapsed ? 'open' : 'collapsed');
+    const willOpen = collapsed;
+    setPanelState(layout, panel, willOpen ? 'open' : 'collapsed');
+    // Mobile: one sheet at a time. Opening a panel collapses the other so the
+    // two bottom bars never both expand at once.
+    if (willOpen && isMobile()) {
+      const other = panel === 'form' ? 'measurements' : 'form';
+      setPanelState(layout, other, 'collapsed');
+    }
   }
 
   /**
@@ -95,16 +98,9 @@
       const target = layout.querySelector(PANEL_TARGETS[panel]);
       if (!target) return;
 
-      if (!target.querySelector('.bd-panel-close')) {
-        const close = document.createElement('button');
-        close.type = 'button';
-        close.className = 'bd-panel-close';
-        close.dataset.bdToggle = panel;
-        close.setAttribute('aria-label', 'Close ' + PANEL_LABELS[panel]);
-        close.textContent = '×';
-        target.appendChild(close);
-      }
-
+      // Close/collapse control lives in the panel's own header markup
+      // (data-bd-toggle) now, so no injected X. Inject the edge pull-tab
+      // (desktop) and the FAB (mobile) only.
       const handle = document.createElement('button');
       handle.type = 'button';
       handle.className = 'bd-handle bd-handle--' + panel;
@@ -113,12 +109,15 @@
       handle.textContent = PANEL_LABELS[panel];
       layout.appendChild(handle);
 
+      // Mobile launcher bar. Hidden on desktop; on mobile the two bars stack
+      // at the bottom of the screen (Measurements above Configure) and each
+      // expands its panel upward as a sheet — see the mobile media query.
       const fab = document.createElement('button');
       fab.type = 'button';
       fab.className = 'bd-fab bd-fab--' + panel;
       fab.dataset.bdToggle = panel;
-      fab.setAttribute('aria-label', PANEL_LABELS[panel]);
-      fab.textContent = panel === 'form' ? '☰' : panel === 'measurements' ? '📐' : '£';
+      fab.setAttribute('aria-label', 'Open ' + PANEL_LABELS[panel]);
+      fab.textContent = panel === 'form' ? 'Configure Staircase' : 'Staircase Measurements';
       layout.appendChild(fab);
     });
   }
@@ -130,6 +129,169 @@
       e.preventDefault();
       togglePanel(layout, trigger.dataset.bdToggle);
     });
+  }
+
+  /* ============ Accordion sections ============
+   * Sections are class-based (.form-tab / .sec-head / .tab-content): clicking
+   * a head toggles .is-open on its .form-tab. Independent open/close — click
+   * an open head to collapse it — plus a header "Close others" that leaves
+   * only the first open section, matching the design mockup.
+   */
+  function setSectionOpen(tab, open) {
+    tab.classList.toggle('is-open', open);
+    const head = tab.querySelector('.sec-head');
+    if (head) head.setAttribute('aria-expanded', String(open));
+  }
+
+  function wireSections(layout) {
+    layout.addEventListener('click', function (e) {
+      const head = e.target.closest('.sec-head');
+      if (!head) return;
+      const tab = head.closest('.form-tab');
+      if (!tab) return;
+      setSectionOpen(tab, !tab.classList.contains('is-open'));
+    });
+
+    const closeOthers = layout.querySelector('#bd-close-others');
+    if (closeOthers) {
+      closeOthers.addEventListener('click', function () {
+        const open = layout.querySelectorAll('.form-tab.is-open');
+        open.forEach(function (tab, i) { if (i > 0) setSectionOpen(tab, false); });
+      });
+    }
+  }
+
+  /* ============ Completion ticks + dynamic section summaries ============
+   * Each section's config points at the fields that make it "done" and builds
+   * a short summary shown under the title. Read on load + on every input in
+   * the form so ticks and summaries track the live configuration. */
+  function txt(id) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    if (el.tagName === 'SELECT') {
+      const opt = el.options[el.selectedIndex];
+      return opt ? opt.text.trim() : '';
+    }
+    return (el.value || '').trim();
+  }
+  function mm(id) { const v = txt(id); return v ? Number(v).toLocaleString() + ' mm' : ''; }
+  function join(parts) { return parts.filter(Boolean).join(' · '); }
+  // "Key value" pair, or '' when the value is empty — so each section summary
+  // can list every choice it holds with a short label, dropping blank ones.
+  function kv(label, value) { return value ? label + ' ' + value : ''; }
+
+  // Keyed by the section's .tab-content id (or the .form-tab id). done() drives
+  // the completion tick; summary() builds the (up to 2-line) sub-title listing
+  // that section's choices with short labels. Blank fields are omitted.
+  const SECTION_CONFIG = {
+    msrm: {
+      done: function () { return txt('floor-height') && txt('going') && txt('stair-width'); },
+      summary: function () {
+        return join([
+          txt('floor-height') && (Number(txt('floor-height')).toLocaleString() + ' mm rise'),
+          kv('Going', mm('going')),
+          kv('Width', mm('stair-width')),
+          kv('Turn', txt('sc-direction'))
+        ]);
+      }
+    },
+    tits: {
+      done: function () { return txt('treadbt') !== ''; },
+      summary: function () {
+        return join([
+          kv('Before', txt('treadbt')),
+          txt('treadit'),
+          kv('After', txt('treadat')),
+          txt('treadit2')
+        ]);
+      }
+    },
+    cnstr: {
+      done: function () { return !!txt('construction_type'); },
+      summary: function () {
+        var feat = txt('feature_tread');
+        return join([
+          txt('construction_type'),
+          txt('tread-profile'),
+          txt('building_regs'),
+          (feat && feat !== 'None') ? feat : ''
+        ]);
+      }
+    },
+    mat: {
+      done: function () { return !!txt('stringer_material'); },
+      summary: function () {
+        return join([
+          kv('Stringer', txt('stringer_material')),
+          kv('Treads', txt('tread_material')),
+          kv('Risers', txt('riser_material'))
+        ]);
+      }
+    },
+    posts: {
+      done: function () { var n = txt('newel-posts'); return n && n !== 'None Required'; },
+      summary: function () {
+        var b = document.querySelector('input[name="ballustrades"]:checked');
+        var hasBal = b && b.value === 'true';
+        return join([
+          kv('Newels', txt('newel-posts')),
+          hasBal ? (kv('Spindles', txt('spindle_type')) || 'Balustrades') : 'No balustrades'
+        ]);
+      }
+    },
+    deliv: {
+      done: function () { return !!document.querySelector('input[name="delivery"]:checked'); },
+      summary: function () {
+        var d = document.querySelector('input[name="delivery"]:checked');
+        var p = document.querySelector('input[name="package"]:checked');
+        return join([
+          d ? (d.value === 'kerbside' ? 'Kerbside delivery' : 'Collected') : '',
+          p ? (p.id === 'asspkg' ? 'Part assembled' : 'Flat packed') : '',
+          txt('project_delivery_date')
+        ]);
+      }
+    },
+    contact: {
+      done: function () { return txt('contact_name') && txt('contact_email'); },
+      summary: function () {
+        return join([txt('contact_name'), txt('contact_email'), txt('contact_phone')]);
+      }
+    }
+  };
+
+  function sectionKey(tab) {
+    const content = tab.querySelector('.tab-content');
+    if (content && content.id && SECTION_CONFIG[content.id]) return content.id;
+    // Fall back to the section's own id (e.g. #cnstr, #mat, #deliv, #contact
+    // carry the key on the .form-tab wrapper, not the content div).
+    if (tab.id && SECTION_CONFIG[tab.id]) return tab.id;
+    return null;
+  }
+
+  function refreshSummaries(layout) {
+    layout.querySelectorAll('.form-tab').forEach(function (tab) {
+      const key = sectionKey(tab);
+      if (!key) return;
+      const cfg = SECTION_CONFIG[key];
+      let done = false, summary = '';
+      try { done = !!cfg.done(); } catch (_) {}
+      try { summary = cfg.summary() || ''; } catch (_) {}
+      tab.classList.toggle('is-done', done);
+      const sub = tab.querySelector('.sec-sub');
+      if (sub) sub.textContent = summary;
+    });
+  }
+
+  function wireSummaries(layout) {
+    const form = layout.querySelector('#stairbuild');
+    if (!form) return;
+    const update = function () { refreshSummaries(layout); };
+    form.addEventListener('input', update);
+    form.addEventListener('change', update);
+    // Flight scripts / priceCalc mutate fields programmatically; catch those
+    // by also refreshing shortly after load once defaults are populated.
+    refreshSummaries(layout);
+    setTimeout(update, 400);
   }
 
   function applyInitialState(layout) {
@@ -172,12 +334,9 @@
       c.height = h;
       // container.style.height is CSS-controlled — don't set it from JS.
 
-      // Trigger Stairs.js redraw via the existing change-handler in the
-      // flight scripts (which is bound to inputs inside #stairbuild).
-      const checked = document.querySelector('#stairbuild input[name="rd"]:checked');
-      if (checked) {
-        checked.dispatchEvent(new Event('change', { bubbles: true }));
-      } else if (typeof window.onLoad === 'function') {
+      // Trigger a Stairs.js redraw at the new bitmap size. The flight scripts
+      // expose window.onLoad (hoisted) as the canonical draw entry point.
+      if (typeof window.onLoad === 'function') {
         try { window.onLoad(); } catch (_) {}
       }
     });
@@ -204,8 +363,21 @@
     hoistLayoutToBody(layout);
     injectControls(layout);
     wireToggles(layout);
+    wireSections(layout);
+    wireSummaries(layout);
     applyInitialState(layout);
+    // Mobile: Configure takes priority — start with it expanded and
+    // Measurements collapsed to its bar (one sheet open at a time).
+    if (isMobile()) {
+      setPanelState(layout, 'measurements', 'collapsed');
+      setPanelState(layout, 'form', 'open');
+    }
     initCanvasResize();
+
+    // Open the first section (Measurements) by default so the panel doesn't
+    // load fully collapsed.
+    const firstTab = layout.querySelector('.form-tab');
+    if (firstTab) setSectionOpen(firstTab, true);
   }
 
   if (document.readyState === 'loading') {

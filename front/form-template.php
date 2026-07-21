@@ -69,10 +69,25 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
     // shows exactly the priced figures (see assets/js/priceCalc.js). ?>
     <input type="hidden" id="newel-count" name="newel-count" value="">
     <input type="hidden" id="spindle-count" name="spindle-count" value="">
+
+    <header class="bd-panel-head">
+      <h2 class="bd-panel-title">Configure</h2>
+      <span class="bd-panel-head-spacer"></span>
+      <button type="button" class="bd-panel-util" id="bd-close-others">Close others</button>
+      <button type="button" class="bd-panel-collapse" data-bd-toggle="form" aria-label="Collapse configure panel">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.5 2.5L4 7l4.5 4.5" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </header>
+
+    <div class="bd-scrollwrap">
+      <div class="bd-scroll">
     <div class="form-tabs">
   <div class="form-tab"><!--- Measurments -->
-  <input type="radio" class="form-chk" id="chck1" name="rd">
-  <label class="tab-label" for="chck1">Measurements</label>
+  <button type="button" class="sec-head" aria-expanded="false">
+    <span class="sec-status" aria-hidden="true"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.2 5.7L8 1" stroke="currentColor" stroke-width="1.6"/></svg></span>
+    <span class="sec-title">Measurements<span class="sec-sub"></span></span>
+    <svg class="sec-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+  </button>
     <div id="msrm" class="tab-content">
  <?php if ($direction) {?>
     <div class="form-row">
@@ -118,8 +133,11 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </div>
         <?php if ($flight2) {?>
           <div class="form-tab"><!--- Flights -->
-  <input type="radio" class="form-chk" id="flights" name="rd">
-  <label class="tab-label" for="flights">Sections</label>
+  <button type="button" class="sec-head" aria-expanded="false">
+    <span class="sec-status" aria-hidden="true"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.2 5.7L8 1" stroke="currentColor" stroke-width="1.6"/></svg></span>
+    <span class="sec-title">Sections<span class="sec-sub"></span></span>
+    <svg class="sec-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+  </button>
     <div id="tits" class="tab-content">
           <div class="form-row">
             <h4>Flight 1</h4>
@@ -174,8 +192,11 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </div>
         <?php } ?>
     <div id="cnstr" class="form-tab"><!--- Construction -->
-    <input type="radio" class="form-chk" id="chck2" name="rd">
-    <label class="tab-label" for="chck2">Construction</label>
+    <button type="button" class="sec-head" aria-expanded="false">
+    <span class="sec-status" aria-hidden="true"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.2 5.7L8 1" stroke="currentColor" stroke-width="1.6"/></svg></span>
+    <span class="sec-title">Construction<span class="sec-sub"></span></span>
+    <svg class="sec-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+  </button>
     <div class="tab-content">
     <div class="form-row">
     <label for="building_regs">Applicable Building Regs:</label>
@@ -263,8 +284,11 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
 </div>
 </div>
 <div id="mat" class="form-tab"><!--- Material -->
-<input type="radio" class="form-chk" id="chck3" name="rd">
-    <label class="tab-label" for="chck3">Material</label>
+<button type="button" class="sec-head" aria-expanded="false">
+    <span class="sec-status" aria-hidden="true"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.2 5.7L8 1" stroke="currentColor" stroke-width="1.6"/></svg></span>
+    <span class="sec-title">Material<span class="sec-sub"></span></span>
+    <svg class="sec-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+  </button>
     <div class="tab-content">
     <?php if ($material_quick_set_enabled) : ?>
     <button type="button" id="all_pine">Set all to Pine</button>
@@ -315,8 +339,11 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
 </div>
 </div>
     <div class="form-tab"><!--- Posts & Balustrades -->
-  <input type="radio" class="form-chk" id="psts1" name="rd">
-  <label class="tab-label" for="psts1">Posts & Balustrades</label>
+  <button type="button" class="sec-head" aria-expanded="false">
+    <span class="sec-status" aria-hidden="true"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.2 5.7L8 1" stroke="currentColor" stroke-width="1.6"/></svg></span>
+    <span class="sec-title">Posts &amp; Balustrades<span class="sec-sub"></span></span>
+    <svg class="sec-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+  </button>
     <div id="posts" class="tab-content">
     <div class="form-row">
     <label for="newel-posts">Add Newel Posts?</label>
@@ -467,8 +494,11 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
  </div>
 <?php if ($delivery_section_enabled) : ?>
 <div id="deliv" class="form-tab"><!--- Packaging / Delivery -->
-<input type="radio" class="form-chk" id="chck4" name="rd">
-    <label class="tab-label" for="chck4">Packaging & Delivery</label>
+<button type="button" class="sec-head" aria-expanded="false">
+    <span class="sec-status" aria-hidden="true"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.2 5.7L8 1" stroke="currentColor" stroke-width="1.6"/></svg></span>
+    <span class="sec-title">Packaging &amp; Delivery<span class="sec-sub"></span></span>
+    <svg class="sec-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+  </button>
     <div class="tab-content">
       <?php if (!empty($project_delivery_date_options)) { ?>
       <div class="form-row">
@@ -532,8 +562,11 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
 </div>
 <?php endif; ?>
 <div id="contact" class="form-tab"><!--- Contact / Lead capture -->
-    <input type="radio" class="form-chk" id="chck5" name="rd">
-    <label class="tab-label" for="chck5">Your Details</label>
+    <button type="button" class="sec-head" aria-expanded="false">
+    <span class="sec-status" aria-hidden="true"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.2 5.7L8 1" stroke="currentColor" stroke-width="1.6"/></svg></span>
+    <span class="sec-title">Your Details<span class="sec-sub"></span></span>
+    <svg class="sec-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+  </button>
     <div class="tab-content">
       <?php if ( ! $delivery_section_enabled ) : ?>
         <?php if (!empty($project_delivery_date_options)) { ?>
@@ -570,38 +603,36 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <input type="hidden" id="vatRate" value="<?php echo do_shortcode('[vat_rate]'); ?>">
     </div>
 </div>
-<div class="form-tab">
-        <input type="radio" class="form-chk" id="rd5" name="rd">
-        <label for="rd5" class="tab-close">Close others &times;</label>
-      </div>
 </div><!--- form-tabs -->
+      </div><!-- /.bd-scroll -->
+    </div><!-- /.bd-scrollwrap -->
+
+    <footer class="bd-panel-foot">
+      <ul class="price-breakdown">
+        <li><span class="price-label">Staircase Cost <span class="price-sub">(excl. VAT)</span></span><span id="priceCalc" class="price">£0.00</span></li>
+        <li><span class="price-label">VAT</span><span id="vat" class="price">£0.00</span></li>
+        <li class="price-total-row"><span class="price-label">Total <span class="price-sub">inc. VAT</span></span><span id="total" class="price">£0.00</span></li>
+      </ul>
+      <button id="sbbuybtn" class="sb-buynow" type="button">Get Free Quote</button>
+      <p id="sb-submit-error" class="sb-submit-error" style="display:none;"></p>
+      <p class="bd-foot-note">No payment taken now — every quote is checked by a joiner.</p>
+    </footer>
   </form>
-  <div class="breakout">
-    <div id="pricetotal">
-      <h4>Price</h4>
-      <span id="total" class="price">£0.00</span>
-      <span id="vatnote">inc. VAT</span>
-      <!-- Subtotal + VAT kept hidden: still populated by priceCalc.js and read
-           by formLogic.js at submit for the captured lead + quote PDF. -->
-      <span id="priceCalc" class="price" style="display:none;">£0.00</span>
-      <span id="vat" class="price" style="display:none;">£0.00</span>
+
+  <section class="mm_breakout" aria-label="Live measurements">
+    <header class="bd-panel-head bd-panel-head--dark">
+      <h2 class="bd-panel-title">Measurements</h2>
+      <span class="bd-panel-head-spacer"></span>
+      <button type="button" class="bd-panel-collapse" data-bd-toggle="measurements" aria-label="Collapse measurements panel">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5.5 2.5L10 7l-4.5 4.5" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </header>
+    <div class="bd-figs">
+      <div class="bd-fig"><div class="bd-fig-lab">Floor to Floor <span class="mm-sub">(Total Rise)</span></div><div class="bd-fig-val"><span id="floor" class="msmnt">—</span></div></div>
+      <div class="bd-fig"><div class="bd-fig-lab">Riser Height <span class="mm-sub">(Individual Rise)</span></div><div class="bd-fig-val"><span id="rise" class="msmnt">—</span></div></div>
+      <div class="bd-fig"><div class="bd-fig-lab">Going <span class="mm-sub">(Tread Depth)</span></div><div class="bd-fig-val"><span id="tread" class="msmnt">—</span></div></div>
+      <div class="bd-fig"><div class="bd-fig-lab">Width <span class="mm-sub">(Out to Out String)</span></div><div class="bd-fig-val"><span id="scwidth" class="msmnt">—</span></div></div>
+      <div class="bd-fig"><div class="bd-fig-lab">Angle <span class="mm-sub">(Pitch)</span></div><div class="bd-fig-val"><span id="angl" class="msmnt">—</span></div></div>
     </div>
-    <button id="sbbuybtn" class="sb-buynow" type="button">Get Free Quote</button>
-    <p id="sb-submit-error" class="sb-submit-error" style="display:none;"></p>
-    <button type="button" class="bd-panel-close" data-bd-toggle="quote" aria-label="Close Quote">&times;</button>
-  </div>
-  <div class="mm_breakout">
-    <ul>
-      <li><h4>Floor to Floor <span class="mm-sub">(Total Rise)</span></h4>
-      <span id="floor" class="msmnt">00</span></li>
-      <li><h4>Riser per tread <span class="mm-sub">(Individual Rise)</span></h4>
-      <span id="rise" class="msmnt">00</span></li>
-      <li><h4>Tread Depth <span class="mm-sub">(Going)</span></h4>
-      <span id="tread" class="msmnt">00</span></li>
-      <li><h4>Width <span class="mm-sub">(Outside to Outside String)</span></h4>
-      <span id="scwidth" class="msmnt">00</span></li>
-      <li><h4>Angle</h4>
-      <span id="angl" class="msmnt">00 &deg;</span></li>
-    </ul>
-  </div>
+  </section>
 </div><!-- /.bd-stairbuilder-layout -->

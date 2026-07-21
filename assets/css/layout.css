@@ -1,179 +1,434 @@
 /*
- * Baltic Stairbuilder — floating-panel layout (v1.4.1)
+ * Baltic Stairbuilder — floating-panel layout (v2.14.0 panel redesign)
  *
- * All selectors scoped under .bd-stairbuilder-layout. Panels are viewport-
- * fixed overlays; canvas-container is a relative full-viewport block whose
- * content area is shrunk via padding driven by CSS variables. When a panel
- * collapses, its offset variable goes to 0, the padding shrinks, and the
- * canvas inside grows. A ResizeObserver in layout.js syncs the canvas
- * bitmap width to its rendered width and re-runs window.onLoad() to redraw.
+ * Two viewport-fixed panels flank a relative canvas-container:
+ *   • Configure (#stairbuild, left)  — cream panel, flex column:
+ *       fixed header · contained scroll (accordion) · fixed footer (price + CTA)
+ *   • Measurements (.mm_breakout, right) — dark panel, full height figures
+ * The quote/.breakout box is gone: price + "Get free quote" now live in the
+ * Configure footer, so removing it hands the whole right side to Measurements.
+ *
+ * Palette + anatomy take their cues from the design mockup. Brand-colour
+ * CSS vars (injected from admin settings in the main plugin file) still win
+ * over the mockup defaults below, so a configured box keeps its own colours.
+ *
+ * All panel selectors scoped under .bd-stairbuilder-layout. The whole wrapper
+ * is hoisted to <body> on init (layout.js) so page-builder ancestors with
+ * transform/filter can't hijack the fixed-positioning containing block.
  */
 
 .bd-stairbuilder-layout {
-  --bd-form-width: 360px;
-  --bd-side-width: 320px;
-  --bd-handle-bg: #5a300d;
-  --bd-handle-fg: #ffffff;
-  --bd-panel-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
-  --bd-transition: 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  --bd-form-width: 384px;
+  --bd-side-width: 344px;
+  --bd-pad: 24px;
+  --bd-radius: 12px;
+  /* PRIMARY CTA (Get free quote button + mobile Configure bar). Driven by the
+   * admin "Quote" Brand Colour — that box moved into the footer, so its colour
+   * picker now themes the action. Olive-gold fallback when unset. */
+  --bd-cta-bg: var(--bd-quote-bg, #8F7A34);
+  --bd-cta-text: var(--bd-quote-text, #FFF9E9);
+  --bd-line: #E3DCCB;            /* hairline on the light panel */
+  --bd-line-dark: rgba(239, 232, 216, 0.14);
+  --bd-muted: #7A7062;           /* secondary text on light */
+  --bd-muted-dark: rgba(239, 232, 216, 0.55);
+  --bd-panel-shadow: 0 4px 24px rgba(43, 37, 34, 0.14);
+  --bd-transition: 350ms cubic-bezier(0.32, 0.72, 0.24, 1);
 
   position: relative;
   font-family: inherit;
 }
 
-/* ------------ Canvas container (in document flow, square, centred) ------------
- * Selectors here are intentionally NOT scoped to .bd-stairbuilder-layout so
- * the rules still apply after layout.js lifts #canvas-container out of the
- * wrapper (the wrapper is hoisted to <body>; the canvas stays in flow). */
+/* ------------ Canvas container (in document flow, centred) ------------
+ * NOT scoped to .bd-stairbuilder-layout: layout.js lifts #canvas-container
+ * out of the wrapper (the wrapper is hoisted to <body>; the canvas stays in
+ * flow). */
 #canvas-container {
   position: relative;
   width: 100%;
-  max-width: 1200px;          /* was 800; lifted so panels-off actually frees space */
-  height: min(70vh, 700px);   /* fixed viewport, never taller than 70% of screen */
-  min-height: 360px;          /* mobile-portrait floor */
+  max-width: 1200px;
+  height: min(70vh, 700px);
+  min-height: 360px;
   margin: 40px auto;
 }
-
 #canvas-container canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-/* ------------ Form panel (fixed, left, vertically centred) ------------ */
-.bd-stairbuilder-layout #stairbuild {
-  position: fixed;
-  left: 0;
-  top: calc(50% + 40px);
-  right: auto;
-  bottom: auto;
-  width: var(--bd-form-width);
-  max-height: 90vh;
-  overflow-y: auto;
-  margin: 0;
-  padding: 16px 16px 24px;
-  background: var(--bd-form-bg, #ffffff);
-  color: var(--bd-form-text, #222222);
-  box-shadow: var(--bd-panel-shadow);
-  box-sizing: border-box;
-  z-index: 100;
-  transform: translateY(-50%) translateX(0);
-  transition: transform var(--bd-transition);
-}
-.bd-stairbuilder-layout #stairbuild a { color: var(--bd-form-link, #5a300d); }
-.bd-stairbuilder-layout.is-form-collapsed #stairbuild { transform: translateY(-50%) translateX(-100%); }
-
-/* ------------ Measurements panel (fixed, right top, below header) ------------ */
+/* ============ SHARED PANEL ANATOMY ============ */
+.bd-stairbuilder-layout #stairbuild,
 .bd-stairbuilder-layout .mm_breakout {
   position: fixed;
-  top: calc(var(--wp-admin-bar-height, 0px) + 100px);
-  right: 0;
-  bottom: auto;
-  left: auto;
-  width: var(--bd-side-width);
-  max-height: 70vh;
-  margin: 0;
-  padding: 16px 20px;
-  background-color: var(--bd-mm-bg, #5a300d);
-  color: var(--bd-mm-text, #ffffff);
-  border-radius: 8px 0 0 8px;
-  box-shadow: var(--bd-panel-shadow);
-  box-sizing: border-box;
   z-index: 100;
-  transform: translateX(0);
+  top: var(--wp-admin-bar-height, 0px);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  box-sizing: border-box;
+  box-shadow: var(--bd-panel-shadow);
   transition: transform var(--bd-transition);
 }
-.bd-stairbuilder-layout .mm_breakout a { color: var(--bd-mm-link, #ffffff); }
-.bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout { transform: translateX(100%); }
 
-/* ------------ Quote panel (fixed, right bottom) — overrides builder.css ------------ */
-.bd-stairbuilder-layout .breakout {
-  position: fixed;
-  bottom: 150px;
-  right: 0;
-  top: auto;
-  left: auto;
-  width: var(--bd-side-width);
-  margin: 0;
-  padding: 16px 20px;
-  background-color: var(--bd-quote-bg, #292003);
-  color: var(--bd-quote-text, #ffffff);
-  border-radius: 8px 0 0 0;
-  box-shadow: var(--bd-panel-shadow);
-  box-sizing: border-box;
-  z-index: 100;
-  transform: translateX(0);
-  transition: transform var(--bd-transition);
+/* Panel header — fixed top bar */
+.bd-stairbuilder-layout .bd-panel-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px var(--bd-pad);
+  border-bottom: 1px solid var(--bd-line);
 }
-.bd-stairbuilder-layout .breakout a { color: var(--bd-quote-link, #ffffff); }
-.bd-stairbuilder-layout.is-quote-collapsed .breakout { transform: translateX(100%); }
-
-/* ------------ Close X (injected by JS) ------------ */
-.bd-stairbuilder-layout .bd-panel-close {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
+.bd-stairbuilder-layout .bd-panel-head--dark {
+  border-bottom-color: var(--bd-line-dark);
+}
+.bd-stairbuilder-layout .bd-panel-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.bd-stairbuilder-layout .bd-panel-head-spacer { flex: 1; }
+.bd-stairbuilder-layout .bd-panel-util {
   border: none;
-  border-radius: 50%;
-  background: var(--bd-handle-bg);
-  color: #ffffff;
-  font-size: 18px;
-  line-height: 1;
+  background: none;
   cursor: pointer;
-  z-index: 1;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--bd-muted);
+  padding: 4px 8px;
+  border-radius: 6px;
 }
-.bd-stairbuilder-layout .bd-panel-close:hover { filter: brightness(1.2); }
+.bd-stairbuilder-layout .bd-panel-util:hover {
+  background: rgba(43, 37, 34, 0.06);
+  color: inherit;
+}
+.bd-stairbuilder-layout .bd-panel-collapse {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  border-radius: 8px;
+}
+.bd-stairbuilder-layout .bd-panel-collapse:hover { background: rgba(43, 37, 34, 0.07); }
+.bd-stairbuilder-layout .bd-panel-head--dark .bd-panel-collapse:hover { background: rgba(239, 232, 216, 0.1); }
+.bd-stairbuilder-layout .bd-panel-collapse svg { display: block; }
 
-/* ------------ Side handles (visible when panel collapsed) ------------ */
+/* Scroll body + top/bottom fade masks. The scrollbar lives HERE, contained
+ * within the accordion region, so header + footer never scroll. */
+.bd-stairbuilder-layout .bd-scrollwrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.bd-stairbuilder-layout .bd-scrollwrap::before,
+.bd-stairbuilder-layout .bd-scrollwrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 8px;
+  height: 20px;
+  z-index: 2;
+  pointer-events: none;
+}
+.bd-stairbuilder-layout .bd-scrollwrap::before {
+  top: 0;
+  background: linear-gradient(var(--bd-form-bg, #FBF9F4), transparent);
+}
+.bd-stairbuilder-layout .bd-scrollwrap::after {
+  bottom: 0;
+  background: linear-gradient(transparent, var(--bd-form-bg, #FBF9F4));
+}
+.bd-stairbuilder-layout .bd-scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #C7BCA4 transparent;
+}
+.bd-stairbuilder-layout .bd-scroll::-webkit-scrollbar { width: 6px; }
+.bd-stairbuilder-layout .bd-scroll::-webkit-scrollbar-track { background: transparent; margin: 6px 0; }
+.bd-stairbuilder-layout .bd-scroll::-webkit-scrollbar-thumb { background: #C7BCA4; border-radius: 3px; }
+
+/* ============ LEFT — CONFIGURE (#stairbuild) ============ */
+.bd-stairbuilder-layout #stairbuild {
+  left: 0;
+  right: auto;
+  width: var(--bd-form-width);
+  background: var(--bd-form-bg, #FBF9F4);
+  color: var(--bd-form-text, #2B2522);
+  border-radius: 0 var(--bd-radius) var(--bd-radius) 0;
+  transform: translateX(0);
+  padding: 0;
+}
+.bd-stairbuilder-layout #stairbuild a { color: var(--bd-form-link, #8F7A34); }
+.bd-stairbuilder-layout.is-form-collapsed #stairbuild { transform: translateX(-102%); }
+
+/* ------------ Accordion sections ------------ */
+.bd-stairbuilder-layout .form-tabs {
+  border-radius: 0;
+  overflow: visible;
+  box-shadow: none;
+}
+.bd-stairbuilder-layout .form-tab {
+  width: 100%;
+  border-bottom: 1px solid var(--bd-line);
+  /* Override builder.css `.form-tab { color: var(--bd-tab-text, #fff) }` so
+   * section heads follow Form Box Text (dark on the cream panel), matching
+   * the price total row. */
+  color: var(--bd-form-text, #2B2522);
+}
+.bd-stairbuilder-layout .sec-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px var(--bd-pad);
+  text-align: left;
+  border: none;
+  border-left: 3px solid transparent;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background 0.15s;
+}
+.bd-stairbuilder-layout .sec-head:hover { background: rgba(43, 37, 34, 0.03); }
+.bd-stairbuilder-layout .form-tab.is-open .sec-head {
+  border-left-color: var(--bd-form-text, #2B2522);
+  background: var(--bd-section-open-bg, #F4F0E4);
+}
+.bd-stairbuilder-layout .sec-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.bd-stairbuilder-layout .sec-sub {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;      /* up to two comfortable lines, then ellipsis */
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--bd-muted);
+}
+.bd-stairbuilder-layout .sec-sub:empty { display: none; }
+.bd-stairbuilder-layout .sec-chev {
+  flex: none;
+  color: var(--bd-muted);
+  transition: transform 0.25s var(--bd-transition);
+}
+.bd-stairbuilder-layout .form-tab.is-open .sec-chev { transform: rotate(90deg); }
+
+/* completion tick */
+.bd-stairbuilder-layout .sec-status {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid #C7BCA4;
+  display: grid;
+  place-items: center;
+  color: transparent;
+}
+.bd-stairbuilder-layout .form-tab.is-done .sec-status {
+  background: var(--bd-form-text, #2B2522);
+  border-color: var(--bd-form-text, #2B2522);
+  color: var(--bd-form-bg, #FBF9F4);
+}
+.bd-stairbuilder-layout .sec-status svg { display: block; }
+
+/* section body — collapsible (max-height animation, generous cap so tall
+ * sections like Posts & Balustrades never clip) */
+.bd-stairbuilder-layout .tab-content {
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 var(--bd-pad);
+  background: var(--bd-section-open-bg, #F4F0E4);
+  border-left: 3px solid var(--bd-form-text, #2B2522);
+  transition: max-height 0.3s var(--bd-transition);
+}
+.bd-stairbuilder-layout .form-tab.is-open .tab-content {
+  max-height: 4000px;
+  padding: 4px var(--bd-pad) var(--bd-pad);
+}
+
+/* ------------ Footer — the money bar ------------ */
+.bd-stairbuilder-layout .bd-panel-foot {
+  flex: none;
+  border-top: 1px solid var(--bd-line);
+  padding: 14px var(--bd-pad) var(--bd-pad);
+  background: var(--bd-form-bg, #FBF9F4);
+  border-radius: 0 0 var(--bd-radius) 0;
+}
+.bd-stairbuilder-layout .bd-panel-foot .price-breakdown {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.bd-stairbuilder-layout .price-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 13px;
+  color: var(--bd-muted);
+}
+.bd-stairbuilder-layout .price-breakdown .price-sub {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+.bd-stairbuilder-layout .price-breakdown .price { white-space: nowrap; }
+.bd-stairbuilder-layout .price-breakdown .price-total-row {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--bd-line);
+  color: var(--bd-form-text, #2B2522);
+  font-weight: 600;
+}
+.bd-stairbuilder-layout .price-breakdown .price-total-row .price-label { font-size: 13px; }
+.bd-stairbuilder-layout .price-breakdown .price-total-row .price {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.bd-stairbuilder-layout .sb-buynow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 48px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--bd-cta-text);
+  background: var(--bd-cta-bg);
+  transition: background 0.15s;
+}
+.bd-stairbuilder-layout .sb-buynow:hover { filter: brightness(0.92); }
+.bd-stairbuilder-layout .bd-foot-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--bd-muted);
+  text-align: center;
+}
+.bd-stairbuilder-layout .sb-submit-error {
+  margin: 10px 0 0;
+  color: #b3261e;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ============ RIGHT — MEASUREMENTS (.mm_breakout) ============ */
+.bd-stairbuilder-layout .mm_breakout {
+  right: 0;
+  left: auto;
+  width: var(--bd-side-width);
+  background: var(--bd-mm-bg, #2B2522);
+  color: var(--bd-mm-text, #EFE8D8);
+  border-radius: var(--bd-radius) 0 0 var(--bd-radius);
+  transform: translateX(0);
+}
+.bd-stairbuilder-layout .mm_breakout a { color: var(--bd-mm-link, #EFE8D8); }
+.bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout { transform: translateX(105%); }
+
+.bd-stairbuilder-layout .bd-figs {
+  flex: 1;
+  align-content: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px 16px;
+  padding: 24px var(--bd-pad);
+  overflow-y: auto;
+}
+.bd-stairbuilder-layout .bd-fig-lab {
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bd-muted-dark);
+  line-height: 1.3;
+}
+.bd-stairbuilder-layout .bd-fig-lab .mm-sub {
+  display: block;
+  font-size: 0.9em;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+  text-transform: none;
+}
+.bd-stairbuilder-layout .bd-fig-val {
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.bd-stairbuilder-layout .bd-fig-val .msmnt { color: var(--bd-mm-text, #EFE8D8); }
+
+/* ============ DESKTOP PULL TABS (handles) ============ */
 .bd-stairbuilder-layout .bd-handle {
   position: fixed;
-  z-index: 90;
-  background: var(--bd-handle-bg);
-  color: var(--bd-handle-fg);
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 12px 10px;
-  box-shadow: var(--bd-panel-shadow);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--bd-transition);
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   writing-mode: vertical-rl;
   text-orientation: mixed;
+  padding: 16px 9px;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: var(--bd-mm-bg, #2B2522);
+  color: var(--bd-mm-text, #EFE8D8);
+  box-shadow: var(--bd-panel-shadow);
+  transition: left var(--bd-transition), right var(--bd-transition), background 0.15s;
 }
-
+.bd-stairbuilder-layout .bd-handle:hover { filter: brightness(1.15); }
+.bd-stairbuilder-layout .bd-handle::after {
+  content: "\276F";
+  writing-mode: horizontal-tb;
+  font-size: 12px;
+  transition: transform var(--bd-transition);
+}
 .bd-stairbuilder-layout .bd-handle--form {
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
+  left: var(--bd-form-width);
+  top: calc(var(--wp-admin-bar-height, 0px) + 96px);
+  border-radius: 0 8px 8px 0;
 }
+.bd-stairbuilder-layout .bd-handle--form::after { transform: rotate(-180deg); }
+.bd-stairbuilder-layout.is-form-collapsed .bd-handle--form { left: 0; }
+.bd-stairbuilder-layout.is-form-collapsed .bd-handle--form::after { transform: rotate(0deg); }
+
 .bd-stairbuilder-layout .bd-handle--measurements {
-  right: 0;
-  top: 80px;
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
+  right: var(--bd-side-width);
+  top: calc(var(--wp-admin-bar-height, 0px) + 96px);
+  border-radius: 8px 0 0 8px;
 }
-.bd-stairbuilder-layout .bd-handle--quote {
-  right: 0;
-  bottom: 80px;
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
-}
+.bd-stairbuilder-layout .bd-handle--measurements::after { transform: rotate(0deg); }
+.bd-stairbuilder-layout.is-measurements-collapsed .bd-handle--measurements { right: 0; }
+.bd-stairbuilder-layout.is-measurements-collapsed .bd-handle--measurements::after { transform: rotate(-180deg); }
 
-.bd-stairbuilder-layout.is-form-collapsed .bd-handle--form,
-.bd-stairbuilder-layout.is-measurements-collapsed .bd-handle--measurements,
-.bd-stairbuilder-layout.is-quote-collapsed .bd-handle--quote {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* ------------ Mobile FABs (hidden on desktop) ------------ */
+/* ============ MOBILE FABs (hidden on desktop) ============ */
 .bd-stairbuilder-layout .bd-fab {
   display: none;
   position: fixed;
@@ -181,8 +436,8 @@
   height: 56px;
   border: none;
   border-radius: 50%;
-  background: var(--bd-handle-bg);
-  color: var(--bd-handle-fg);
+  background: var(--bd-mm-bg, #2B2522);
+  color: var(--bd-mm-text, #EFE8D8);
   font-size: 20px;
   line-height: 56px;
   text-align: center;
@@ -191,255 +446,20 @@
   z-index: 110;
 }
 .bd-stairbuilder-layout .bd-fab--form         { left: 16px;  bottom: 16px; }
-.bd-stairbuilder-layout .bd-fab--measurements { right: 16px; bottom: 88px; }
-.bd-stairbuilder-layout .bd-fab--quote        { right: 16px; bottom: 16px; }
+.bd-stairbuilder-layout .bd-fab--measurements { right: 16px; bottom: 16px; }
 
-/* ------------ Mobile (< 768px): bottom-sheet drawers ------------ */
-@media (max-width: 767px) {
-  .bd-stairbuilder-layout {
-    overflow: hidden;
-  }
-
-  .bd-stairbuilder-layout .bd-handle { display: none; }
-  .bd-stairbuilder-layout .bd-fab { display: block; }
-
-  .bd-stairbuilder-layout #stairbuild,
-  .bd-stairbuilder-layout .mm_breakout,
-  .bd-stairbuilder-layout .breakout {
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 0;
-    width: 100%;
-    height: auto;
-    max-height: 80vh;
-    overflow-y: auto;
-    border-radius: 12px 12px 0 0;
-    transform: translateY(0);
-  }
-  .bd-stairbuilder-layout.is-form-collapsed         #stairbuild  { transform: translateY(100%); }
-  .bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout { transform: translateY(100%); }
-
-  /* 1.7.0: quote panel is permanently pinned to the bottom on mobile —
-   * no slide-up drawer behaviour. Override the is-quote-collapsed
-   * translate so the FAB toggle can't hide it. */
-  .bd-stairbuilder-layout.is-quote-collapsed .breakout {
-    transform: translateY(0);
-  }
-
-  /* 1.7.0: condense quote panel into a single-row price + CTA strip on
-   * mobile. Headings, VAT line, and price-breakdown are hidden; the
-   * total reads large and sits next to the buy-now button. */
-  span#total {
-    font-size: 38px;
-    font-weight: 600;
-  }
-  div#pricetotal h4,
-  span#vat,
-  span#priceCalc {
-    display: none;
-  }
-  .bd-stairbuilder-layout .breakout {
-    display: flex;
-    justify-content: space-around;
-    align-content: center;
-    align-items: center;
-  }
-  .sb-buynow {
-    font-size: 22px;
-  }
-  .bd-stairbuilder-layout .breakout .bd-panel-close {
-    display: none;
-  }
-
-  /* 1.7.0: form panel becomes a left-side drawer on mobile (was a
-   * bottom-sheet). --bd-form-w is shared with .bd-fab--form so the
-   * tab can be anchored to the panel's right edge and track it. */
-  .bd-stairbuilder-layout #stairbuild {
-    --bd-form-w: min(85vw, 360px);
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: auto;
-    width: var(--bd-form-w);
-    max-width: var(--bd-form-w);
-    height: 100%;
-    max-height: 100vh;
-    border-radius: 0 12px 12px 0;
-    transform: translateX(0);
-  }
-  .bd-stairbuilder-layout.is-form-collapsed #stairbuild {
-    transform: translateX(-100%);
-  }
-
-  /* Form tab — "Edit →" pill on the form panel's right edge. When the
-   * form is collapsed (off-screen left), the tab translates with it
-   * so it lands flush with the viewport's left edge. When the form
-   * is open, the tab sits at the form's right edge sticking out into
-   * the canvas area, arrow flipped to point left (close affordance). */
-  .bd-stairbuilder-layout .bd-fab--form {
-    --bd-form-w: min(85vw, 360px);
-    left: var(--bd-form-w);
-    top: 80px;
-    bottom: auto;
-    width: 72px;
-    height: 40px;
-    border-radius: 0 8px 8px 0;
-    /* Hide the ☰ emoji from layout.js — the ::before/::after pair below
-     * provides the visible "Edit →" content. */
-    font-size: 0;
-    transition: transform var(--bd-transition);
-  }
-  .bd-stairbuilder-layout.is-form-collapsed .bd-fab--form {
-    /* Mirror the form panel's translateX so the tab travels with it. */
-    transform: translateX(calc(-1 * var(--bd-form-w)));
-  }
-  .bd-stairbuilder-layout .bd-fab--form::before {
-    content: "Edit";
-    font-size: 13px;
-    line-height: 40px;
-    margin-right: 4px;
-    vertical-align: middle;
-  }
-  .bd-stairbuilder-layout .bd-fab--form::after {
-    content: "→";
-    display: inline-block;
-    font-size: 16px;
-    line-height: 40px;
-    vertical-align: middle;
-    transition: transform var(--bd-transition);
-  }
-  .bd-stairbuilder-layout:not(.is-form-collapsed) .bd-fab--form::after {
-    transform: rotate(180deg);
-  }
-
-  /* Quote FAB is redundant now the quote panel is permanently pinned
-   * to the bottom on mobile. */
-  .bd-stairbuilder-layout .bd-fab--quote {
-    display: none;
-  }
-
-  /* Quote box: fixed 100px on mobile so the mm_breakout math below
-   * stays predictable. Pair with --bd-quote-h. */
-  .bd-stairbuilder-layout .breakout {
-    --bd-quote-h: 100px;
-    height: var(--bd-quote-h);
-    max-height: var(--bd-quote-h);
-  }
-
-  /* Measurements panel — accordion behind the quote box.
-   * z-index 80 sits below .breakout (100) so the quote always covers
-   * the panel's bottom edge. Fixed height (--bd-mm-h) so the tab can
-   * precisely track the panel's top edge via the same translateY. */
-  .bd-stairbuilder-layout .mm_breakout {
-    --bd-quote-h: 100px;
-    --bd-mm-h:    50vh;
-    z-index: 80;
-    height:     var(--bd-mm-h);
-    max-height: var(--bd-mm-h);
-  }
-  .bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout {
-    /* Translate down so the panel's top edge sits exactly at the quote
-     * box's top edge — nothing visible above the quote, only the tab
-     * (which mirrors this transform). */
-    transform: translateY(calc(var(--bd-mm-h) - var(--bd-quote-h)));
-  }
-
-  /* Measurements tab — right-aligned, 56×40, looks like a folder tab.
-   * Position by `bottom: var(--bd-mm-h)` so when the panel is open, the
-   * tab sits exactly on the panel's top edge. The same translateY rule
-   * applied to the panel is mirrored here, so the tab stays glued to
-   * the panel as it slides up and down. */
-  .bd-stairbuilder-layout .bd-fab--measurements {
-    --bd-quote-h: 100px;
-    --bd-mm-h:    50vh;
-    left: auto;
-    right: 16px;
-    bottom: var(--bd-mm-h);
-    width: 72px;
-    height: 40px;
-    border-radius: 8px 8px 0 0;
-    transform: none;
-    transition: transform var(--bd-transition);
-    /* Hide the 📐 emoji from layout.js — ::before/::after carry the
-     * visible info-icon + arrow content. */
-    font-size: 0;
-  }
-  .bd-stairbuilder-layout.is-measurements-collapsed .bd-fab--measurements {
-    transform: translateY(calc(var(--bd-mm-h) - var(--bd-quote-h)));
-  }
-  .bd-stairbuilder-layout .bd-fab--measurements::before {
-    content: "ⓘ";
-    font-size: 18px;
-    line-height: 40px;
-    margin-right: 6px;
-    vertical-align: middle;
-  }
-  /* Arrow glyph — up when collapsed (pull-up affordance), rotates
-   * 180° to point down when the panel is open (push-down). */
-  .bd-stairbuilder-layout .bd-fab--measurements::after {
-    content: "▲";
-    display: inline-block;
-    font-size: 16px;
-    line-height: 40px;
-    vertical-align: middle;
-    transition: transform var(--bd-transition);
-  }
-  .bd-stairbuilder-layout:not(.is-measurements-collapsed) .bd-fab--measurements::after {
-    transform: rotate(180deg);
-  }
-}
-
-/* WordPress admin bar height — exposed as a CSS var so .mm_breakout can
- * defensively offset itself beneath it. */
+/* WordPress admin bar height — exposed so panels offset beneath it. */
 body.admin-bar { --wp-admin-bar-height: 32px; }
 @media screen and (max-width: 782px) {
   body.admin-bar { --wp-admin-bar-height: 46px; }
 }
 
-/* ---------------------------------------------------------------- *
- * v1.6.1 — readability + layout tweaks
- * Lives in layout.css (loads after builder.css) so these win over any
- * earlier rule of equal specificity.
- * ---------------------------------------------------------------- */
-
-/* Bug fix: breakout info-box <h4> labels were unreadable (dark on dark).
-   Headings follow each box's configurable text colour (Brand Colours tab). */
-.bd-stairbuilder-layout .mm_breakout h4 {
-  color: var(--bd-mm-text, #fff);
-  font-size: 1.2em;
-}
-/* Bracketed clarifier sits on its own line, smaller and lighter. */
-.bd-stairbuilder-layout .mm_breakout h4 .mm-sub {
-  display: block;
-  font-size: 0.7em;
-  font-weight: 400;
-  opacity: 0.8;
-}
-.bd-stairbuilder-layout .mm_breakout span.msmnt {
-  display: block;
-  padding-bottom: 10px;
-  font-size: 1.4em;
-}
-.bd-stairbuilder-layout .breakout h4 {
-  color: var(--bd-quote-text, #fff);
-}
-#pricetotal h4 {
-  margin: 0;
-}
-
-/* Tighten spacing under sub-section headings. */
-.bd-stairbuilder-layout h5 {
-  margin-bottom: 5px;
-}
-
-/* Form-row labels: full-width, capitalised, vertically aligned. */
+/* Form-row labels: full-width, capitalised. */
 .bd-stairbuilder-layout #stairbuild .form-row label {
   width: 100%;
   text-transform: capitalize;
   vertical-align: middle;
 }
-/* Bracketed clarifier under a form label: own line, smaller, lighter. */
 .bd-stairbuilder-layout #stairbuild .form-row label .form-sub {
   display: block;
   font-size: 0.75em;
@@ -447,18 +467,17 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   text-transform: none;
   opacity: 0.75;
 }
+.bd-stairbuilder-layout h5 { margin-bottom: 5px; }
 
-/* Three-column custom-section layout: equal thirds with a soft border. */
+/* Three-column custom-section (newel post pickers). */
 .bd-stairbuilder-layout #custom .form-col {
   display: flex;
   flex-direction: column;
   width: 33.33%;
   box-sizing: border-box;
   padding: 5px;
-  border: 1px solid #edeaea;
+  border: 1px solid #E3DCCB;
 }
-
-/* Custom-section labels: smaller, left-aligned, tight line-height. */
 .bd-stairbuilder-layout #custom .form-col label {
   font-size: 0.8em;
   display: block;
@@ -466,219 +485,97 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   text-transform: capitalize;
   line-height: 1.2;
 }
-
-/* Custom-section rows lay out horizontally (overrides any column default). */
-.bd-stairbuilder-layout #custom .form-row {
-  flex-direction: row;
-}
-
-/* Checkboxes inside #custom rows shouldn't stretch to label width. */
+.bd-stairbuilder-layout #custom .form-row { flex-direction: row; }
 .bd-stairbuilder-layout #custom .form-row input[type="checkbox"] {
   width: 14px;
   margin-top: 5px;
 }
 
-/* Quote panel: rounded both top-right and bottom-right corners (overrides
-   the earlier 8px 0 0 0 rule above). */
-.bd-stairbuilder-layout .breakout {
-  border-radius: 8px 0 0 8px;
-}
+/* ============ MOBILE (< 768px) ============
+ * Two stacked launcher bars pinned to the bottom (Measurements above
+ * Configure). Each bar IS a panel's collapsed state and its tap target;
+ * tapping expands that panel upward as a sheet. One sheet open at a time
+ * (enforced in layout.js), Configure open by default. Closing the active
+ * sheet drops it back to its bar, revealing the stairs. */
+@media (max-width: 767px) {
+  .bd-stairbuilder-layout { overflow: hidden; }
+  .bd-stairbuilder-layout .bd-handle { display: none; }
 
-/* ---------------------------------------------------------------- *
- * v1.6.1 — left form panel: contained, distinct from page background
- * ---------------------------------------------------------------- */
-
-.bd-stairbuilder-layout #stairbuild {
-  background: var(--bd-form-bg, #ffffff);
-  border: 1px solid #e5dfd2;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(90, 48, 13, 0.08);
-  /* Firefox */
-  scrollbar-width: thin;
-  scrollbar-color: #5a300d transparent;
-}
-.bd-stairbuilder-layout #stairbuild::-webkit-scrollbar {
-  width: 6px;
-}
-.bd-stairbuilder-layout #stairbuild::-webkit-scrollbar-track {
-  background: transparent;
-}
-.bd-stairbuilder-layout #stairbuild::-webkit-scrollbar-thumb {
-  background-color: #5a300d;
-  border-radius: 3px;
-}
-
-/* ---------------------------------------------------------------- *
- * v1.6.1 — breakout box handles match their box backgrounds
- * Handles inherit each box's configurable Brand Colours so the slide-in
- * tabs always match the panel they belong to.
- * ---------------------------------------------------------------- */
-
-.bd-stairbuilder-layout .bd-handle--measurements {
-  background: var(--bd-mm-bg, #5a300d);
-  color: var(--bd-mm-text, #fff);
-}
-.bd-stairbuilder-layout .bd-handle--quote {
-  background: var(--bd-quote-bg, #5a300d);
-  color: var(--bd-quote-text, #fff);
-}
-.bd-stairbuilder-layout .bd-handle--form {
-  background: #97804a;
-  color: #fff;
-}
-
-/* ---------------------------------------------------------------- *
- * v1.6.1 — pricing box buy-now button
- * ---------------------------------------------------------------- */
-
-.sb-buynow {
-  background: #97804a;
-}
-
-/* ---------------------------------------------------------------- *
- * 1.7.0 — Desktop persistent panel tabs
- *
- * Replaces the 1.4.x "handle only visible when its panel is
- * collapsed" pattern with TKstairs-style persistent tabs that sit on
- * each panel's edge and slide in/out with the panel. Each tab keeps
- * its panel label (Configure / Measurements / Quote) and adds a
- * directional arrow that rotates to indicate pull direction.
- *
- * Scoped to min-width: 768px so the mobile accordion tabs inside the
- * (max-width: 767px) block above are left untouched.
- * ---------------------------------------------------------------- */
-@media (min-width: 768px) {
-  /* Always-visible, always-interactive. Keep the existing vertical
-   * text orientation from the 1.4.x .bd-handle base rule (don't
-   * override writing-mode here). Bump z-index above the panels
-   * (which are z-index 100) so the form tab can't be masked by the
-   * form's left-edge shadow when the form is open. */
-  .bd-stairbuilder-layout .bd-handle {
-    opacity: 1;
-    pointer-events: auto;
-    z-index: 110;
-    transition: transform var(--bd-transition);
-  }
-
-  /* FORM tab — anchored to the form panel's right edge.
-   *   IMPORTANT: form uses --bd-form-width (360px), NOT
-   *   --bd-side-width (320px). Easy to confuse — caught the first
-   *   pass where the tab landed inside the form's footprint and got
-   *   masked by it. */
-  .bd-stairbuilder-layout .bd-handle--form {
-    left: var(--bd-form-width);
-    top: 50%;
-    transform: translateY(-50%);
-  }
-  .bd-stairbuilder-layout.is-form-collapsed .bd-handle--form {
-    transform: translateY(-50%) translateX(calc(-1 * var(--bd-form-width)));
-  }
-  /* Arrow flows inline below the vertical text label. The parent is
-   * writing-mode: vertical-rl (inline = top-to-bottom), so an
-   * inline-block ::after lands beneath the text. Its own
-   * writing-mode override to horizontal-tb keeps "→" rendering as
-   * a proper horizontal arrow rather than being rotated. */
-  .bd-stairbuilder-layout .bd-handle--form::after {
-    content: "→";
-    display: inline-block;
-    writing-mode: horizontal-tb;
-    text-orientation: mixed;
-    font-size: 14px;
-    margin-top: 6px;
-    transition: transform var(--bd-transition);
-  }
-  .bd-stairbuilder-layout:not(.is-form-collapsed) .bd-handle--form::after {
-    transform: rotate(180deg);
-  }
-
-  /* MEASUREMENTS tab — at mm_breakout's left edge. Sits 20px below
-   * the panel's top edge to fit visually inside the panel rather
-   * than aligning to its absolute top corner. */
-  .bd-stairbuilder-layout .bd-handle--measurements {
-    right: var(--bd-side-width);
-    left: auto;
-    top: calc(var(--wp-admin-bar-height, 0px) + 120px);
-  }
-  .bd-stairbuilder-layout.is-measurements-collapsed .bd-handle--measurements {
-    transform: translateX(var(--bd-side-width));
-  }
-  .bd-stairbuilder-layout .bd-handle--measurements::after {
-    content: "←";
-    display: inline-block;
-    writing-mode: horizontal-tb;
-    text-orientation: mixed;
-    font-size: 14px;
-    margin-top: 6px;
-    transition: transform var(--bd-transition);
-  }
-  .bd-stairbuilder-layout:not(.is-measurements-collapsed) .bd-handle--measurements::after {
-    transform: rotate(180deg);
-  }
-
-  /* QUOTE tab — at .breakout's left edge, lifted to clear the quote box. */
-  .bd-stairbuilder-layout .bd-handle--quote {
-    right: var(--bd-side-width);
-    left: auto;
-    bottom: 160px;
-    top: auto;
-  }
-  .bd-stairbuilder-layout.is-quote-collapsed .bd-handle--quote {
-    transform: translateX(var(--bd-side-width));
-  }
-  .bd-stairbuilder-layout .bd-handle--quote::after {
-    content: "←";
-    display: inline-block;
-    writing-mode: horizontal-tb;
-    text-orientation: mixed;
-    font-size: 14px;
-    margin-top: 6px;
-    transition: transform var(--bd-transition);
-  }
-  .bd-stairbuilder-layout:not(.is-quote-collapsed) .bd-handle--quote::after {
-    transform: rotate(180deg);
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Measurements breakout — two-column list layout + small-screen tweaks */
-/* ------------------------------------------------------------------ */
-.bd-stairbuilder-layout .mm_breakout h4 {
-  margin-bottom: 0px;
-}
-
-.mm_breakout ul {
-  display: flex;
-  column-gap: 10px;
-  flex-wrap: wrap;
-  padding: 10px;
-  margin: 0px auto;
-  list-style-type: none;
-}
-.mm_breakout li {
-  width: 45%;
-}
-
-@media (max-width: 480px) {
-  .bd-stairbuilder-layout .mm_breakout {
-    --bd-mm-h: 42vh;
-  }
-  .bd-stairbuilder-layout .bd-fab--measurements {
-    --bd-mm-h: 42vh;
-  }
-  .bd-stairbuilder-layout #stairbuild {
-    z-index: 1200;
-    --bd-form-w: min(100vw);
-    background: #ffffff;
+  /* --- Bottom launcher bars (52px tall) --- */
+  .bd-stairbuilder-layout .bd-fab {
+    display: none;                 /* shown per-panel below, only when collapsed */
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 52px;
+    padding: 0 20px;
     border: none;
-    top: 0px;
+    border-radius: 0;
+    text-align: left;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 52px;
+    cursor: pointer;
+    box-shadow: 0 -6px 20px rgba(43, 37, 34, 0.18);
+    z-index: 120;
   }
+  .bd-stairbuilder-layout .bd-fab::after {
+    content: "\2303";              /* up chevron — hints the bar expands upward */
+    float: right;
+    font-size: 20px;
+    line-height: 52px;
+  }
+  /* Configure bar — primary (gold), bottom-most. */
   .bd-stairbuilder-layout .bd-fab--form {
-    top: 95px;
+    bottom: 0;
+    background: var(--bd-cta-bg);
+    color: var(--bd-cta-text);
   }
-  .breakout span#total {
-    font-size: 28px;
+  .bd-stairbuilder-layout.is-form-collapsed .bd-fab--form { display: block; }
+  /* Measurements bar — dark, sits above the Configure bar when both show. */
+  .bd-stairbuilder-layout .bd-fab--measurements {
+    bottom: 0;
+    background: var(--bd-mm-bg, #2B2522);
+    color: var(--bd-mm-text, #EFE8D8);
   }
-  .sb-buynow {
-    font-size: 18px;
+  .bd-stairbuilder-layout.is-measurements-collapsed .bd-fab--measurements { display: block; }
+  .bd-stairbuilder-layout.is-form-collapsed.is-measurements-collapsed .bd-fab--measurements {
+    bottom: 52px;                  /* stack above the Configure bar */
+  }
+
+  /* --- Panels expand upward as sheets above the single visible bar --- */
+  .bd-stairbuilder-layout #stairbuild,
+  .bd-stairbuilder-layout .mm_breakout {
+    top: var(--wp-admin-bar-height, 0px);
+    left: 0;
+    right: 0;
+    bottom: 52px;                  /* clear the one bar left at the bottom */
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(0);
+  }
+  .bd-stairbuilder-layout.is-form-collapsed #stairbuild { transform: translateY(102%); }
+  .bd-stairbuilder-layout.is-measurements-collapsed .mm_breakout { transform: translateY(102%); }
+  .bd-stairbuilder-layout .bd-panel-foot { border-radius: 0; }
+
+  /* The header collapse control is a directional chevron on desktop; on a
+   * bottom sheet a plain "×" close reads clearer. */
+  .bd-stairbuilder-layout .bd-panel-collapse svg { display: none; }
+  .bd-stairbuilder-layout .bd-panel-collapse::after {
+    content: "\00D7";
+    font-size: 24px;
+    line-height: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-stairbuilder-layout #stairbuild,
+  .bd-stairbuilder-layout .mm_breakout,
+  .bd-stairbuilder-layout .bd-handle,
+  .bd-stairbuilder-layout .tab-content,
+  .bd-stairbuilder-layout .sec-chev {
+    transition: none !important;
   }
 }

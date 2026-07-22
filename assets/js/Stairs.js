@@ -2347,7 +2347,13 @@ Stairs.drawPostsHalfturn = function(context){
 Stairs.drawMeasures = function(context){
     context.save();
     var treads = Stairs.options.treads;
-    var startingY = treads.height;
+    // v2.16.0 Phase 4: pull the run dimension's top end up by the lip so the line
+    // encapsulates the drawn lip band (top of tread → top of lip). 0 = unchanged.
+    var startingY = treads.height - (Stairs.lipPx || 0);
+    // Width measure spans the OUTSIDE of the strings (ballustrading), not the tread
+    // edge: the strings are BALUSTRADE_WIDTH wide, centred on the tread edge, so
+    // their outer faces sit half a string-width beyond treads.width/2.
+    var bdHalfWidth = treads.width / 2 + StairConstants.BALUSTRADE_WIDTH / 2;
     // Hug the staircase bottom (+30px breathing room) rather than the canvas
     // bottom, so the width measure stays visually attached to the lowest
     // tread regardless of how small the staircase is inside the canvas.
@@ -2391,20 +2397,20 @@ Stairs.drawMeasures = function(context){
 
     context.setLineDash([5, treads.amount]);
     context.beginPath();
-    context.moveTo(Stairs.centerX - treads.width/2, bottom_measure_y_position + 0.5);
-    context.lineTo(Stairs.centerX + treads.width/2, bottom_measure_y_position + 0.5);
+    context.moveTo(Stairs.centerX - bdHalfWidth, bottom_measure_y_position + 0.5);
+    context.lineTo(Stairs.centerX + bdHalfWidth, bottom_measure_y_position + 0.5);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
 
     context.beginPath();
-    context.moveTo(Stairs.centerX - treads.width/2 + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(Stairs.centerX - treads.width/2 + 0.5, bottom_measure_y_position + 10);
+    context.moveTo(Stairs.centerX - bdHalfWidth + 0.5, bottom_measure_y_position - 10);
+    context.lineTo(Stairs.centerX - bdHalfWidth + 0.5, bottom_measure_y_position + 10);
     strokeXTimes(context,5);
 
     context.beginPath();
-    context.moveTo(Stairs.centerX + treads.width/2 + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(Stairs.centerX + treads.width/2 + 0.5, bottom_measure_y_position + 10);
+    context.moveTo(Stairs.centerX + bdHalfWidth + 0.5, bottom_measure_y_position - 10);
+    context.lineTo(Stairs.centerX + bdHalfWidth + 0.5, bottom_measure_y_position + 10);
     strokeXTimes(context,5);
 
     //Measures text

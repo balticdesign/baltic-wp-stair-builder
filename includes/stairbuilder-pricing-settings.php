@@ -46,7 +46,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		const MIGRATION_FLAG = 'stairbuilder_migrated_from_acf';
 
 		/** Schema version, written into the blob so future migrations can detect shape. */
-		const SCHEMA_VERSION = 3;
+		// v4 (2.16.0): availability tags — construction_types.strict_for + the four
+		// material/profile repeaters' available_for. Additive; missing keys default
+		// to empty, so no backfill migration is required.
+		const SCHEMA_VERSION = 4;
 
 		/** Option flag set to 1 after the v2 flat-key → repeater migration. */
 		const REPEATER_MIGRATION_FLAG = 'stairbuilder_repeater_migrated_v2';
@@ -668,6 +671,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				case 'select':
 					$this->render_select( $id, $name, $value, $field );
 					break;
+				case 'multiselect':
+					$this->render_multiselect( $id, $name, $value, $field );
+					break;
 				case 'repeater':
 					$this->render_repeater( $id, $name, $value, $field );
 					break;
@@ -797,6 +803,75 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			<?php
 		}
 
+		/**
+		 * Resolve a field/sub-field's choices, supporting a dynamic source so a
+		 * multi-select's options can be built from live data rather than a
+		 * hardcoded list. `choices_source` wins over a static `choices` map.
+		 *
+		 *   'construction_codes' → [ construction_code => construction_name ]
+		 *
+		 * Returns an associative value => label array (may be empty).
+		 */
+		private function resolve_field_choices( $field ) {
+			if ( ! empty( $field['choices_source'] ) ) {
+				switch ( $field['choices_source'] ) {
+					case 'construction_codes':
+						$out  = array();
+						$rows = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( 'construction_types', array() ) : array();
+						if ( is_array( $rows ) ) {
+							foreach ( $rows as $r ) {
+								if ( ! is_array( $r ) ) {
+									continue;
+								}
+								$code = isset( $r['construction_code'] ) ? (string) $r['construction_code'] : '';
+								if ( $code === '' ) {
+									continue;
+								}
+								$label       = ( isset( $r['construction_name'] ) && $r['construction_name'] !== '' ) ? (string) $r['construction_name'] : $code;
+								$out[ $code ] = $label;
+							}
+						}
+						return $out;
+				}
+			}
+			return isset( $field['choices'] ) ? (array) $field['choices'] : array();
+		}
+
+		/**
+		 * Multi-select rendered as a checkbox group. Reusable field type
+		 * (v2.16.0) — value is an array of selected choice keys. Choices may be
+		 * static (`choices`) or dynamic (`choices_source`, see
+		 * resolve_field_choices()). An all-unchecked group simply submits no
+		 * key; the sanitiser reads that as an empty selection.
+		 */
+		private function render_multiselect( $id, $name, $value, $field ) {
+			$this->render_multiselect_group( $name, $value, $field );
+		}
+
+		/**
+		 * Shared checkbox-group markup used by both the top-level field and the
+		 * repeater sub-field renderers. $name is the fully-qualified field name;
+		 * option checkboxes append `[]`.
+		 */
+		private function render_multiselect_group( $name, $value, $field ) {
+			$choices  = $this->resolve_field_choices( $field );
+			$selected = is_array( $value ) ? array_map( 'strval', $value ) : array();
+			echo '<div class="stairbuilder-multiselect">';
+			if ( empty( $choices ) ) {
+				echo '<span class="description">' . esc_html__( 'No options available yet.', 'stairbuilder' ) . '</span>';
+			}
+			foreach ( $choices as $cv => $cl ) {
+				$cv = (string) $cv;
+				?>
+				<label class="stairbuilder-multiselect-option">
+					<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[]" value="<?php echo esc_attr( $cv ); ?>" <?php checked( in_array( $cv, $selected, true ) ); ?> />
+					<?php echo esc_html( $cl ); ?>
+				</label>
+				<?php
+			}
+			echo '</div>';
+		}
+
 		private function render_repeater( $id, $name, $value, $field ) {
 			// Rich "card" repeaters (newels, caps, handrails, spindles) render
 			// each row as a component card with a per-row Use-Product-ID switch.
@@ -869,15 +944,19 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				}
 			}
 			$row_cb = $is_variant ? 'render_card_row' : 'render_generic_card_row';
+			// Repeaters that lock their code after creation name the code sub-field
+			// here (e.g. construction_types → construction_code). Threaded to the row
+			// renderer so a persisted row's code renders read-only. See §Phase 0.
+			$lock_code = isset( $field['lock_code'] ) ? (string) $field['lock_code'] : '';
 			?>
 			<div class="stairbuilder-card-repeater" data-field-id="<?php echo esc_attr( $id ); ?>" data-next-index="<?php echo count( $rows ); ?>">
 				<div class="stairbuilder-cards">
 					<?php foreach ( $rows as $i => $row ) {
-						$this->$row_cb( $name, (string) $i, $subfields, is_array( $row ) ? $row : array() );
+						$this->$row_cb( $name, (string) $i, $subfields, is_array( $row ) ? $row : array(), $lock_code );
 					} ?>
 				</div>
 				<script type="text/html" class="stairbuilder-card-proto"><?php
-					$this->$row_cb( $name, '__i__', $subfields, array() );
+					$this->$row_cb( $name, '__i__', $subfields, array(), $lock_code );
 				?></script>
 				<button type="button" class="button button-secondary stairbuilder-card-add"><?php esc_html_e( 'Add Row', 'stairbuilder' ); ?></button>
 			</div>
@@ -889,13 +968,17 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		 * sub-field as a labelled input. Used by the simpler name/code/value
 		 * repeaters (strings, construction types, treads, risers).
 		 */
-		private function render_generic_card_row( $name, $i, $subfields, $row ) {
+		private function render_generic_card_row( $name, $i, $subfields, $row, $lock_code = '' ) {
 			?>
 			<div class="stairbuilder-component stairbuilder-card-row stairbuilder-card-row-generic">
 				<?php foreach ( $subfields as $sf ) :
 					$fname   = $name . '[' . $i . '][' . $sf['id'] . ']';
 					$rv      = isset( $row[ $sf['id'] ] ) ? $row[ $sf['id'] ] : '';
 					$sf_type = isset( $sf['type'] ) ? $sf['type'] : 'text';
+					// Code lock: a persisted row's code is a stable machine key that
+					// tags + historical leads depend on, so it renders read-only once
+					// set. New rows (blank code, or the __i__ prototype) stay editable.
+					$is_locked_code = ( $lock_code !== '' && $sf['id'] === $lock_code && '__i__' !== (string) $i && $rv !== '' );
 					?>
 					<div class="stairbuilder-card-field">
 						<label class="stairbuilder-card-label"><?php echo esc_html( $sf['label'] ); ?>
@@ -913,6 +996,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 										<option value="<?php echo esc_attr( $cv ); ?>" <?php selected( $sel, (string) $cv ); ?>><?php echo esc_html( $cl ); ?></option>
 									<?php endforeach; ?>
 								</select>
+							<?php elseif ( 'multiselect' === $sf_type ) :
+								$this->render_multiselect_group( $fname, is_array( $rv ) ? $rv : array(), $sf );
+							elseif ( $is_locked_code ) : ?>
+								<input type="text" name="<?php echo esc_attr( $fname ); ?>"
+									value="<?php echo esc_attr( $rv ); ?>"
+									class="widefat" readonly
+									title="<?php esc_attr_e( 'Locked after creation — rename the label instead. Delete and re-create to change the code.', 'stairbuilder' ); ?>" />
 							<?php else : ?>
 								<input type="<?php echo 'number' === $sf_type ? 'number' : 'text'; ?>" <?php echo 'number' === $sf_type ? 'step="any"' : ''; ?>
 									name="<?php echo esc_attr( $fname ); ?>"
@@ -933,7 +1023,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		 * Render one card row for a rich repeater. $i is the row index (or the
 		 * `__i__` token for the cloneable prototype).
 		 */
-		private function render_card_row( $name, $i, $subfields, $row ) {
+		private function render_card_row( $name, $i, $subfields, $row, $lock_code = '' ) {
+			// $lock_code is unused here — variant repeaters (newel/cap/handrail/
+			// spindle) don't lock codes; the param exists so both row renderers
+			// share the render_rich_repeater() call signature.
 			$by = array();
 			foreach ( $subfields as $sf ) {
 				$by[ $sf['id'] ] = $sf;
@@ -1121,12 +1214,56 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						$choices = isset( $field['choices'] ) ? array_keys( $field['choices'] ) : array();
 						$clean[ $id ] = ( is_scalar( $raw ) && in_array( (string) $raw, array_map( 'strval', $choices ), true ) ) ? (string) $raw : '';
 						break;
+					case 'multiselect':
+						$clean[ $id ] = $this->sanitize_multiselect( $raw, $field );
+						break;
 					case 'repeater':
 						$clean[ $id ] = $this->sanitize_repeater( $raw, $field );
 						break;
 					default:
 						$clean[ $id ] = is_scalar( $raw ) ? sanitize_text_field( (string) $raw ) : '';
 				}
+			}
+
+			// Orphan-drop post-pass (v2.16.0). Runs on the final $clean so it is
+			// order-independent: after every repeater is sanitised, drop any
+			// multi-select tag sourced from construction codes (choices_source:
+			// construction_codes) that references a code no longer present in this
+			// save. A deleted construction type therefore can't leave stale tags
+			// behind. (Dormant until the tag sub-fields land in Phase 2; the empty
+			// strict-repeater warning that pairs with it is §6.1.)
+			$valid_codes = array();
+			if ( isset( $clean['construction_types'] ) && is_array( $clean['construction_types'] ) ) {
+				foreach ( $clean['construction_types'] as $r ) {
+					if ( is_array( $r ) && isset( $r['construction_code'] ) && '' !== $r['construction_code'] ) {
+						$valid_codes[] = (string) $r['construction_code'];
+					}
+				}
+			}
+			foreach ( $by_id as $fid => $field ) {
+				if ( ! isset( $field['type'] ) || 'repeater' !== $field['type'] || empty( $clean[ $fid ] ) || ! is_array( $clean[ $fid ] ) ) {
+					continue;
+				}
+				$code_subs = array();
+				foreach ( ( isset( $field['subfields'] ) ? $field['subfields'] : array() ) as $sf ) {
+					if ( isset( $sf['type'] ) && 'multiselect' === $sf['type'] && isset( $sf['choices_source'] ) && 'construction_codes' === $sf['choices_source'] ) {
+						$code_subs[] = $sf['id'];
+					}
+				}
+				if ( ! $code_subs ) {
+					continue;
+				}
+				foreach ( $clean[ $fid ] as &$row ) {
+					if ( ! is_array( $row ) ) {
+						continue;
+					}
+					foreach ( $code_subs as $sub ) {
+						if ( isset( $row[ $sub ] ) && is_array( $row[ $sub ] ) ) {
+							$row[ $sub ] = array_values( array_intersect( array_map( 'strval', $row[ $sub ] ), $valid_codes ) );
+						}
+					}
+				}
+				unset( $row );
 			}
 
 			// Stamp schema version so future migrations can detect shape.
@@ -1175,12 +1312,16 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								$clean_row[ $sf['id'] ] = isset( $sf['default'] ) ? (string) $sf['default'] : ( $choices ? (string) $choices[0] : '' );
 							}
 							break;
+						case 'multiselect':
+							$clean_row[ $sf['id'] ] = $this->sanitize_multiselect( $v, $sf );
+							break;
 						default:
 							$clean_row[ $sf['id'] ] = is_scalar( $v ) ? sanitize_text_field( (string) $v ) : '';
 					}
-					// Selects always carry a (default) value, so they must not count
-					// toward "row has content" — otherwise blank rows would never drop.
-					if ( $sf['type'] !== 'select' ) {
+					// Selects (always a default) and multi-selects (a tag list, not
+					// content) must not count toward "row has content" — otherwise a
+					// blank row would never drop.
+					if ( $sf['type'] !== 'select' && $sf['type'] !== 'multiselect' ) {
 						$cv = $clean_row[ $sf['id'] ];
 						if ( $cv !== '' && $cv !== 0 && $cv !== 0.0 ) {
 							$has_value = true;
@@ -1200,7 +1341,104 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				$clean_rows = $this->ensure_unique_codes( $clean_rows, $reserved );
 			}
 
+			// Code lock (v2.16.0). Repeaters naming a `lock_code` sub-field (e.g.
+			// construction_types → construction_code) get slugify-on-create for NEW
+			// codes and NEVER-retro-slug for existing ones: a code already in the
+			// stored set is preserved byte-for-byte so historical leads resolved via
+			// bd_code_label() are never orphaned. Without stable row ids this
+			// "is it already stored?" test is the only safe rename/create signal.
+			if ( ! empty( $field['lock_code'] ) && isset( $field['id'] ) ) {
+				$code_key = (string) $field['lock_code'];
+				$name_key = '';
+				foreach ( $subfields as $sf2 ) {
+					if ( 'name' === $sf2['id'] || '_name' === substr( $sf2['id'], -5 ) ) {
+						$name_key = $sf2['id'];
+						break;
+					}
+				}
+				$existing = array();
+				$stored   = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( $field['id'], array() ) : array();
+				if ( is_array( $stored ) ) {
+					foreach ( $stored as $sr ) {
+						if ( is_array( $sr ) && isset( $sr[ $code_key ] ) && '' !== $sr[ $code_key ] ) {
+							$existing[] = (string) $sr[ $code_key ];
+						}
+					}
+				}
+				$clean_rows = $this->slugify_new_codes( $clean_rows, $code_key, $name_key, $existing );
+			}
+
 			return array_values( $clean_rows );
+		}
+
+		/**
+		 * Sanitise a multi-select value (v2.16.0) to an array of valid,
+		 * de-duplicated choice keys. Unknown values are dropped — this is also
+		 * the per-field orphan-drop for tags whose choices come from live data
+		 * (a construction code that no longer exists can't survive the save).
+		 */
+		private function sanitize_multiselect( $raw, $field ) {
+			if ( ! is_array( $raw ) ) {
+				return array();
+			}
+			$out = array();
+			foreach ( $raw as $v ) {
+				if ( ! is_scalar( $v ) ) {
+					continue;
+				}
+				$v = sanitize_text_field( (string) $v );
+				if ( '' !== $v && ! in_array( $v, $out, true ) ) {
+					$out[] = $v;
+				}
+			}
+			// Static choices are validated here. Dynamic tags (choices_source) are
+			// validated in the sanitize() post-pass against the FINAL construction
+			// set instead — otherwise a tag referencing a construction type created
+			// in the same save would be dropped before that type is committed.
+			if ( empty( $field['choices_source'] ) ) {
+				$valid = array_map( 'strval', array_keys( $this->resolve_field_choices( $field ) ) );
+				$out   = array_values( array_intersect( $out, $valid ) );
+			}
+			return $out;
+		}
+
+		/**
+		 * Slugify NEW row codes only; preserve existing ones byte-for-byte.
+		 * A code present in $existing_codes (the stored set) is treated as an
+		 * established machine key and never re-slugified — retro-slugging would
+		 * orphan historical leads through bd_code_label(). New/blank codes are
+		 * slugified (derived from the name when blank) and de-duplicated.
+		 */
+		private function slugify_new_codes( $rows, $code_key, $name_key, $existing_codes ) {
+			$existing = array_map( 'strval', $existing_codes );
+			$seen     = array();
+			foreach ( $rows as &$row ) {
+				if ( ! is_array( $row ) ) {
+					continue;
+				}
+				$code = isset( $row[ $code_key ] ) ? (string) $row[ $code_key ] : '';
+				if ( '' !== $code && in_array( $code, $existing, true ) ) {
+					$seen[] = $code;
+					continue;
+				}
+				$slug = sanitize_title( $code );
+				if ( '' === $slug && '' !== $name_key ) {
+					$slug = sanitize_title( isset( $row[ $name_key ] ) ? (string) $row[ $name_key ] : '' );
+				}
+				if ( '' === $slug ) {
+					$slug = 'type';
+				}
+				$base = $slug;
+				$n    = 2;
+				while ( in_array( $slug, $seen, true ) || in_array( $slug, $existing, true ) ) {
+					$slug = $base . '-' . $n;
+					$n++;
+				}
+				$row[ $code_key ] = $slug;
+				$seen[]           = $slug;
+			}
+			unset( $row );
+			return $rows;
 		}
 
 		/**
@@ -2005,6 +2243,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				.stairbuilder-pricing-wrap .stairbuilder-card-row.mode-glass .bd-mode-glass { display: contents; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-mode select { font-weight: 400; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-add { margin-top: 14px; }
+				.stairbuilder-pricing-wrap .stairbuilder-multiselect { display: flex; flex-wrap: wrap; gap: 4px 14px; padding-top: 4px; }
+				.stairbuilder-pricing-wrap .stairbuilder-multiselect-option { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; white-space: nowrap; }
+				.stairbuilder-pricing-wrap .stairbuilder-multiselect .description { flex-basis: 100%; }
+				.stairbuilder-pricing-wrap .stairbuilder-card-row input[readonly] { background: #f3f3f3; color: #666; cursor: not-allowed; }
 				@media (max-width: 960px) {
 					.stairbuilder-pricing-wrap .stairbuilder-card-row { flex-direction: column; align-items: stretch; }
 					.stairbuilder-pricing-wrap .stairbuilder-card-row .stairbuilder-card-label,
@@ -2437,7 +2679,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Add Stringer Types',
 								'type' => 'repeater',
 								'style' => 'card',
-								'subfields' => [['id' => 'stringer_name', 'label' => 'Stringer Name', 'type' => 'text'], ['id' => 'stringer_code', 'label' => 'Stringer Material', 'type' => 'select', 'choices' => $material_choices, 'default' => 'mdf', 'material_source' => true], ['id' => 'stringer_value', 'label' => 'Stringer Value', 'type' => 'number', 'adjustable' => true]],
+								'subfields' => [['id' => 'stringer_name', 'label' => 'Stringer Name', 'type' => 'text'], ['id' => 'stringer_code', 'label' => 'Stringer Material', 'type' => 'select', 'choices' => $material_choices, 'default' => 'mdf', 'material_source' => true], ['id' => 'stringer_value', 'label' => 'Stringer Value', 'type' => 'number', 'adjustable' => true], ['id' => 'available_for', 'label' => 'Available for construction types', 'type' => 'multiselect', 'choices_source' => 'construction_codes']],
 							],
 						],
 					],
@@ -2456,7 +2698,19 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Add Construction Types',
 								'type' => 'repeater',
 								'style' => 'card',
-								'subfields' => [['id' => 'construction_name', 'label' => 'Construction Name', 'type' => 'text'], ['id' => 'construction_code', 'label' => 'Construction Code', 'type' => 'text'], ['id' => 'construction_value', 'label' => 'Construction Value', 'type' => 'number', 'adjustable' => true]],
+								// Code is a stable machine key that availability tags + historical
+								// leads depend on: slugified on create, locked (read-only) once
+								// saved, never retro-slugged. See §Phase 0.
+								'lock_code' => 'construction_code',
+								'subfields' => [
+									['id' => 'construction_name', 'label' => 'Construction Name', 'type' => 'text'],
+									['id' => 'construction_code', 'label' => 'Construction Code', 'type' => 'text'],
+									['id' => 'construction_value', 'label' => 'Construction Value', 'type' => 'number', 'adjustable' => true],
+									// strict_for: repeaters this construction type gates strictly —
+									// only rows tagged available_for THIS type are selectable; untagged
+									// rows are excluded. Enforcement (option filtering) lands in Phase 2.
+									['id' => 'strict_for', 'label' => 'Restrict strictly (only tagged rows selectable)', 'type' => 'multiselect', 'choices' => ['stringer_types' => 'Stringers', 'tread_types' => 'Treads', 'riser_types' => 'Risers', 'tread_profiles' => 'Tread Profiles']],
+								],
 							],
 						],
 					],
@@ -2468,14 +2722,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Add Tread Types',
 								'type' => 'repeater',
 								'style' => 'card',
-								'subfields' => [['id' => 'tread_name', 'label' => 'Tread Name', 'type' => 'text'], ['id' => 'tread_code', 'label' => 'Tread Material', 'type' => 'select', 'choices' => $material_choices, 'default' => 'mdf', 'material_source' => true], ['id' => 'tread_value', 'label' => 'Tread Value', 'type' => 'number', 'adjustable' => true]],
+								'subfields' => [['id' => 'tread_name', 'label' => 'Tread Name', 'type' => 'text'], ['id' => 'tread_code', 'label' => 'Tread Material', 'type' => 'select', 'choices' => $material_choices, 'default' => 'mdf', 'material_source' => true], ['id' => 'tread_value', 'label' => 'Tread Value', 'type' => 'number', 'adjustable' => true], ['id' => 'available_for', 'label' => 'Available for construction types', 'type' => 'multiselect', 'choices_source' => 'construction_codes']],
 							],
 							[
 								'id' => 'tread_profiles',
 								'label' => 'Add Tread Profiles',
 								'type' => 'repeater',
 								'style' => 'card',
-								'subfields' => [['id' => 'tread_profile_name', 'label' => 'Profile Name', 'type' => 'text'], ['id' => 'tread_profile_code', 'label' => 'Profile Code', 'type' => 'text'], ['id' => 'tread_profile_value', 'label' => 'Per-Tread Surcharge', 'type' => 'number', 'adjustable' => true]],
+								'subfields' => [['id' => 'tread_profile_name', 'label' => 'Profile Name', 'type' => 'text'], ['id' => 'tread_profile_code', 'label' => 'Profile Code', 'type' => 'text'], ['id' => 'tread_profile_value', 'label' => 'Per-Tread Surcharge', 'type' => 'number', 'adjustable' => true], ['id' => 'available_for', 'label' => 'Available for construction types', 'type' => 'multiselect', 'choices_source' => 'construction_codes']],
 							],
 						],
 					],
@@ -2487,7 +2741,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Add Riser Types',
 								'type' => 'repeater',
 								'style' => 'card',
-								'subfields' => [['id' => 'riser_name', 'label' => 'Riser Name', 'type' => 'text'], ['id' => 'riser_code', 'label' => 'Riser Material', 'type' => 'select', 'choices' => $material_choices, 'default' => 'mdf', 'material_source' => true], ['id' => 'riser_value', 'label' => 'Riser Value', 'type' => 'number', 'adjustable' => true]],
+								'subfields' => [['id' => 'riser_name', 'label' => 'Riser Name', 'type' => 'text'], ['id' => 'riser_code', 'label' => 'Riser Material', 'type' => 'select', 'choices' => $material_choices, 'default' => 'mdf', 'material_source' => true], ['id' => 'riser_value', 'label' => 'Riser Value', 'type' => 'number', 'adjustable' => true], ['id' => 'available_for', 'label' => 'Available for construction types', 'type' => 'multiselect', 'choices_source' => 'construction_codes']],
 							],
 						],
 					],

@@ -211,6 +211,9 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <option value="">No options available</option>
     <?php endif; ?>
       </select>
+      <?php // Regime description (Phase 1) — populated from stairBuilderVars.regs
+            // by formLogic.js on load + change; empty until a regime is selected. ?>
+      <p id="building_regs_desc" class="form-sub bd-regs-desc"></p>
     </div>
     <div class="form-row">
     <label for="construction_type">Construction Type:</label>

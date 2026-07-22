@@ -88,6 +88,41 @@ function calculateStepPitch(riserHeight, going) {
   return Math.atan(riserHeight / going) * (180 / Math.PI);
 }
 
+/* ---- Building-regs regime (v2.16.0 Phase 1) ----------------------------
+ * The active regime is the current #building_regs selection, resolved against
+ * the localised stairBuilderVars.regs table. Empty numeric columns mean
+ * "no constraint" (parseFloat('') === NaN → treated as absent). */
+function bdRegimeNum(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  var n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+function bdActiveRegime($ = window.jQuery) {
+  try {
+    var code = $('#building_regs').val();
+    var regs = (window.stairBuilderVars && window.stairBuilderVars.regs) || {};
+    return (code && regs[code]) ? regs[code] : null;
+  } catch (e) { return null; }
+}
+// "Unregulated" = every dimensional column empty (the No Building Regs row).
+// Distinguishes it from a regime that merely omits max_pitch (which falls back
+// to Doc K 42) — see getStaircaseConfig / bdRegimePitchLimit.
+function bdRegimeUnregulated(regime) {
+  if (!regime) return true;
+  var keys = ['min_going', 'max_rise', 'min_rise', 'min_width', 'max_pitch', 'two_r_g_min', 'two_r_g_max', 'max_open_gap', 'max_risers_run'];
+  for (var i = 0; i < keys.length; i++) {
+    if (bdRegimeNum(regime[keys[i]]) !== null) return false;
+  }
+  return true;
+}
+function bdRegimePitchLimit(regime) {
+  if (!regime) return Infinity;                 // no regime selected → no pitch gate
+  var mp = bdRegimeNum(regime.max_pitch);
+  if (mp !== null) return mp;
+  // max_pitch empty: no gate for the unregulated row, else Doc K 42 fallback (§3.3).
+  return bdRegimeUnregulated(regime) ? Infinity : 42;
+}
+
 /**
  * Calculates the rake (diagonal length) of a staircase
  * @param {number} height - Total height of the staircase
@@ -136,23 +171,35 @@ function getStaircaseConfig(going, height, $ = window.jQuery) {
   
   let validConfigs = [];
   let uniqueRiserCounts = new Set();
-  
-  // Generate valid configurations
-  for (let possibleRiserHeight = 150; possibleRiserHeight <= 220; possibleRiserHeight++) {
+
+  // v2.16.0 Phase 1: riser-height search bounds + pitch gate now derive from the
+  // active building-regs regime, replacing the hardcoded 150–220 / 42° values.
+  //   - riser-height range: regime min_rise..max_rise, falling back to the
+  //     historical 150–220 physical range when the regime supplies no value —
+  //     so Domestic and No Building Regs behave exactly as before.
+  //   - pitch gate: regime max_pitch (Doc K 42 fallback; no gate when unregulated).
+  // The old `going >= 220 && going <= 300` band is GONE: going is a soft warning
+  // (min_going) + hard max (going_max) in formLogic (§2/§3.3), not a config gate.
+  const regime   = bdActiveRegime($);
+  const maxPitch = bdRegimePitchLimit(regime);
+  const riserMin = (regime && bdRegimeNum(regime.min_rise) !== null) ? bdRegimeNum(regime.min_rise) : 150;
+  const riserMax = (regime && bdRegimeNum(regime.max_rise) !== null) ? bdRegimeNum(regime.max_rise) : 220;
+
+  for (let possibleRiserHeight = riserMin; possibleRiserHeight <= riserMax; possibleRiserHeight++) {
     let possibleRisers = Math.ceil(height / possibleRiserHeight);
-    
+
     if (uniqueRiserCounts.has(possibleRisers)) {
       continue;
     }
-    
+
     uniqueRiserCounts.add(possibleRisers);
 
     // Doc K per-step pitch: atan(rise / going). The previous formula divided the
     // full height by (risers - 1) goings, inflating the angle and wrongly excluding
-    // valid riser configurations near the 42 degree limit.
+    // valid riser configurations near the limit.
     let newPitch = calculateStepPitch(possibleRiserHeight, going);
 
-    if (going >= 220 && going <= 300 && newPitch <= 42) {
+    if (newPitch <= maxPitch) {
       validConfigs.push({
         risers: possibleRisers,
         height: possibleRiserHeight.toFixed(1)
@@ -585,6 +632,10 @@ if (typeof module !== 'undefined' && module.exports) {
     calculateRiserHeight,
     getLowestStairNumber,
     getStaircaseConfig,
+    bdActiveRegime,
+    bdRegimeNum,
+    bdRegimeUnregulated,
+    bdRegimePitchLimit,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,
@@ -613,6 +664,10 @@ if (typeof window !== 'undefined') {
     calculateRiserHeight,
     getLowestStairNumber,
     getStaircaseConfig,
+    bdActiveRegime,
+    bdRegimeNum,
+    bdRegimeUnregulated,
+    bdRegimePitchLimit,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,

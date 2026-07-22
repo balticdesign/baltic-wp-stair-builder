@@ -433,32 +433,62 @@ jQuery("input[name='delivery']").change(function () {
     });
     const $widthMsg = lastWidthEl ? makeMsgEl(lastWidthEl) : jQuery();
 
+    // v2.16.0 Phase 1: resolve the EFFECTIVE limits from the active regime,
+    // falling back to the global Construction Settings. Recomputed each call so
+    // changing #building_regs re-applies immediately.
+    //   - Soft warn-min for going = regime.min_going (else global warn-min).
+    //   - Hard maxima (going/width) are RAISED so a regime minimum can't deadlock
+    //     them (§2): if regime.min_going 280 > global going hard-max 250, the
+    //     effective going max becomes 280 so the user can actually reach it.
+    function num(v) { const n = parseFloat(v); return isNaN(n) ? null : n; }
+    function regimeLimits() {
+      const regime = (window.BuilderUtils && BuilderUtils.bdActiveRegime) ? BuilderUtils.bdActiveRegime() : null;
+      const rMinGoing = regime ? num(regime.min_going) : null;
+      const rMinWidth = regime ? num(regime.min_width) : null;
+      let effGoingMax = isNaN(goingMax) ? null : goingMax;
+      if (effGoingMax !== null && rMinGoing !== null && rMinGoing > effGoingMax) effGoingMax = rMinGoing;
+      let effWidthMax = isNaN(widthMax) ? null : widthMax;
+      if (effWidthMax !== null && rMinWidth !== null && rMinWidth > effWidthMax) effWidthMax = rMinWidth;
+      return {
+        warnMin: (rMinGoing !== null) ? rMinGoing : (isNaN(warnMin) ? null : warnMin),
+        warnMax: isNaN(warnMax) ? null : warnMax,
+        goingMax: effGoingMax,
+        minWidth: rMinWidth,
+        widthMax: effWidthMax,
+      };
+    }
+
     function applyGoing() {
+      const lim = regimeLimits();
       let v = parseFloat($going.val());
       // Hard maximum — clamp and show message.
-      if (!isNaN(goingMax) && !isNaN(v) && v > goingMax) {
-        v = goingMax;
-        $going.val(goingMax);
-        $goingMsg.text(goingMsg).show();
+      if (lim.goingMax !== null && !isNaN(v) && v > lim.goingMax) {
+        v = lim.goingMax;
+        $going.val(lim.goingMax);
+        $goingMsg.text(buildMsg(cfg.going_max_message, 'Maximum going is {max}mm.', lim.goingMax)).show();
       } else {
         $goingMsg.hide();
       }
       // Soft building-regs warning — colour the field red, value still allowed.
       const outOfRange =
         warnEnabled && !isNaN(v) &&
-        ((!isNaN(warnMin) && v < warnMin) || (!isNaN(warnMax) && v > warnMax));
+        ((lim.warnMin !== null && v < lim.warnMin) || (lim.warnMax !== null && v > lim.warnMax));
       $going.css('color', outOfRange ? 'red' : 'inherit');
     }
 
     function applyWidth(input) {
+      const lim = regimeLimits();
       const $w = jQuery(input);
       const v = parseFloat($w.val());
-      if (!isNaN(widthMax) && !isNaN(v) && v > widthMax) {
-        $w.val(widthMax);
-        $widthMsg.text(widthMsg).show();
+      if (lim.widthMax !== null && !isNaN(v) && v > lim.widthMax) {
+        $w.val(lim.widthMax);
+        $widthMsg.text(buildMsg(cfg.width_max_message, 'Maximum width is {max}mm.', lim.widthMax)).show();
       } else {
         $widthMsg.hide();
       }
+      // Soft regime min-width warning — value still allowed.
+      const belowMin = lim.minWidth !== null && !isNaN(v) && v < lim.minWidth;
+      $w.css('color', belowMin ? 'red' : 'inherit');
     }
 
     $going.on('input change', applyGoing);
@@ -466,8 +496,26 @@ jQuery("input[name='delivery']").change(function () {
       const el = document.getElementById(id);
       if (el) jQuery(el).on('input change', function () { applyWidth(this); });
     });
+    // Regime description shown under the #building_regs select.
+    function applyRegimeDesc() {
+      const $d = jQuery('#building_regs_desc');
+      if (!$d.length) return;
+      const regime = (window.BuilderUtils && BuilderUtils.bdActiveRegime) ? BuilderUtils.bdActiveRegime() : null;
+      $d.text(regime && regime.description ? regime.description : '');
+    }
+
+    // Re-apply when the building-regs regime changes.
+    jQuery('#building_regs').on('change', function () {
+      applyGoing();
+      WIDTH_IDS.forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) applyWidth(el);
+      });
+      applyRegimeDesc();
+    });
 
     // Initial pass (after the flight script has seeded default values).
     applyGoing();
+    applyRegimeDesc();
   });
 })();

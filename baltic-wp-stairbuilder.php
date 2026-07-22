@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.16.0
+Version:		2.17.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.16.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.17.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -107,6 +107,30 @@ function custom_enqueue_files() {
 	$cs_min_raw  = stairbuilder_get_option( 'going_regs_warning_min', null );
 	$cs_max_raw  = stairbuilder_get_option( 'going_regs_warning_max', null );
 
+	// Building-regs regime table (v2.16.0 Phase 1) — keyed by the regime code
+	// (building_reg_value), consumed by getStaircaseConfig()'s rise/pitch gate and
+	// the going soft-warning/hard-max logic. Numeric columns are passed through as
+	// stored: '' means "no constraint" (JS parseFloat('') === NaN → skipped).
+	$bd_regs_table  = array();
+	$bd_regs_rows   = stairbuilder_get_option( 'building_regs', array() );
+	$bd_regs_cols   = array( 'min_going', 'max_rise', 'min_rise', 'min_width', 'max_pitch', 'two_r_g_min', 'two_r_g_max', 'max_open_gap', 'max_risers_run', 'on_exceed_mode', 'on_exceed_message', 'on_exceed_url_quarter', 'on_exceed_url_half' );
+	if ( is_array( $bd_regs_rows ) ) {
+		foreach ( $bd_regs_rows as $bd_reg ) {
+			if ( ! is_array( $bd_reg ) ) {
+				continue;
+			}
+			$bd_code = isset( $bd_reg['building_reg_value'] ) ? (string) $bd_reg['building_reg_value'] : '';
+			if ( '' === $bd_code ) {
+				continue;
+			}
+			$bd_entry = array( 'name' => isset( $bd_reg['building_reg_name'] ) ? (string) $bd_reg['building_reg_name'] : $bd_code );
+			foreach ( $bd_regs_cols as $bd_col ) {
+				$bd_entry[ $bd_col ] = isset( $bd_reg[ $bd_col ] ) ? $bd_reg[ $bd_col ] : '';
+			}
+			$bd_regs_table[ $bd_code ] = $bd_entry;
+		}
+	}
+
 	wp_localize_script( 'formLogic', 'stairBuilderVars', array(
 		'ajax_url' => admin_url( 'admin-ajax.php' ),
 		'nonce'    => $ajax_nonce,
@@ -123,6 +147,9 @@ function custom_enqueue_files() {
 			'width_max'             => stairbuilder_get_option( 'width_max', '' ),
 			'width_max_message'     => stairbuilder_get_option( 'width_max_message', '' ),
 		),
+		// Regime constraints keyed by building_reg_value (Phase 1). The active
+		// regime is the current #building_regs selection.
+		'regs' => $bd_regs_table,
 	) );
 
 	wp_enqueue_style( 'builder-style', plugin_dir_url( __FILE__ ) . 'assets/css/builder.css', array(), BALTIC_STAIRBUILDER_VERSION );

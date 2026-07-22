@@ -49,13 +49,18 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		// v4 (2.16.0): availability tags — construction_types.strict_for + the four
 		// material/profile repeaters' available_for. Additive; missing keys default
 		// to empty, so no backfill migration is required.
-		const SCHEMA_VERSION = 4;
+		// v5 (2.16.0 Phase 1): building_regs numeric limit columns (additive; the
+		// canonical rows are seeded when empty via maybe_seed_building_regs()).
+		const SCHEMA_VERSION = 5;
 
 		/** Option flag set to 1 after the v2 flat-key → repeater migration. */
 		const REPEATER_MIGRATION_FLAG = 'stairbuilder_repeater_migrated_v2';
 
 		/** Option flag set to 1 after the v2.4 spindle material-mode backfill. */
 		const BALLUSTRADE_MODES_FLAG = 'stairbuilder_balustrading_modes_migrated_v24';
+
+		/** Option flag set to 1 after the v2.16 building-regs canonical seed. */
+		const BUILDING_REGS_SEED_FLAG = 'stairbuilder_building_regs_seeded_v216';
 
 		/** @var array Parsed schema (tabs + fields). */
 		private $schema;
@@ -73,6 +78,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			add_action( 'admin_init', array( $this, 'maybe_migrate_from_acf' ), 20 );
 			add_action( 'admin_init', array( $this, 'maybe_migrate_repeaters_v2' ), 30 );
 			add_action( 'admin_init', array( $this, 'maybe_backfill_balustrade_modes' ), 40 );
+			add_action( 'admin_init', array( $this, 'maybe_seed_building_regs' ), 50 );
 			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 			add_action( 'admin_post_' . self::BULK_ACTION, array( $this, 'handle_bulk_apply' ) );
 		}
@@ -998,7 +1004,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								</select>
 							<?php elseif ( 'multiselect' === $sf_type ) :
 								$this->render_multiselect_group( $fname, is_array( $rv ) ? $rv : array(), $sf );
-							elseif ( $is_locked_code ) : ?>
+							elseif ( 'textarea' === $sf_type ) : ?>
+								<textarea name="<?php echo esc_attr( $fname ); ?>" rows="2" class="widefat"><?php echo esc_textarea( $rv ); ?></textarea>
+							<?php elseif ( $is_locked_code ) : ?>
 								<input type="text" name="<?php echo esc_attr( $fname ); ?>"
 									value="<?php echo esc_attr( $rv ); ?>"
 									class="widefat" readonly
@@ -1314,6 +1322,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							break;
 						case 'multiselect':
 							$clean_row[ $sf['id'] ] = $this->sanitize_multiselect( $v, $sf );
+							break;
+						case 'textarea':
+							$clean_row[ $sf['id'] ] = is_scalar( $v ) ? sanitize_textarea_field( (string) $v ) : '';
 							break;
 						default:
 							$clean_row[ $sf['id'] ] = is_scalar( $v ) ? sanitize_text_field( (string) $v ) : '';
@@ -2423,6 +2434,112 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			update_option( self::BALLUSTRADE_MODES_FLAG, 1 );
 		}
 
+		/**
+		 * Seed the four canonical building-regs rows (v2.16.0 §3.2) when the
+		 * repeater is empty. Building regs are FACTS ABOUT THE WORLD (identical
+		 * for every UK licensee), so they ship as editable seeded defaults — see
+		 * §11 seed-data policy. Seed-if-empty: a client's own configuration is
+		 * never clobbered. One-shot, flag-gated.
+		 */
+		public function maybe_seed_building_regs() {
+			if ( get_option( self::BUILDING_REGS_SEED_FLAG ) ) {
+				return;
+			}
+			$opts = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $opts ) ) {
+				$opts = array();
+			}
+			if ( empty( $opts['building_regs'] ) || ! is_array( $opts['building_regs'] ) ) {
+				$opts['building_regs'] = self::default_building_regs();
+				update_option( self::OPTION_KEY, $opts );
+			}
+			update_option( self::BUILDING_REGS_SEED_FLAG, 1 );
+		}
+
+		/**
+		 * Canonical Approved Document K regime rows. Numeric columns left as ''
+		 * mean "no constraint". Labels are plain; the formal ADK classification
+		 * ("General Access" / "Utility") lives in the description. Escalation
+		 * URLs are intentionally blank — a client's landing-calculator permalinks
+		 * are their data, not a shipped constant (§11).
+		 */
+		private static function default_building_regs() {
+			return array(
+				array(
+					'building_reg_name'     => 'Domestic – England & Wales',
+					'building_reg_value'    => 'domestic-ew',
+					'description'           => 'Private dwellings (houses and flats).',
+					'min_going'             => 220,
+					'max_rise'              => 220,
+					'min_rise'              => '',
+					'min_width'             => '',
+					'max_pitch'             => 42,
+					'two_r_g_min'           => 550,
+					'two_r_g_max'           => 700,
+					'max_open_gap'          => 100,
+					'max_risers_run'        => '',
+					'on_exceed_mode'        => 'warn',
+					'on_exceed_message'     => '',
+					'on_exceed_url_quarter' => '',
+					'on_exceed_url_half'    => '',
+				),
+				array(
+					'building_reg_name'     => 'Commercial – public areas',
+					'building_reg_value'    => 'commercial-general',
+					'description'           => 'Approved Document K “General Access” — retail, offices, schools and other public-circulation stairs.',
+					'min_going'             => 280,
+					'max_rise'              => 170,
+					'min_rise'              => 150,
+					'min_width'             => '',
+					'max_pitch'             => 31.3,
+					'two_r_g_min'           => 550,
+					'two_r_g_max'           => 700,
+					'max_open_gap'          => 100,
+					'max_risers_run'        => 16,
+					'on_exceed_mode'        => 'redirect',
+					'on_exceed_message'     => 'A public-access stair this tall needs a landing. Try our quarter- or half-landing calculators, or call for advice.',
+					'on_exceed_url_quarter' => '',
+					'on_exceed_url_half'    => '',
+				),
+				array(
+					'building_reg_name'     => 'Commercial – staff & maintenance only',
+					'building_reg_value'    => 'commercial-utility',
+					'description'           => 'Approved Document K “Utility” — maintenance access, secondary escape and staff-only stairs.',
+					'min_going'             => 250,
+					'max_rise'              => 190,
+					'min_rise'              => 150,
+					'min_width'             => '',
+					'max_pitch'             => 37.2,
+					'two_r_g_min'           => 550,
+					'two_r_g_max'           => 700,
+					'max_open_gap'          => 100,
+					'max_risers_run'        => 16,
+					'on_exceed_mode'        => 'redirect',
+					'on_exceed_message'     => 'A utility stair this tall needs a landing. Try our quarter- or half-landing calculators, or call for advice.',
+					'on_exceed_url_quarter' => '',
+					'on_exceed_url_half'    => '',
+				),
+				array(
+					'building_reg_name'     => 'No Building Regulations',
+					'building_reg_value'    => 'none',
+					'description'           => 'Unregulated — no dimensional limits applied.',
+					'min_going'             => '',
+					'max_rise'              => '',
+					'min_rise'              => '',
+					'min_width'             => '',
+					'max_pitch'             => '',
+					'two_r_g_min'           => '',
+					'two_r_g_max'           => '',
+					'max_open_gap'          => '',
+					'max_risers_run'        => '',
+					'on_exceed_mode'        => 'warn',
+					'on_exceed_message'     => '',
+					'on_exceed_url_quarter' => '',
+					'on_exceed_url_half'    => '',
+				),
+			);
+		}
+
 		/* ------------------------------------------------------------------ */
 		/* One-shot migration from ACF                                          */
 		/* ------------------------------------------------------------------ */
@@ -2691,7 +2808,28 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Applicable Building Regs',
 								'type' => 'repeater',
 								'style' => 'card',
-								'subfields' => [['id' => 'building_reg_name', 'label' => 'Name', 'type' => 'text'], ['id' => 'building_reg_value', 'label' => 'Value', 'type' => 'text']],
+								// Numeric limit columns (v2.16.0 §3.1). EMPTY means "no
+								// constraint", not zero — every consumer tests for empty before
+								// comparing, which is what makes "No Building Regs" work with no
+								// code path of its own.
+								'subfields' => [
+									['id' => 'building_reg_name', 'label' => 'Name', 'type' => 'text'],
+									['id' => 'building_reg_value', 'label' => 'Code / identifier', 'type' => 'text'],
+									['id' => 'description', 'label' => 'Customer description', 'type' => 'textarea'],
+									['id' => 'min_going', 'label' => 'Min going (mm)', 'type' => 'number'],
+									['id' => 'max_rise', 'label' => 'Max rise (mm)', 'type' => 'number'],
+									['id' => 'min_rise', 'label' => 'Min rise (mm)', 'type' => 'number'],
+									['id' => 'min_width', 'label' => 'Min width (mm)', 'type' => 'number'],
+									['id' => 'max_pitch', 'label' => 'Max pitch (°)', 'type' => 'number'],
+									['id' => 'two_r_g_min', 'label' => '2R+G min (mm)', 'type' => 'number'],
+									['id' => 'two_r_g_max', 'label' => '2R+G max (mm)', 'type' => 'number'],
+									['id' => 'max_open_gap', 'label' => 'Max open-riser gap (mm)', 'type' => 'number'],
+									['id' => 'max_risers_run', 'label' => 'Max risers per run', 'type' => 'number'],
+									['id' => 'on_exceed_mode', 'label' => 'On exceed', 'type' => 'select', 'choices' => ['warn' => 'Warn (allow)', 'block' => 'Block (no price)', 'redirect' => 'Redirect to landing calculator'], 'default' => 'warn'],
+									['id' => 'on_exceed_message', 'label' => 'On-exceed message', 'type' => 'textarea'],
+									['id' => 'on_exceed_url_quarter', 'label' => 'Quarter-landing URL', 'type' => 'text'],
+									['id' => 'on_exceed_url_half', 'label' => 'Half-landing URL', 'type' => 'text'],
+								],
 							],
 							[
 								'id' => 'construction_types',

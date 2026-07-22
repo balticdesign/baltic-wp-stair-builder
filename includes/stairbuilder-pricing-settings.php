@@ -3279,6 +3279,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'default' => 220,
 								'description' => 'Upper bound of the riser-height search used when the regime sets no maximum rise. 220 is the Approved Document K domestic maximum — raise it for steeper unregulated stairs. Leave empty to use 220.',
 							],
+							[
+								'id' => 'top_lip_mm',
+								'label' => 'Top lip (mm)',
+								'type' => 'number',
+								'placeholder' => 0,
+								'default' => 0,
+								'description' => 'A fixed length added at the head of the flight where it meets the upper floor — display + drawing only, never priced (already absorbed in prices). This is a manufacturer spec, NOT a standard: default 0 reproduces pre-v2.16 geometry exactly. Stairparts Direct enter 43. On turned staircases it applies once, on the final flight.',
+							],
 						],
 					],
 					'base_costs' => [

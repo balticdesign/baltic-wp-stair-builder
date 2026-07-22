@@ -152,6 +152,24 @@ function bdRiserBoard($ = window.jQuery) {
   } catch (e) { return null; }
 }
 
+/* ---- Top lip / display total run (v2.16.0 Phase 4, §5) ------------------
+ * The lip is a fixed length at the head of the flight where it meets the upper
+ * floor — DISPLAY + DRAWING only, NEVER priced (§5.2). It touches display_total_run
+ * and the canvas, and MUST NOT feed total_run / calculateRake / the metal count.
+ * bdDisplayTotalRun takes an already-computed base run (mm) and an EXPLICIT
+ * includeLip flag — the lip is added exactly once, by the caller that owns the
+ * "final flight only" rule (turned staircases), so it can't double-count. */
+function bdTopLipMm() {
+  var g = (window.stairBuilderVars && window.stairBuilderVars.geometry) || {};
+  var n = bdRegimeNum(g.top_lip_mm);
+  return (n !== null && n > 0) ? n : 0;   // default 0 → no lip → pre-v2.16 geometry
+}
+function bdDisplayTotalRun(baseRunMm, includeLip) {
+  var base = parseFloat(baseRunMm);
+  if (isNaN(base)) return null;
+  return base + (includeLip ? bdTopLipMm() : 0);
+}
+
 /**
  * Calculates the rake (diagonal length) of a staircase
  * @param {number} height - Total height of the staircase
@@ -674,6 +692,8 @@ if (typeof module !== 'undefined' && module.exports) {
     bdRegimeUnregulated,
     bdRegimePitchLimit,
     bdRiserBoard,
+    bdTopLipMm,
+    bdDisplayTotalRun,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,
@@ -707,6 +727,8 @@ if (typeof window !== 'undefined') {
     bdRegimeUnregulated,
     bdRegimePitchLimit,
     bdRiserBoard,
+    bdTopLipMm,
+    bdDisplayTotalRun,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,

@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.19.0
+Version:		2.20.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.19.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.20.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -194,6 +194,9 @@ function custom_enqueue_files() {
 		'geometry' => array(
 			'riser_search_min' => stairbuilder_get_option( 'riser_search_min', 150 ),
 			'riser_search_max' => stairbuilder_get_option( 'riser_search_max', 220 ),
+			// Top lip (Phase 4) — display/drawing only, never priced. Default 0 =
+			// pre-v2.16 geometry. SPD enters 43. See §5.2 boundary.
+			'top_lip_mm'       => stairbuilder_get_option( 'top_lip_mm', 0 ),
 		),
 		'availability' => $bd_availability,
 	) );

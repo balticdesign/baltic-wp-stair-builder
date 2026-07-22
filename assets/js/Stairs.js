@@ -190,9 +190,11 @@ Stairs.applyViewportTransform = function (context) {
             // breathing). Using the full visible extent balances vertical
             // padding around the diagram.
             stairWidth   = Stairs.options.treads.width;
-            stairHeight  = Stairs.maxHeight + 60 + Stairs.options.treads.height;
+            // + lipPx so the top-lip band at the head is inside the fit bounds
+            // (auto-fit rescales to include it rather than clipping). 0 = unchanged.
+            stairHeight  = Stairs.maxHeight + 60 + Stairs.options.treads.height + (Stairs.lipPx || 0);
             stairOriginX = Stairs.centerX - stairWidth / 2;
-            stairOriginY = -Stairs.options.treads.height;
+            stairOriginY = -Stairs.options.treads.height - (Stairs.lipPx || 0);
             break;
         case Stairs.StairTypeEnum.QUARTERTURN:
             // widthPx is the exact local-space horizontal extent; maxHeight
@@ -351,7 +353,15 @@ Stairs.setOptions = function(config, canvas){
 Stairs.setRegularStairsOptions = function(config){
     // mms of the stairs (for printing purposes)
     Stairs.printMMWidth = parseInt(config.treads.width);
-    Stairs.printMMHeight = parseInt(config.treads.height * Math.max((config.treads.amount - 1), 0));
+    // v2.16.0 Phase 4 (§5): the on-screen run dimension is display_total_run =
+    // going × (risers − 1) + top lip. The lip is display/drawing only and NEVER
+    // touches total_run / pricing (§5.2). At top_lip_mm = 0 this is the old value.
+    var bdBaseRunMm = config.treads.height * Math.max((config.treads.amount - 1), 0);
+    Stairs.printMMHeight = parseInt(
+        (window.BuilderUtils && BuilderUtils.bdDisplayTotalRun)
+            ? BuilderUtils.bdDisplayTotalRun(bdBaseRunMm, true)
+            : bdBaseRunMm
+    );
     
     Stairs.options.treads.amount = parseInt(config.treads.amount);
 
@@ -389,6 +399,14 @@ Stairs.setRegularStairsOptions = function(config){
     }
     //Canvas height should fit number of treads. Feature tread is StairConstants.FEATURE_TREAD_HEIGHT bigger than regular tread
     Stairs.maxHeight = (Stairs.options.treads.height * (Stairs.options.treads.amount - 1)) + Stairs.options.treads.height * StairConstants.FEATURE_TREAD_HEIGHT;
+
+    // v2.16.0 Phase 4: top lip in PX, scaled to the tread px-per-mm
+    // (options.treads.height px = config.treads.height mm of going). Drawn at the
+    // head in drawTreads and folded into the bounding box in applyViewportTransform
+    // so the auto-fit rescales to include it. 0 when top_lip_mm is 0.
+    var bdGoingMm = parseInt(config.treads.height) || 0;
+    var bdLipMm   = (window.BuilderUtils && BuilderUtils.bdTopLipMm) ? BuilderUtils.bdTopLipMm() : 0;
+    Stairs.lipPx  = (bdGoingMm > 0 && bdLipMm > 0) ? (bdLipMm * Stairs.options.treads.height / bdGoingMm) : 0;
     // canvas.height is owned by layout.js (568:506 container); do not overwrite here.
 
     // Belt-and-braces: scale tread height down to fit if the flight would
@@ -850,8 +868,22 @@ Stairs.drawTreads = function(context, y, treads){
                 y -= treads.height;
             }
             Stairs.drawTopTread(treads,context, positionX, y - treads.height, treads.width, treads.height, treads.amount);
+            // v2.16.0 Phase 4 (§5): the top lip — a thin band at the head of the
+            // flight, beyond the last tread, so the drawing physically measures
+            // display_total_run and doesn't contradict the 3163mm label. Straight
+            // flight only for now; turned flights are a separate phase.
+            if (Stairs.lipPx > 0) {
+                var bdLipTop = (y - treads.height) - Stairs.lipPx;
+                context.save();
+                context.fillStyle   = treads.fillColor;
+                context.strokeStyle = treads.strokeColor;
+                context.lineWidth   = 1 / Stairs.viewport.zoom;
+                context.fillRect(positionX, bdLipTop, treads.width, Stairs.lipPx);
+                context.strokeRect(positionX, bdLipTop, treads.width, Stairs.lipPx);
+                context.restore();
+            }
             break;
-        case Stairs.StairTypeEnum.QUARTERTURN: 
+        case Stairs.StairTypeEnum.QUARTERTURN:
             var flight1Treads = treads.flight1Treads;
             var flight2Treads = treads.flight2Treads;
             // account for possible feature tread y modification
@@ -2311,7 +2343,9 @@ Stairs.drawPostsHalfturn = function(context){
 Stairs.drawMeasures = function(context){
     context.save();
     var treads = Stairs.options.treads;
-    var startingY = treads.height;
+    // v2.16.0 Phase 4: pull the run dimension's top end up by the lip so the line
+    // spans display_total_run, matching the drawn band + the label. 0 = unchanged.
+    var startingY = treads.height - (Stairs.lipPx || 0);
     // Hug the staircase bottom (+30px breathing room) rather than the canvas
     // bottom, so the width measure stays visually attached to the lowest
     // tread regardless of how small the staircase is inside the canvas.

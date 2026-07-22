@@ -174,16 +174,24 @@ function getStaircaseConfig(going, height, $ = window.jQuery) {
 
   // v2.16.0 Phase 1: riser-height search bounds + pitch gate now derive from the
   // active building-regs regime, replacing the hardcoded 150–220 / 42° values.
-  //   - riser-height range: regime min_rise..max_rise, falling back to the
-  //     historical 150–220 physical range when the regime supplies no value —
-  //     so Domestic and No Building Regs behave exactly as before.
+  //   - riser-height range: regime min_rise..max_rise. When the regime supplies
+  //     no value (e.g. No Building Regs) it falls back to the admin
+  //     riser_search_min/max (Geometry / Defaults tab, default 150/220 = ADK
+  //     non-domestic min / domestic max). These are building-regs figures, so
+  //     they are configuration, not a hardcoded constant — a licensee building
+  //     loft ladders can widen them without touching code.
   //   - pitch gate: regime max_pitch (Doc K 42 fallback; no gate when unregulated).
-  // The old `going >= 220 && going <= 300` band is GONE: going is a soft warning
-  // (min_going) + hard max (going_max) in formLogic (§2/§3.3), not a config gate.
+  // The old `going >= 220 && going <= 300` band is GONE: bounding the going INPUT
+  // is not this function's job — going is a soft warning (min_going) + hard max
+  // (going_max) in formLogic (§2/§3.3). getStaircaseConfig filters riser counts
+  // by pitch only.
   const regime   = bdActiveRegime($);
   const maxPitch = bdRegimePitchLimit(regime);
-  const riserMin = (regime && bdRegimeNum(regime.min_rise) !== null) ? bdRegimeNum(regime.min_rise) : 150;
-  const riserMax = (regime && bdRegimeNum(regime.max_rise) !== null) ? bdRegimeNum(regime.max_rise) : 220;
+  const geo      = (window.stairBuilderVars && window.stairBuilderVars.geometry) || {};
+  const fbMin    = (bdRegimeNum(geo.riser_search_min) !== null) ? bdRegimeNum(geo.riser_search_min) : 150;
+  const fbMax    = (bdRegimeNum(geo.riser_search_max) !== null) ? bdRegimeNum(geo.riser_search_max) : 220;
+  const riserMin = (regime && bdRegimeNum(regime.min_rise) !== null) ? bdRegimeNum(regime.min_rise) : fbMin;
+  const riserMax = (regime && bdRegimeNum(regime.max_rise) !== null) ? bdRegimeNum(regime.max_rise) : fbMax;
 
   for (let possibleRiserHeight = riserMin; possibleRiserHeight <= riserMax; possibleRiserHeight++) {
     let possibleRisers = Math.ceil(height / possibleRiserHeight);

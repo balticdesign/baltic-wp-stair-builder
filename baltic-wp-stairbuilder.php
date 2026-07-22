@@ -150,6 +150,14 @@ function custom_enqueue_files() {
 		// Regime constraints keyed by building_reg_value (Phase 1). The active
 		// regime is the current #building_regs selection.
 		'regs' => $bd_regs_table,
+		// Geometry defaults (Phase 1). riser_search_* bound the riser-height
+		// search when the active regime supplies no min/max rise (e.g. No Building
+		// Regs). Default 150/220 = Approved Document K non-domestic min / domestic
+		// max — configurable so a licensee building loft ladders can widen them.
+		'geometry' => array(
+			'riser_search_min' => stairbuilder_get_option( 'riser_search_min', 150 ),
+			'riser_search_max' => stairbuilder_get_option( 'riser_search_max', 220 ),
+		),
 	) );
 
 	wp_enqueue_style( 'builder-style', plugin_dir_url( __FILE__ ) . 'assets/css/builder.css', array(), BALTIC_STAIRBUILDER_VERSION );

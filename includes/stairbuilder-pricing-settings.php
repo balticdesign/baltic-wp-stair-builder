@@ -2710,6 +2710,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				// Group 2 — staircase-wide settings + display.
 				array(
 					'construction_settings',
+					'geometry_defaults',
 					'base_costs',
 					'quarter_landing',
 					'half_landing',
@@ -3152,6 +3153,29 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'type' => 'text',
 								'placeholder' => 'Maximum width is {max}mm.',
 								'description' => 'Red message shown when someone exceeds the width maximum. Use {max} for the maximum value. Leave empty for a default message.',
+							],
+						],
+					],
+					'geometry_defaults' => [
+						'label' => 'Geometry / Defaults',
+						'fields' => [
+							// Dimensions, NOT prices — no 'adjustable' flags here, so the
+							// bulk price tool never enumerates them.
+							[
+								'id' => 'riser_search_min',
+								'label' => 'Riser height — search minimum (mm)',
+								'type' => 'number',
+								'placeholder' => 150,
+								'default' => 150,
+								'description' => 'Lower bound of the riser-height search used when the selected building-regs regime sets no minimum rise (e.g. No Building Regs). 150 is the Approved Document K non-domestic minimum — lower it only for products like loft ladders or space savers. Leave empty to use 150.',
+							],
+							[
+								'id' => 'riser_search_max',
+								'label' => 'Riser height — search maximum (mm)',
+								'type' => 'number',
+								'placeholder' => 220,
+								'default' => 220,
+								'description' => 'Upper bound of the riser-height search used when the regime sets no maximum rise. 220 is the Approved Document K domestic maximum — raise it for steeper unregulated stairs. Leave empty to use 220.',
 							],
 						],
 					],

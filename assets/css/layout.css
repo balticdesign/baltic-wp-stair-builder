@@ -570,6 +570,13 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   }
 }
 
+/* Availability stated-line (v2.16.0 Phase 2). A single valid option renders as a
+ * stated line, not an interactive one-option select. Functional rules only —
+ * visual treatment is intentionally minimal and left to the design pass. */
+.bd-stairbuilder-layout .bd-avail-collapsed { display: none; }
+.bd-stairbuilder-layout .bd-avail-stated { display: none; }
+.bd-stairbuilder-layout .bd-avail-stated.is-shown { display: block; }
+
 @media (prefers-reduced-motion: reduce) {
   .bd-stairbuilder-layout #stairbuild,
   .bd-stairbuilder-layout .mm_breakout,

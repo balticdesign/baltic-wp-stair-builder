@@ -1487,6 +1487,56 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/* Settings page render                                                 */
 		/* ------------------------------------------------------------------ */
 
+		/**
+		 * Construction types whose strict_for repeater has zero rows tagged for
+		 * them — these are not offered on the front-end form (§4.1/§6.1). Returned
+		 * as ready-to-display admin warnings so the omission is never silent.
+		 */
+		private function empty_strict_warnings() {
+			$out  = array();
+			$opts = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $opts ) || empty( $opts['construction_types'] ) || ! is_array( $opts['construction_types'] ) ) {
+				return $out;
+			}
+			$labels = array(
+				'stringer_types' => 'stringer types',
+				'tread_types'    => 'tread types',
+				'riser_types'    => 'riser types',
+				'tread_profiles' => 'tread profiles',
+			);
+			foreach ( $opts['construction_types'] as $ct ) {
+				if ( ! is_array( $ct ) ) {
+					continue;
+				}
+				$code = isset( $ct['construction_code'] ) ? (string) $ct['construction_code'] : '';
+				if ( '' === $code ) {
+					continue;
+				}
+				$name   = ( isset( $ct['construction_name'] ) && '' !== $ct['construction_name'] ) ? (string) $ct['construction_name'] : $code;
+				$strict = ( isset( $ct['strict_for'] ) && is_array( $ct['strict_for'] ) ) ? $ct['strict_for'] : array();
+				foreach ( $strict as $rep_id ) {
+					$rows   = ( isset( $opts[ $rep_id ] ) && is_array( $opts[ $rep_id ] ) ) ? $opts[ $rep_id ] : array();
+					$tagged = false;
+					foreach ( $rows as $r ) {
+						if ( is_array( $r ) && isset( $r['available_for'] ) && is_array( $r['available_for'] ) && in_array( $code, array_map( 'strval', $r['available_for'] ), true ) ) {
+							$tagged = true;
+							break;
+						}
+					}
+					if ( ! $tagged ) {
+						$label = isset( $labels[ $rep_id ] ) ? $labels[ $rep_id ] : $rep_id;
+						$out[] = sprintf(
+							/* translators: 1: construction type name, 2: repeater label (e.g. "riser types") */
+							esc_html__( '“%1$s” has no valid %2$s — it will not be offered on the form until at least one row is ticked as available for it.', 'stairbuilder' ),
+							$name,
+							$label
+						);
+					}
+				}
+			}
+			return $out;
+		}
+
 		public function render_page() {
 			if ( ! current_user_can( 'manage_options' ) ) {
 				return;
@@ -1495,6 +1545,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				add_settings_error( 'stairbuilder_messages', 'stairbuilder_saved', __( 'Settings saved.', 'stairbuilder' ), 'updated' );
 			}
 			settings_errors( 'stairbuilder_messages' );
+
+			// v2.16.0 Phase 2: a construction type whose strict_for repeater has zero
+			// rows tagged for it is not offered on the front-end form — warn here so
+			// the reason is never silent ("Open Riser has no valid riser types").
+			foreach ( $this->empty_strict_warnings() as $bd_warn ) {
+				echo '<div class="notice notice-warning"><p>' . wp_kses_post( $bd_warn ) . '</p></div>';
+			}
 
 			$groups = $this->get_tab_groups();
 			?>

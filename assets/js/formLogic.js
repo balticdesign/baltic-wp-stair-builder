@@ -99,6 +99,14 @@ function submitStairLead() {
   const formDataArray = jQuery('#stairbuild').serializeArray()
     .filter(f => f.name !== 'contact_name' && f.name !== 'contact_email' && f.name !== 'contact_phone');
 
+  // Un-stripped copy of the fields server-side availability revalidation needs
+  // (v2.16.0 Phase 2). Captured BEFORE the colon-strip below, so material values
+  // keep their code:price form — code+price identifies the exact row even where
+  // the code alone is non-unique (two pine treads at different thicknesses).
+  // Storage/PDF/bd_code_label continue to use the stripped codes in custom_meta.
+  const REVALIDATE_FIELDS = ['construction_type', 'stringer_material', 'tread_material', 'riser_material', 'tread-profile'];
+  const revalidateMeta = jQuery.param(formDataArray.filter(f => REVALIDATE_FIELDS.indexOf(f.name) !== -1));
+
   formDataArray.forEach(field => {
     const colonIndex = field.value.indexOf(':');
     if (colonIndex !== -1) {
@@ -127,6 +135,7 @@ function submitStairLead() {
       contact_email: email,
       contact_phone: phone,
       custom_meta: formData,
+      revalidate_meta: revalidateMeta,
       canvas_image: dataUrl,
       price, vat, total,
       security: stairBuilderVars.nonce
@@ -517,5 +526,142 @@ jQuery("input[name='delivery']").change(function () {
     // Initial pass (after the flight script has seeded default values).
     applyGoing();
     applyRegimeDesc();
+  });
+})();
+
+// ============================================================
+// CONSTRUCTION AVAILABILITY FILTER (v2.16.0 Phase 2)
+// Filters material/profile <option>s by the selected construction type per the
+// strict_for / available_for resolution rule (§3.4). FULLY GENERIC — no
+// construction code is special-cased; a licensee with zero tags gets pre-v2.16
+// behaviour exactly (untagged rows stay available, no strict repeaters).
+// available_for travels on each option as data-available-for, so no row identity
+// is needed (tread/riser codes are non-unique). Snapshot-at-init is safe: the
+// filter is the only code path that rebuilds these selects (setMaterial only sets
+// `selected`; the flight scripts only read them).
+// ============================================================
+(function () {
+  const av = (window.stairBuilderVars && stairBuilderVars.availability) || null;
+  if (!av || !av.repeater_select) return;
+  const strictMap = av.strict_for || {};
+  const selectMap = av.repeater_select; // repeaterId -> '#selectId'
+
+  jQuery(function () {
+    const $ct = jQuery('#construction_type');
+    if (!$ct.length) return;
+
+    const snapshots = {}; // repeaterId -> [{value,text,tags[],dataPrice}]
+    const msgEls    = {}; // repeaterId -> jQuery .sb-limit-msg
+
+    function ctName(code) {
+      const $o = $ct.find('option[value="' + code + '"]');
+      return $o.length ? $o.text().trim() : '';
+    }
+    function optionAllowed(opt, ctCode, strict) {
+      // strict: only rows tagged for this construction. permissive: untagged OR tagged.
+      if (strict) return opt.tags.indexOf(ctCode) !== -1;
+      return opt.tags.length === 0 || opt.tags.indexOf(ctCode) !== -1;
+    }
+
+    // Snapshot each managed select's full option set + wrap it so a stated line
+    // can sit beside it, and give it a hidden limit-message element.
+    Object.keys(selectMap).forEach(function (repId) {
+      const $sel = jQuery(selectMap[repId]);
+      if (!$sel.length) return;
+      snapshots[repId] = $sel.find('option').map(function () {
+        const $o  = jQuery(this);
+        const raw = ($o.attr('data-available-for') || '').trim();
+        return {
+          value: $o.attr('value'),
+          text: $o.text().replace(/\s+/g, ' ').trim(),
+          tags: raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [],
+          dataPrice: $o.attr('data-price'),
+        };
+      }).get();
+      if (!$sel.parent().hasClass('bd-avail-wrap')) {
+        $sel.wrap('<span class="bd-avail-wrap"></span>');
+        $sel.after('<span class="bd-avail-stated" aria-live="polite"></span>');
+      }
+      const $m = jQuery('<p class="sb-limit-msg" style="display:none;color:#d63638;margin:4px 0 0;font-size:13px;font-weight:600;"></p>');
+      $sel.parent().after($m);
+      msgEls[repId] = $m;
+    });
+
+    function rebuild(repId, ctCode) {
+      const $sel = jQuery(selectMap[repId]);
+      const snap = snapshots[repId];
+      if (!$sel.length || !snap) return;
+      const strict  = (strictMap[ctCode] || []).indexOf(repId) !== -1;
+      const prev    = $sel.val();
+      const allowed = snap.filter(o => optionAllowed(o, ctCode, strict));
+      const $wrap   = $sel.parent();
+      const $stated = $wrap.find('.bd-avail-stated');
+
+      // Filter individual options by REBUILDING (removed, not disabled/CSS-hidden,
+      // so nothing invalid can POST).
+      $sel.empty();
+      allowed.forEach(function (o) {
+        const $o = jQuery('<option>').attr('value', o.value).text(o.text);
+        if (o.dataPrice !== undefined) $o.attr('data-price', o.dataPrice);
+        $sel.append($o);
+      });
+
+      // Preserve the selection if still valid, else fall back to the first option
+      // and flag a forced change (§6.2).
+      let forced = false;
+      if (allowed.some(o => o.value === prev)) {
+        $sel.val(prev);
+      } else {
+        $sel.val(allowed.length ? allowed[0].value : '');
+        if (prev && prev !== '' && allowed.length) forced = true;
+      }
+
+      // Exactly one option → a stated line, not an interactive one-option select.
+      // The select stays in the DOM (hidden via class) so it still POSTs and
+      // priceCalc reads it unchanged; the stated line is the visible treatment.
+      // Distinguish "one because strictness filtered the rest" (show the reason)
+      // from "one because the client configured a single row" (no reason).
+      if (allowed.length === 1) {
+        const filtered = strict && snap.length > 1;
+        $sel.addClass('bd-avail-collapsed');
+        const label  = $wrap.closest('.form-row').find('label').first().text().replace(':', '').trim();
+        const reason = filtered ? ' · required for ' + (ctName(ctCode) || 'this construction') : '';
+        $stated.attr('data-bd-reason', filtered ? 'filtered' : 'catalogue')
+               .text((label ? label + ' — ' : '') + allowed[0].text + reason)
+               .addClass('is-shown');
+      } else {
+        $sel.removeClass('bd-avail-collapsed');
+        $stated.removeClass('is-shown').removeAttr('data-bd-reason').text('');
+      }
+
+      const $m = msgEls[repId];
+      if ($m) {
+        if (forced) { $m.text('Your selection isn’t available for this construction — updated to the closest option.').show(); }
+        else { $m.hide(); }
+      }
+      if (forced) $sel.trigger('change'); // priceCalc reads prices off the markup; recalc
+      return allowed.length;
+    }
+
+    function applyAll() {
+      const ctCode = $ct.val();
+      Object.keys(selectMap).forEach(function (repId) { rebuild(repId, ctCode); });
+    }
+
+    // A construction type whose STRICT repeater has zero rows tagged for it is
+    // unbuildable, so it is not offered (§4.1/§6.1). The paired admin-facing
+    // warning lives server-side (settings screen), so the reason is never silent.
+    $ct.find('option').each(function () {
+      const $o   = jQuery(this);
+      const code = $o.attr('value');
+      const empties = (strictMap[code] || []).some(function (repId) {
+        const snap = snapshots[repId];
+        return snap && !snap.some(o => o.tags.indexOf(code) !== -1);
+      });
+      if (empties) $o.remove();
+    });
+
+    $ct.on('change', applyAll);
+    applyAll();
   });
 })();

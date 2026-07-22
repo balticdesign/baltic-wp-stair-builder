@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.17.1
+Version:		2.18.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.17.1' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.18.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -131,6 +131,35 @@ function custom_enqueue_files() {
 		}
 	}
 
+	// Availability enforcement (v2.16.0 Phase 2). strict_for keyed by construction
+	// code; available_for travels on each <option> as data-available-for so the
+	// filter needs no row identity. FULLY GENERIC — no construction code is
+	// special-cased; a licensee with zero tags gets pre-v2.16 behaviour exactly.
+	$bd_strict_for  = array();
+	$bd_ct_rows     = stairbuilder_get_option( 'construction_types', array() );
+	if ( is_array( $bd_ct_rows ) ) {
+		foreach ( $bd_ct_rows as $bd_ct ) {
+			if ( ! is_array( $bd_ct ) ) {
+				continue;
+			}
+			$bd_ct_code = isset( $bd_ct['construction_code'] ) ? (string) $bd_ct['construction_code'] : '';
+			if ( '' === $bd_ct_code ) {
+				continue;
+			}
+			$bd_strict_for[ $bd_ct_code ] = ( isset( $bd_ct['strict_for'] ) && is_array( $bd_ct['strict_for'] ) ) ? array_map( 'strval', $bd_ct['strict_for'] ) : array();
+		}
+	}
+	$bd_availability = array(
+		'strict_for'      => $bd_strict_for,
+		// repeater id → the DOM select it drives.
+		'repeater_select' => array(
+			'stringer_types' => '#stringer_material',
+			'tread_types'    => '#tread_material',
+			'riser_types'    => '#riser_material',
+			'tread_profiles' => '#tread-profile',
+		),
+	);
+
 	wp_localize_script( 'formLogic', 'stairBuilderVars', array(
 		'ajax_url' => admin_url( 'admin-ajax.php' ),
 		'nonce'    => $ajax_nonce,
@@ -158,6 +187,7 @@ function custom_enqueue_files() {
 			'riser_search_min' => stairbuilder_get_option( 'riser_search_min', 150 ),
 			'riser_search_max' => stairbuilder_get_option( 'riser_search_max', 220 ),
 		),
+		'availability' => $bd_availability,
 	) );
 
 	wp_enqueue_style( 'builder-style', plugin_dir_url( __FILE__ ) . 'assets/css/builder.css', array(), BALTIC_STAIRBUILDER_VERSION );

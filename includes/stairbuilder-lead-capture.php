@@ -24,6 +24,118 @@ add_shortcode( 'vat_rate', 'baltic_stair_get_vat_rate' );
  * AJAX: configurator submit. Captures lead → generates PDF → emails →
  * fires action hook → returns redirect URL to thank-you page.
  */
+/**
+ * Server-side availability revalidation (v2.16.0 Phase 2, §6.3).
+ *
+ * Re-checks the submitted construction+material combination against the SAME
+ * settings the front-end filter uses (strict_for on the construction type,
+ * available_for on each material/profile row), in BOTH directions:
+ *   - strict repeater      → the row must be tagged for this construction.
+ *   - permissive repeater  → a row with a NON-EMPTY available_for must include
+ *                            this construction (untagged rows are available to all).
+ *
+ * Row addressing: material fields arrive (in revalidate_meta, un-stripped) as
+ * code:price. code+price identifies the exact row in nearly every case, so the
+ * check is ROW-granular for unique-code repeaters (tread_profiles) AND for
+ * tread/riser wherever the price disambiguates the shared code.
+ *
+ * KNOWN GAP (documented, deferred to the stable-row-identity hardening release):
+ * two rows sharing BOTH a code and a price are indistinguishable, so the check
+ * falls back to code-granular (any such row available → allowed). Acceptable
+ * pre-production: no payment, every quote is joiner-checked, and when code+price
+ * collide the rows cost the same so the quote is correct regardless — only the
+ * thickness label could differ, which the joiner catches. See Baltic Mind finding.
+ *
+ * FULLY GENERIC: no construction code is special-cased. A licensee with zero tags
+ * has empty strict_for and untagged rows, so every combination passes — pre-v2.16
+ * behaviour exactly.
+ *
+ * @param string $revalidate_raw URL-encoded un-stripped payload (revalidate_meta).
+ * @return string '' when OK, else a customer-facing rejection message.
+ */
+function bd_stairbuilder_revalidate_availability( $revalidate_raw ) {
+	if ( ! is_string( $revalidate_raw ) || '' === $revalidate_raw ) {
+		return ''; // Nothing to check (e.g. an older cached client with no payload).
+	}
+	parse_str( $revalidate_raw, $rv );
+	$ct_code = isset( $rv['construction_type'] ) ? (string) $rv['construction_type'] : '';
+	if ( '' === $ct_code ) {
+		return '';
+	}
+
+	// strict_for for the submitted construction type (and confirm it's real).
+	$ct_valid   = false;
+	$strict_for = array();
+	foreach ( (array) stairbuilder_get_option( 'construction_types', array() ) as $r ) {
+		if ( is_array( $r ) && isset( $r['construction_code'] ) && (string) $r['construction_code'] === $ct_code ) {
+			$ct_valid   = true;
+			$strict_for = ( isset( $r['strict_for'] ) && is_array( $r['strict_for'] ) ) ? array_map( 'strval', $r['strict_for'] ) : array();
+			break;
+		}
+	}
+	if ( ! $ct_valid ) {
+		return 'Unrecognised construction type.';
+	}
+
+	// field name → [ repeater option key, code sub-field, price sub-field ].
+	$map = array(
+		'stringer_material' => array( 'stringer_types', 'stringer_code', 'stringer_value' ),
+		'tread_material'    => array( 'tread_types', 'tread_code', 'tread_value' ),
+		'riser_material'    => array( 'riser_types', 'riser_code', 'riser_value' ),
+		'tread-profile'     => array( 'tread_profiles', 'tread_profile_code', 'tread_profile_value' ),
+	);
+
+	foreach ( $map as $field => $spec ) {
+		if ( ! isset( $rv[ $field ] ) || '' === $rv[ $field ] ) {
+			continue;
+		}
+		list( $repeater, $code_key, $value_key ) = $spec;
+		$submitted = (string) $rv[ $field ];
+		$sub_code  = $submitted;
+		$sub_price = null;
+		if ( false !== strpos( $submitted, ':' ) ) {
+			list( $sub_code, $sub_price ) = explode( ':', $submitted, 2 );
+		}
+
+		$by_code       = array();
+		$by_code_price = array();
+		foreach ( (array) stairbuilder_get_option( $repeater, array() ) as $r ) {
+			if ( ! is_array( $r ) || ! isset( $r[ $code_key ] ) || (string) $r[ $code_key ] !== (string) $sub_code ) {
+				continue;
+			}
+			$by_code[] = $r;
+			if ( null !== $sub_price && isset( $r[ $value_key ] ) && (string) $r[ $value_key ] === (string) $sub_price ) {
+				$by_code_price[] = $r;
+			}
+		}
+		if ( empty( $by_code ) ) {
+			return 'A selected material is not available.'; // Unknown / tampered code.
+		}
+		// Prefer the code+price match (row-granular); fall back to code-granular only
+		// when price didn't disambiguate (the documented gap above).
+		$candidates = ! empty( $by_code_price ) ? $by_code_price : $by_code;
+		$strict     = in_array( $repeater, $strict_for, true );
+		$ok         = false;
+		foreach ( $candidates as $r ) {
+			$af = ( isset( $r['available_for'] ) && is_array( $r['available_for'] ) ) ? array_map( 'strval', $r['available_for'] ) : array();
+			if ( $strict ) {
+				if ( in_array( $ct_code, $af, true ) ) {
+					$ok = true;
+					break;
+				}
+			} elseif ( empty( $af ) || in_array( $ct_code, $af, true ) ) {
+				$ok = true;
+				break;
+			}
+		}
+		if ( ! $ok ) {
+			return 'A selected material is not available for the chosen construction type.';
+		}
+	}
+
+	return '';
+}
+
 function baltic_stair_submit_lead() {
 	if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( $_POST['security'], 'sb-ajax-nonce' ) ) {
 		wp_send_json_error( array( 'message' => 'Nonce verification failed' ), 403 );
@@ -39,6 +151,16 @@ function baltic_stair_submit_lead() {
 
 	$custom_meta = isset( $_POST['custom_meta'] ) ? wp_unslash( $_POST['custom_meta'] ) : '';
 	parse_str( $custom_meta, $form_data );
+
+	// Availability revalidation (v2.16.0 Phase 2, §6.3). Price is client-side, so a
+	// tampered POST can carry an impossible construction+material combination. Reject
+	// it before the lead is written or a PDF generated — don't silently correct.
+	$bd_revalidate_err = bd_stairbuilder_revalidate_availability(
+		isset( $_POST['revalidate_meta'] ) ? wp_unslash( $_POST['revalidate_meta'] ) : ''
+	);
+	if ( '' !== $bd_revalidate_err ) {
+		wp_send_json_error( array( 'message' => $bd_revalidate_err ), 422 );
+	}
 
 	$price = isset( $_POST['price'] ) ? (float) $_POST['price'] : 0;
 	$vat   = isset( $_POST['vat'] ) ? (float) $_POST['vat'] : 0;

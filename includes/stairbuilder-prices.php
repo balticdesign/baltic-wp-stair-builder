@@ -23,6 +23,10 @@ if ( ! function_exists( 'bd_stairbuilder_normalise_repeater' ) ) {
                 'name'  => isset( $row[ $name_key ] )  ? $row[ $name_key ]  : '',
                 'code'  => isset( $row[ $code_key ] )  ? $row[ $code_key ]  : '',
                 'value' => isset( $row[ $value_key ] ) ? $row[ $value_key ] : 0,
+                // v2.16.0 Phase 2: availability tags travel with the option so the
+                // front-end filter can address the row without a row identifier
+                // (codes are non-unique on tread/riser). Empty for untagged rows.
+                'available_for' => ( isset( $row['available_for'] ) && is_array( $row['available_for'] ) ) ? array_map( 'strval', $row['available_for'] ) : array(),
             );
         }
         return $out;

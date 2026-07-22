@@ -234,7 +234,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <select id="tread-profile" name="tread-profile">
     <?php if (!empty($tread_profile_options)): ?>
       <?php foreach ($tread_profile_options as $tp_option): ?>
-        <option data-price="<?php echo esc_attr($tp_option['value']); ?>" value="<?php echo esc_attr($tp_option['code']); ?>">
+        <option data-price="<?php echo esc_attr($tp_option['value']); ?>" data-available-for="<?php echo esc_attr(implode(',', $tp_option['available_for'])); ?>" value="<?php echo esc_attr($tp_option['code']); ?>">
           <?php echo esc_html($tp_option['name']); ?>
         </option>
       <?php endforeach; ?>
@@ -302,7 +302,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
     <select id="stringer_material" name="stringer_material" class="bd-mat-select">
     <?php if (!empty($stringer_options)): ?>
       <?php foreach ($stringer_options as $str_option): ?>
-        <option value="<?php echo esc_attr($str_option['code']) . ':' . esc_attr($str_option['value']); ?>">
+        <option data-available-for="<?php echo esc_attr(implode(',', $str_option['available_for'])); ?>" value="<?php echo esc_attr($str_option['code']) . ':' . esc_attr($str_option['value']); ?>">
           <?php echo esc_html($str_option['name']); ?>
         </option>
       <?php endforeach; ?>
@@ -316,7 +316,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
   <select id="tread_material" name="tread_material" class="bd-mat-select">
     <?php if (!empty($tread_options)): ?>
       <?php foreach ($tread_options as $tr_option): ?>
-        <option value="<?php echo esc_attr($tr_option['code']) . ':' . esc_attr($tr_option['value']); ?>">
+        <option data-available-for="<?php echo esc_attr(implode(',', $tr_option['available_for'])); ?>" value="<?php echo esc_attr($tr_option['code']) . ':' . esc_attr($tr_option['value']); ?>">
           <?php echo esc_html($tr_option['name']); ?>
         </option>
       <?php endforeach; ?>
@@ -330,7 +330,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <select id="riser_material" name="riser_material" class="bd-mat-select">
       <?php if (!empty($riser_options)) { ?>
       <?php foreach ($riser_options as $r_option) { ?>
-        <option value="<?php echo esc_attr($r_option['code']) . ':' . esc_attr($r_option['value']); ?>">
+        <option data-available-for="<?php echo esc_attr(implode(',', $r_option['available_for'])); ?>" value="<?php echo esc_attr($r_option['code']) . ':' . esc_attr($r_option['value']); ?>">
           <?php echo esc_html($r_option['name']); ?>
         </option>
       <?php } } else { ?>

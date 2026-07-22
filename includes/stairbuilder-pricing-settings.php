@@ -1006,15 +1006,24 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								$this->render_multiselect_group( $fname, is_array( $rv ) ? $rv : array(), $sf );
 							elseif ( 'textarea' === $sf_type ) : ?>
 								<textarea name="<?php echo esc_attr( $fname ); ?>" rows="2" class="widefat"><?php echo esc_textarea( $rv ); ?></textarea>
+							<?php elseif ( 'toggle' === $sf_type ) : ?>
+								<input type="hidden" name="<?php echo esc_attr( $fname ); ?>" value="0" />
+								<input type="checkbox" name="<?php echo esc_attr( $fname ); ?>" value="1" <?php checked( ! empty( $rv ) ); ?> />
 							<?php elseif ( $is_locked_code ) : ?>
 								<input type="text" name="<?php echo esc_attr( $fname ); ?>"
 									value="<?php echo esc_attr( $rv ); ?>"
 									class="widefat" readonly
 									title="<?php esc_attr_e( 'Locked after creation — rename the label instead. Delete and re-create to change the code.', 'stairbuilder' ); ?>" />
-							<?php else : ?>
+							<?php else :
+								// New rows (the __i__ prototype) pre-fill a sub-field 'default' so e.g.
+								// default_open_gap starts at 100. Existing rows keep their stored value —
+								// a saved blank stays blank (never retro-fill).
+								$field_val = ( '' === (string) $rv && '__i__' === (string) $i && isset( $sf['default'] ) ) ? $sf['default'] : $rv;
+								?>
 								<input type="<?php echo 'number' === $sf_type ? 'number' : 'text'; ?>" <?php echo 'number' === $sf_type ? 'step="any"' : ''; ?>
 									name="<?php echo esc_attr( $fname ); ?>"
-									value="<?php echo esc_attr( $rv ); ?>"
+									value="<?php echo esc_attr( $field_val ); ?>"
+									placeholder="<?php echo isset( $sf['placeholder'] ) ? esc_attr( $sf['placeholder'] ) : ''; ?>"
 									class="widefat" />
 							<?php endif; ?>
 						</label>
@@ -1537,6 +1546,36 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			return $out;
 		}
 
+		/**
+		 * Construction types that derive riser board height (open riser) but have no
+		 * default_open_gap set. Under No Building Regs the regime supplies no
+		 * max_open_gap, so with no default the board height can't be computed and the
+		 * spec line is suppressed — warn so the admin knows to set the gap (v2.16.0
+		 * Phase 3, §4.2 both-empty case).
+		 */
+		private function derives_gap_warnings() {
+			$out  = array();
+			$opts = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $opts ) || empty( $opts['construction_types'] ) || ! is_array( $opts['construction_types'] ) ) {
+				return $out;
+			}
+			foreach ( $opts['construction_types'] as $ct ) {
+				if ( ! is_array( $ct ) || empty( $ct['derives_riser_height'] ) ) {
+					continue;
+				}
+				$gap = isset( $ct['default_open_gap'] ) ? $ct['default_open_gap'] : '';
+				if ( '' === $gap || null === $gap ) {
+					$name  = ( isset( $ct['construction_name'] ) && '' !== $ct['construction_name'] ) ? (string) $ct['construction_name'] : ( isset( $ct['construction_code'] ) ? (string) $ct['construction_code'] : '' );
+					$out[] = sprintf(
+						/* translators: %s: construction type name */
+						esc_html__( '“%s” derives riser board height but has no default open-riser gap — the board-height spec will not show under No Building Regs until you set a gap (mm). The 100mm sphere rule is the usual value.', 'stairbuilder' ),
+						$name
+					);
+				}
+			}
+			return $out;
+		}
+
 		public function render_page() {
 			if ( ! current_user_can( 'manage_options' ) ) {
 				return;
@@ -1549,7 +1588,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			// v2.16.0 Phase 2: a construction type whose strict_for repeater has zero
 			// rows tagged for it is not offered on the front-end form — warn here so
 			// the reason is never silent ("Open Riser has no valid riser types").
-			foreach ( $this->empty_strict_warnings() as $bd_warn ) {
+			foreach ( array_merge( $this->empty_strict_warnings(), $this->derives_gap_warnings() ) as $bd_warn ) {
 				echo '<div class="notice notice-warning"><p>' . wp_kses_post( $bd_warn ) . '</p></div>';
 			}
 
@@ -2906,6 +2945,12 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 									// only rows tagged available_for THIS type are selectable; untagged
 									// rows are excluded. Enforcement (option filtering) lands in Phase 2.
 									['id' => 'strict_for', 'label' => 'Restrict strictly (only tagged rows selectable)', 'type' => 'multiselect', 'choices' => ['stringer_types' => 'Stringers', 'tread_types' => 'Treads', 'riser_types' => 'Risers', 'tread_profiles' => 'Tread Profiles']],
+									// Open-riser geometry (Phase 3, §3.5/§4). derives_riser_height turns
+									// on the derived board-height spec (rise − gap); default_open_gap is
+									// the fallback gap when the active regime supplies no max_open_gap
+									// (i.e. No Building Regs). 100mm sphere rule → default 100 on new rows.
+									['id' => 'derives_riser_height', 'label' => 'Derive riser board height (open riser)', 'type' => 'toggle'],
+									['id' => 'default_open_gap', 'label' => 'Default open-riser gap (mm)', 'type' => 'number', 'default' => 100, 'placeholder' => 100],
 								],
 							],
 						],

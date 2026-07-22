@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.18.0
+Version:		2.19.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.18.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.19.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -136,6 +136,7 @@ function custom_enqueue_files() {
 	// filter needs no row identity. FULLY GENERIC — no construction code is
 	// special-cased; a licensee with zero tags gets pre-v2.16 behaviour exactly.
 	$bd_strict_for  = array();
+	$bd_ct_meta     = array();
 	$bd_ct_rows     = stairbuilder_get_option( 'construction_types', array() );
 	if ( is_array( $bd_ct_rows ) ) {
 		foreach ( $bd_ct_rows as $bd_ct ) {
@@ -147,10 +148,17 @@ function custom_enqueue_files() {
 				continue;
 			}
 			$bd_strict_for[ $bd_ct_code ] = ( isset( $bd_ct['strict_for'] ) && is_array( $bd_ct['strict_for'] ) ) ? array_map( 'strval', $bd_ct['strict_for'] ) : array();
+			// Open-riser geometry meta (Phase 3). '' default_open_gap = not set → the
+			// board-height helper suppresses under No Building Regs (both-empty case).
+			$bd_ct_meta[ $bd_ct_code ] = array(
+				'derives_riser_height' => ! empty( $bd_ct['derives_riser_height'] ) ? 1 : 0,
+				'default_open_gap'     => isset( $bd_ct['default_open_gap'] ) ? $bd_ct['default_open_gap'] : '',
+			);
 		}
 	}
 	$bd_availability = array(
 		'strict_for'      => $bd_strict_for,
+		'construction_meta' => $bd_ct_meta,
 		// repeater id → the DOM select it drives.
 		'repeater_select' => array(
 			'stringer_types' => '#stringer_material',

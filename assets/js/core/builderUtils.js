@@ -123,6 +123,35 @@ function bdRegimePitchLimit(regime) {
   return bdRegimeUnregulated(regime) ? Infinity : 42;
 }
 
+/* ---- Derived open-riser board height (v2.16.0 Phase 3, §4.2) -------------
+ * Display spec only — the riser price stays flat and does NOT track this.
+ * height = individual rise − gap, where gap = the active regime's max_open_gap
+ * (e.g. Domestic/Commercial = 100) falling back to the construction type's
+ * default_open_gap (No Building Regs path). Returns { height, gap } or NULL when
+ * this isn't a derived-riser-height construction, OR when BOTH gap sources are
+ * empty, OR when the geometry is nonsensical (gap ≥ rise). NULL means "suppress
+ * the line" — the brief requires height never resolve to null/zero on screen, so
+ * the caller (Phase 5 panel) omits the row rather than showing a wrong figure.
+ * Phase 3 exposes this; Phase 5 renders + POSTs it. */
+function bdRiserBoard($ = window.jQuery) {
+  try {
+    var code = $('#construction_type').val();
+    var meta = (window.stairBuilderVars && window.stairBuilderVars.availability
+      && window.stairBuilderVars.availability.construction_meta) || {};
+    var cm = code && meta[code];
+    if (!cm || !cm.derives_riser_height) return null;   // not an open-riser construction
+    var regime = bdActiveRegime($);
+    var gap = regime ? bdRegimeNum(regime.max_open_gap) : null;
+    if (gap === null) gap = bdRegimeNum(cm.default_open_gap);
+    if (gap === null) return null;                       // both-empty → suppress
+    var rise = parseFloat(String($('#rise').text() || '').replace(/[^\d.]/g, ''));
+    if (isNaN(rise) || rise <= 0) return null;
+    var height = rise - gap;
+    if (!(height > 0)) return null;                      // gap ≥ rise → no sensible board
+    return { height: height, gap: gap };
+  } catch (e) { return null; }
+}
+
 /**
  * Calculates the rake (diagonal length) of a staircase
  * @param {number} height - Total height of the staircase
@@ -644,6 +673,7 @@ if (typeof module !== 'undefined' && module.exports) {
     bdRegimeNum,
     bdRegimeUnregulated,
     bdRegimePitchLimit,
+    bdRiserBoard,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,
@@ -676,6 +706,7 @@ if (typeof window !== 'undefined') {
     bdRegimeNum,
     bdRegimeUnregulated,
     bdRegimePitchLimit,
+    bdRiserBoard,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,

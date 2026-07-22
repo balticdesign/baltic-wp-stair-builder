@@ -190,11 +190,12 @@ Stairs.applyViewportTransform = function (context) {
             // breathing). Using the full visible extent balances vertical
             // padding around the diagram.
             stairWidth   = Stairs.options.treads.width;
-            // + lipPx so the top-lip band at the head is inside the fit bounds
-            // (auto-fit rescales to include it rather than clipping). 0 = unchanged.
-            stairHeight  = Stairs.maxHeight + 60 + Stairs.options.treads.height + (Stairs.lipPx || 0);
+            // The lip band sits on the top drawn tread, well within these bounds
+            // (the top tread's number cell already reserves a tread-height above),
+            // so no lip adjustment is needed here.
+            stairHeight  = Stairs.maxHeight + 60 + Stairs.options.treads.height;
             stairOriginX = Stairs.centerX - stairWidth / 2;
-            stairOriginY = -Stairs.options.treads.height - (Stairs.lipPx || 0);
+            stairOriginY = -Stairs.options.treads.height;
             break;
         case Stairs.StairTypeEnum.QUARTERTURN:
             // widthPx is the exact local-space horizontal extent; maxHeight
@@ -873,7 +874,10 @@ Stairs.drawTreads = function(context, y, treads){
             // display_total_run and doesn't contradict the 3163mm label. Straight
             // flight only for now; turned flights are a separate phase.
             if (Stairs.lipPx > 0) {
-                var bdLipTop = (y - treads.height) - Stairs.lipPx;
+                // Sit the band flush on the TOP DRAWN tread. After the loop `y` is
+                // the top edge of the last regular tread (the top tread itself is
+                // number-only, no rect), so the band spans [y - lipPx, y] — no gap.
+                var bdLipTop = y - Stairs.lipPx;
                 context.save();
                 context.fillStyle   = treads.fillColor;
                 context.strokeStyle = treads.strokeColor;
@@ -2343,9 +2347,7 @@ Stairs.drawPostsHalfturn = function(context){
 Stairs.drawMeasures = function(context){
     context.save();
     var treads = Stairs.options.treads;
-    // v2.16.0 Phase 4: pull the run dimension's top end up by the lip so the line
-    // spans display_total_run, matching the drawn band + the label. 0 = unchanged.
-    var startingY = treads.height - (Stairs.lipPx || 0);
+    var startingY = treads.height;
     // Hug the staircase bottom (+30px breathing room) rather than the canvas
     // bottom, so the width measure stays visually attached to the lowest
     // tread regardless of how small the staircase is inside the canvas.

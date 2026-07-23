@@ -435,7 +435,15 @@ Stairs.setQuarterturnStairsOptions = function(config){
     Stairs.maxWidthPx = Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH;
 
     // width height in MM, for printing purposes.
-    Stairs.printMMWidth = parseInt(config.flight1Treads.width) + parseInt(config.treadHeight) * parseInt(Math.max(config.flight2Treads.amount - 1, 0));
+    // v2.16.0 Phase 4b: the top lip is at the head of the LAST flight (flight 2,
+    // which runs horizontally), so it extends the horizontal (b) run dimension.
+    // Display/drawing only; never priced. 0 = pre-v2.16 geometry.
+    var bdQtrBaseWidth = parseInt(config.flight1Treads.width) + parseInt(config.treadHeight) * parseInt(Math.max(config.flight2Treads.amount - 1, 0));
+    Stairs.printMMWidth = parseInt(
+        (window.BuilderUtils && BuilderUtils.bdDisplayTotalRun)
+            ? BuilderUtils.bdDisplayTotalRun(bdQtrBaseWidth, true)
+            : bdQtrBaseWidth
+    );
     Stairs.printMMHeight = parseInt(config.treadHeight) * parseInt(config.flight1Treads.amount) + parseInt(config.flight2Treads.width);
 
     // max-min width of the first flight (vertical). Matches the regular
@@ -456,9 +464,16 @@ Stairs.setQuarterturnStairsOptions = function(config){
     // stairs height is constrained by the second flight count (because horizontal space is fixed)
     minTreadHeight = (Stairs.minWidthPx - Stairs.options.flight1Treads.width) / (config.flight2Treads.maxAmount);
     maxTreadHeight = (Stairs.maxWidthPx - Stairs.options.flight1Treads.width) / (config.flight2Treads.maxAmount);
-   
+
     // interpolate treadHeight
     Stairs.options.treadHeight = Math.min(Stairs.treadMaxHeightPx(), Stairs.linearConversion(parseInt(config.treadHeight), parseInt(config.minHeight), parseInt(config.maxHeight), minTreadHeight, maxTreadHeight));
+
+    // v2.16.0 Phase 4b: top lip in PX, scaled to the going (treadHeight px =
+    // config.treadHeight mm). Drawn at the LAST flight's head (flight 2). 0 when
+    // top_lip_mm is 0.
+    var bdQtrGoingMm = parseInt(config.treadHeight) || 0;
+    var bdQtrLipMm   = (window.BuilderUtils && BuilderUtils.bdTopLipMm) ? BuilderUtils.bdTopLipMm() : 0;
+    Stairs.lipPx     = (bdQtrGoingMm > 0 && bdQtrLipMm > 0) ? (bdQtrLipMm * Stairs.options.treadHeight / bdQtrGoingMm) : 0;
 
     Stairs.options.flight1Treads.fillColor = config.flight1Treads.fillColor || StairConstants.DEFAULT_TREAD_FILL_COLOR;
     Stairs.options.flight1Treads.strokeColor = config.flight1Treads.strokeColor || StairConstants.DEFAULT_TREAD_STROKE_COLOR;
@@ -950,11 +965,24 @@ Stairs.drawTreads = function(context, y, treads){
                     Stairs.drawTopTread(flight2Treads,context, treadLeftX, y, flight2Treads.height, flight2Treads.width, t);
                     break;
             }
-            Stairs.endX = treadLeftX; // end of the stair 
+            Stairs.endX = treadLeftX; // end of the stair
             Stairs.endY1 = y;
             Stairs.endY2 = y + flight2Treads.width;
+            // v2.16.0 Phase 4b: top lip at flight 2's head — a strip on the head
+            // side of the last drawn tread (the top tread is number-only),
+            // spanning the flight width, extending outward in the run direction.
+            if (Stairs.lipPx > 0) {
+                var bdQtrLipX = (Stairs.options.direction === 'left') ? Stairs.endX - Stairs.lipPx : Stairs.endX;
+                context.save();
+                context.fillStyle   = flight2Treads.fillColor;
+                context.strokeStyle = flight2Treads.strokeColor;
+                context.lineWidth   = 1 / Stairs.viewport.zoom;
+                context.fillRect(bdQtrLipX, Stairs.endY1, Stairs.lipPx, Stairs.endY2 - Stairs.endY1);
+                context.strokeRect(bdQtrLipX, Stairs.endY1, Stairs.lipPx, Stairs.endY2 - Stairs.endY1);
+                context.restore();
+            }
             break;
-        case Stairs.StairTypeEnum.HALFTURN:    
+        case Stairs.StairTypeEnum.HALFTURN:
             var flight1Treads = treads.flight1Treads;
             var flight2Treads = treads.flight2Treads;
             var flight3Treads = treads.flight3Treads;
@@ -2491,11 +2519,14 @@ Stairs.drawQuarterturnMeasures = function(context){
     context.lineTo(heightMeasureX + 10, Stairs.maxHeight + 0.1);
     strokeXTimes(context,5);
 
-    // Width measure
+    // Width measure. v2.16.0 Phase 4b: extend the flight-2 end past endX by the
+    // lip so the (b) run dimension encapsulates the drawn lip band. The lip is on
+    // the outer side of endX in the run direction (left → to the left of endX).
+    var bdLipEndX = (Stairs.options.direction === 'left') ? endX - (Stairs.lipPx || 0) : endX + (Stairs.lipPx || 0);
     context.setLineDash([5, flight2Treads.amount + 1]);
     context.beginPath();
     context.moveTo(startX1, bottom_measure_y_position + 0.5);
-    context.lineTo(endX, bottom_measure_y_position + 0.5);
+    context.lineTo(bdLipEndX, bottom_measure_y_position + 0.5);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
@@ -2506,8 +2537,8 @@ Stairs.drawQuarterturnMeasures = function(context){
     strokeXTimes(context,5);
 
     context.beginPath();
-    context.moveTo(endX + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(endX + 0.5, bottom_measure_y_position + 10);
+    context.moveTo(bdLipEndX + 0.5, bottom_measure_y_position - 10);
+    context.lineTo(bdLipEndX + 0.5, bottom_measure_y_position + 10);
     strokeXTimes(context,5);
 
     //Measures text
@@ -2516,7 +2547,7 @@ Stairs.drawQuarterturnMeasures = function(context){
     // ~12px on screen regardless of fitZoom / user zoom.
     context.font = (16 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.textAlign = 'center';
-    context.fillText("(b) " + Stairs.printMMWidth + "mm", (startX1 + endX)/2, bottom_measure_y_position + 20);
+    context.fillText("(b) " + Stairs.printMMWidth + "mm", (startX1 + bdLipEndX)/2, bottom_measure_y_position + 20);
     
     context.textAlign = 'left';
     context.translate(heightMeasureX + 10, Stairs.maxHeight/2);

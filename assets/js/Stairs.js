@@ -2526,45 +2526,56 @@ Stairs.drawQuarterturnMeasures = function(context){
 
     //Draw measure lines
 
+    // v2.16.0 Phase 4b: measure ticks sit at the tread edges, i.e. the middle of
+    // the strings (which straddle each flight edge by BALUSTRADE_WIDTH/2). Push
+    // each end OUT by half a string width so the lines span the outer string faces.
+    var bdStrOff = StairConstants.BALUSTRADE_WIDTH / 2;
+    var aTop = endY1 - bdStrOff;
+    var aBot = Stairs.maxHeight + bdStrOff;
+
     //Height measure
     context.setLineDash([5, 10]);
     context.beginPath();
-    context.moveTo(heightMeasureX, endY1);
-    context.lineTo(heightMeasureX, Stairs.maxHeight);
+    context.moveTo(heightMeasureX, aTop);
+    context.lineTo(heightMeasureX, aBot);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
 
     context.beginPath();
-    context.moveTo(heightMeasureX - 10, endY1 + 0.5);
-    context.lineTo(heightMeasureX + 10, endY1 + 0.5);
+    context.moveTo(heightMeasureX - 10, aTop + 0.5);
+    context.lineTo(heightMeasureX + 10, aTop + 0.5);
     strokeXTimes(context,5);
 
     context.beginPath();
-    context.moveTo(heightMeasureX - 10, Stairs.maxHeight + 0.1);
-    context.lineTo(heightMeasureX + 10, Stairs.maxHeight + 0.1);
+    context.moveTo(heightMeasureX - 10, aBot + 0.1);
+    context.lineTo(heightMeasureX + 10, aBot + 0.1);
     strokeXTimes(context,5);
 
     // Width measure. v2.16.0 Phase 4b: extend the flight-2 end past endX by the
     // lip so the (b) run dimension encapsulates the drawn lip band. The lip is on
     // the outer side of endX in the run direction (left → to the left of endX).
     var bdLipEndX = (Stairs.options.direction === 'left') ? endX - (Stairs.lipPx || 0) : endX + (Stairs.lipPx || 0);
+    // Push both ends out to the outer string faces (away from each other).
+    var bBSign = (bdLipEndX >= startX1) ? 1 : -1;
+    var bStart = startX1 - bBSign * bdStrOff;
+    var bEnd   = bdLipEndX + bBSign * bdStrOff;
     context.setLineDash([5, flight2Treads.amount + 1]);
     context.beginPath();
-    context.moveTo(startX1, bottom_measure_y_position + 0.5);
-    context.lineTo(bdLipEndX, bottom_measure_y_position + 0.5);
+    context.moveTo(bStart, bottom_measure_y_position + 0.5);
+    context.lineTo(bEnd, bottom_measure_y_position + 0.5);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
 
     context.beginPath();
-    context.moveTo(startX1 + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(startX1, bottom_measure_y_position + 10);
+    context.moveTo(bStart + 0.5, bottom_measure_y_position - 10);
+    context.lineTo(bStart, bottom_measure_y_position + 10);
     strokeXTimes(context,5);
 
     context.beginPath();
-    context.moveTo(bdLipEndX + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(bdLipEndX + 0.5, bottom_measure_y_position + 10);
+    context.moveTo(bEnd + 0.5, bottom_measure_y_position - 10);
+    context.lineTo(bEnd + 0.5, bottom_measure_y_position + 10);
     strokeXTimes(context,5);
 
     //Measures text
@@ -2573,7 +2584,7 @@ Stairs.drawQuarterturnMeasures = function(context){
     // ~12px on screen regardless of fitZoom / user zoom.
     context.font = (16 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.textAlign = 'center';
-    context.fillText("(b) " + Stairs.printMMWidth + "mm", (startX1 + bdLipEndX)/2, bottom_measure_y_position + 20);
+    context.fillText("(b) " + Stairs.printMMWidth + "mm", (bStart + bEnd)/2, bottom_measure_y_position + 20);
     
     context.textAlign = 'left';
     context.translate(heightMeasureX + 10, Stairs.maxHeight/2);
@@ -2626,33 +2637,41 @@ Stairs.drawHalfturnMeasures = function(context){
 
     //Draw measure lines
 
+    // v2.16.0 Phase 4b: push measure ends out to the outer string faces (the ticks
+    // sit at the tread edges = middle of the strings, which straddle by BW/2).
+    // maxHeight1/maxHeight2 are the flight floor ends (bottom); flight2Y (the shared
+    // landing end) is the top.
+    var bdStrOff = StairConstants.BALUSTRADE_WIDTH / 2;
+    var aBot = heightMeasure1Y + bdStrOff;
+    var topY = heightMeasureEndY - bdStrOff;
+
     //First Height measure
     context.setLineDash([5, 10]);
     context.beginPath();
-    context.moveTo(heightMeasureX1, heightMeasure1Y);
-    context.lineTo(heightMeasureX1, heightMeasureEndY);
+    context.moveTo(heightMeasureX1, aBot);
+    context.lineTo(heightMeasureX1, topY);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
 
     context.beginPath();
-    context.moveTo(heightMeasureX1 - 10, heightMeasure1Y + 0.5);
-    context.lineTo(heightMeasureX1 + 10, heightMeasure1Y + 0.5);
+    context.moveTo(heightMeasureX1 - 10, aBot + 0.5);
+    context.lineTo(heightMeasureX1 + 10, aBot + 0.5);
     strokeXTimes(context,5);
 
     context.beginPath();
-    context.moveTo(heightMeasureX1 - 10, heightMeasureEndY + 0.1);
-    context.lineTo(heightMeasureX1 + 10, heightMeasureEndY + 0.1);
+    context.moveTo(heightMeasureX1 - 10, topY + 0.1);
+    context.lineTo(heightMeasureX1 + 10, topY + 0.1);
     strokeXTimes(context,5);
 
     //Second Height measure (flight 3 run). v2.16.0 Phase 4b: extend the head end
     // (maxHeight2, flight 3's floor end) down by the lip so the (c) dimension
     // encapsulates the drawn lip band. flight2Y (landing) end is unchanged.
-    var bdHead2Y = heightMeasure2Y + (Stairs.lipPx || 0);
+    var bdHead2Y = heightMeasure2Y + (Stairs.lipPx || 0) + bdStrOff;
     context.setLineDash([5, 10]);
     context.beginPath();
     context.moveTo(heightMeasureX2, bdHead2Y);
-    context.lineTo(heightMeasureX2, heightMeasureEndY);
+    context.lineTo(heightMeasureX2, topY);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
@@ -2663,27 +2682,30 @@ Stairs.drawHalfturnMeasures = function(context){
     strokeXTimes(context,5);
 
     context.beginPath();
-    context.moveTo(heightMeasureX2 - 10, heightMeasureEndY + 0.1);
-    context.lineTo(heightMeasureX2 + 10, heightMeasureEndY + 0.1);
+    context.moveTo(heightMeasureX2 - 10, topY + 0.1);
+    context.lineTo(heightMeasureX2 + 10, topY + 0.1);
     strokeXTimes(context,5);
 
-    // Width measure
+    // Width measure — push both ends out to the outer string faces.
+    var bBSign = (endX >= startX1) ? 1 : -1;
+    var bStart = startX1 - bBSign * bdStrOff;
+    var bEnd   = endX + bBSign * bdStrOff;
     context.setLineDash([5, 10]);
     context.beginPath();
-    context.moveTo(startX1, bottom_measure_y_position + 0.5);
-    context.lineTo(endX, bottom_measure_y_position + 0.5);
+    context.moveTo(bStart, bottom_measure_y_position + 0.5);
+    context.lineTo(bEnd, bottom_measure_y_position + 0.5);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
 
     context.beginPath();
-    context.moveTo(startX1 + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(startX1, bottom_measure_y_position + 10);
+    context.moveTo(bStart + 0.5, bottom_measure_y_position - 10);
+    context.lineTo(bStart, bottom_measure_y_position + 10);
     strokeXTimes(context,5);
 
     context.beginPath();
-    context.moveTo(endX + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(endX + 0.5, bottom_measure_y_position + 10);
+    context.moveTo(bEnd + 0.5, bottom_measure_y_position - 10);
+    context.lineTo(bEnd + 0.5, bottom_measure_y_position + 10);
     strokeXTimes(context,5);
 
     //Measures text
@@ -2692,7 +2714,7 @@ Stairs.drawHalfturnMeasures = function(context){
     // ~12px on screen regardless of fitZoom / user zoom.
     context.font = (16 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.textAlign = 'center';
-    context.fillText("(b) " + Stairs.printMMWidth + "mm", (startX1 + endX)/2, bottom_measure_y_position + 20);
+    context.fillText("(b) " + Stairs.printMMWidth + "mm", (bStart + bEnd)/2, bottom_measure_y_position + 20);
     
     context.textAlign = 'left';
     context.save();

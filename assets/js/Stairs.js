@@ -537,8 +537,16 @@ Stairs.setHalfturnStairsOptions = function(config){
     // width-height in MM, for printing purposes.
     Stairs.printMMWidth = parseInt(config.flight1Treads.width) + parseInt(config.treadHeight) * parseInt(config.flight2Treads.amount) + parseInt(config.flight3Treads.width);
     Stairs.printMMHeight1 = parseInt(config.treadHeight) * parseInt(config.flight1Treads.amount) + parseInt(config.flight2Treads.width);
-    Stairs.printMMHeight2 = parseInt(config.treadHeight) * parseInt(config.flight3Treads.amount) + parseInt(config.flight2Treads.width);
-    
+    // v2.16.0 Phase 4b: the top lip is at the head of the LAST flight (flight 3),
+    // so it extends the (c) run dimension (printMMHeight2). Flight 1 (printMMHeight1)
+    // is untouched. Display/drawing only; never priced. 0 = pre-v2.16 geometry.
+    var bdHalfBaseRun2 = parseInt(config.treadHeight) * parseInt(config.flight3Treads.amount) + parseInt(config.flight2Treads.width);
+    Stairs.printMMHeight2 = parseInt(
+        (window.BuilderUtils && BuilderUtils.bdDisplayTotalRun)
+            ? BuilderUtils.bdDisplayTotalRun(bdHalfBaseRun2, true)
+            : bdHalfBaseRun2
+    );
+
     // treads
     // Match the regular (straight) flight tread width via the active sizing
     // profile, the same approach used in setQuarterturnStairsOptions.
@@ -563,6 +571,12 @@ Stairs.setHalfturnStairsOptions = function(config){
 
     // interpolate treadHeight
     Stairs.options.treadHeight = Math.min(Stairs.treadMaxHeightPx(), Stairs.linearConversion(parseInt(config.treadHeight), parseInt(config.minHeight), parseInt(config.maxHeight), minTreadHeight, maxTreadHeight));
+
+    // v2.16.0 Phase 4b: top lip in PX, scaled to the going. Drawn at flight 3's
+    // head. 0 when top_lip_mm is 0.
+    var bdHalfGoingMm = parseInt(config.treadHeight) || 0;
+    var bdHalfLipMm   = (window.BuilderUtils && BuilderUtils.bdTopLipMm) ? BuilderUtils.bdTopLipMm() : 0;
+    Stairs.lipPx      = (bdHalfGoingMm > 0 && bdHalfLipMm > 0) ? (bdHalfLipMm * Stairs.options.treadHeight / bdHalfGoingMm) : 0;
 
     Stairs.options.flight1Treads.fillColor = config.flight1Treads.fillColor || StairConstants.DEFAULT_TREAD_FILL_COLOR;
     Stairs.options.flight1Treads.strokeColor = config.flight1Treads.strokeColor || StairConstants.DEFAULT_TREAD_STROKE_COLOR;
@@ -1089,6 +1103,18 @@ Stairs.drawTreads = function(context, y, treads){
             }
 
             Stairs.drawTopTread(flight3Treads,context, positionX, y, flight3Treads.width, flight3Treads.height, f);
+            // v2.16.0 Phase 4b: top lip at flight 3's head. Flight 3 runs downward,
+            // so the band sits on the bottom edge of the last drawn tread (the top
+            // tread is number-only), spanning the flight width, extending down.
+            if (Stairs.lipPx > 0) {
+                context.save();
+                context.fillStyle   = flight3Treads.fillColor;
+                context.strokeStyle = flight3Treads.strokeColor;
+                context.lineWidth   = 1 / Stairs.viewport.zoom;
+                context.fillRect(positionX, y, flight3Treads.width, Stairs.lipPx);
+                context.strokeRect(positionX, y, flight3Treads.width, Stairs.lipPx);
+                context.restore();
+            }
             if(Stairs.options.direction == 'right'){
                 Stairs.insideEndX = positionX;
                 Stairs.outsideEndX = positionX + flight3Treads.width;
@@ -2619,18 +2645,21 @@ Stairs.drawHalfturnMeasures = function(context){
     context.lineTo(heightMeasureX1 + 10, heightMeasureEndY + 0.1);
     strokeXTimes(context,5);
 
-    //Second Height measure
+    //Second Height measure (flight 3 run). v2.16.0 Phase 4b: extend the head end
+    // (maxHeight2, flight 3's floor end) down by the lip so the (c) dimension
+    // encapsulates the drawn lip band. flight2Y (landing) end is unchanged.
+    var bdHead2Y = heightMeasure2Y + (Stairs.lipPx || 0);
     context.setLineDash([5, 10]);
     context.beginPath();
-    context.moveTo(heightMeasureX2, heightMeasure2Y);
+    context.moveTo(heightMeasureX2, bdHead2Y);
     context.lineTo(heightMeasureX2, heightMeasureEndY);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
 
     context.beginPath();
-    context.moveTo(heightMeasureX2 - 10, heightMeasure2Y + 0.5);
-    context.lineTo(heightMeasureX2 + 10, heightMeasure2Y + 0.5);
+    context.moveTo(heightMeasureX2 - 10, bdHead2Y + 0.5);
+    context.lineTo(heightMeasureX2 + 10, bdHead2Y + 0.5);
     strokeXTimes(context,5);
 
     context.beginPath();

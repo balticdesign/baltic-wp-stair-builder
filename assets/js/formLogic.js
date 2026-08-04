@@ -513,8 +513,32 @@ jQuery("input[name='delivery']").change(function () {
       $d.text(regime && regime.description ? regime.description : '');
     }
 
+    // Default going per regime: when a regime is selected, raise the going to that
+    // regime's minimum if it's currently below it (public-access min is 280mm vs
+    // the 240mm default). Never lowers a going the user has already set higher.
+    // This also keeps a regime self-consistent — at its own minimum going, its
+    // min-rise / max-pitch limits can actually produce a compliant staircase
+    // (at 240 going, public-access could not, so riser height came out null).
+    function applyRegimeGoingDefault() {
+      const regime = (window.BuilderUtils && BuilderUtils.bdActiveRegime) ? BuilderUtils.bdActiveRegime() : null;
+      const minGoing = regime ? num(regime.min_going) : null;
+      if (minGoing === null) return false;
+      const cur = parseFloat($going.val());
+      if (isNaN(cur) || cur < minGoing) {
+        $going.val(minGoing);
+        return true;
+      }
+      return false;
+    }
+
     // Re-apply when the building-regs regime changes.
     jQuery('#building_regs').on('change', function () {
+      // Snap going up to the regime minimum first, then trigger a recompute so the
+      // flight scripts + measurements pick up the new going. applyGoing() refreshes
+      // the warning/clamp state afterwards.
+      if (applyRegimeGoingDefault()) {
+        $going.trigger('change');
+      }
       applyGoing();
       WIDTH_IDS.forEach(function (id) {
         const el = document.getElementById(id);
@@ -524,8 +548,120 @@ jQuery("input[name='delivery']").change(function () {
     });
 
     // Initial pass (after the flight script has seeded default values).
+    applyRegimeGoingDefault();
     applyGoing();
     applyRegimeDesc();
+  });
+})();
+
+// ============================================================
+// BUILDING-REGS "ON EXCEED" NOTICE (v2.20.6)
+// Shows the active regime's on_exceed_message by the price total when the current
+// configuration exceeds a regime limit that the selectable options don't already
+// prevent: risers per run, the 2R+G comfort window, or going/width below the
+// regime minimum. READ-ONLY — it only reads window.grabFormValues() + the regime
+// table and toggles a message element; it never touches price, geometry, the pitch
+// gate or the tread allocation. (max_pitch / min-max rise can't trigger it: they're
+// enforced upstream by getStaircaseConfig, so out-of-range values are never offered.)
+// ============================================================
+(function () {
+  var U = window.BuilderUtils;
+  if (!U || !U.bdActiveRegime) return;
+
+  // Generic on-exceed copy. One line covers every trigger (risers per run, the
+  // 2R+G window, going/width below min) — deliberately not breach-specific, since
+  // a single per-regime message can't describe which limit was crossed. A regime
+  // can still override this with its own On-exceed message in the admin.
+  var DEFAULT_MSG = 'This configuration does not meet the selected building regulations — please call us and a joiner will help you configure a compliant staircase.';
+
+  function num(v) {
+    if (v === '' || v === null || v === undefined) return null;
+    var n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  }
+
+  // Longest continuous straight run, in risers. A straight flight is one run (the
+  // whole stair); turned staircases break at each turn, so it's the largest single
+  // flight. Uses the per-flight tread counts grabFormValues already returns (tread
+  // count <= riser count, so the check never over-reports and false-triggers).
+  function risersPerRun(vals) {
+    var segs = ['beforeturn', 'afterturn1', 'afterturn2']
+      .map(function (k) { return num(vals[k]); })
+      .filter(function (n) { return n !== null && n > 0; });
+    if (segs.length) return Math.max.apply(null, segs);
+    var r = num(vals.risers);
+    return r !== null ? r : num(vals.treads);
+  }
+
+  // The notice sits just above the "Get Free Quote" button, inside the price foot.
+  function noticeEl() {
+    var el = document.getElementById('bd-regs-exceed');
+    if (el) return el;
+    var btn = document.getElementById('sbbuybtn');
+    if (!btn || !btn.parentNode) return null;
+    el = document.createElement('p');
+    el.id = 'bd-regs-exceed';
+    el.className = 'bd-regs-exceed';
+    el.setAttribute('aria-live', 'polite');
+    el.style.cssText = 'display:none;margin:0 0 10px;padding:9px 11px;border-left:3px solid #d63638;' +
+      'background:#fcefef;color:#8a1f21;font-size:13px;line-height:1.4;border-radius:3px;';
+    btn.parentNode.insertBefore(el, btn);
+    return el;
+  }
+
+  function evaluate() {
+    var el = noticeEl();
+    if (!el) return;
+    var regime = U.bdActiveRegime();
+    // No regime, or the unregulated "No Building Regs" row → nothing to exceed.
+    if (!regime || (U.bdRegimeUnregulated && U.bdRegimeUnregulated(regime))) { el.style.display = 'none'; return; }
+    if (typeof window.grabFormValues !== 'function') { el.style.display = 'none'; return; }
+
+    var vals;
+    try { vals = window.grabFormValues(); } catch (e) { el.style.display = 'none'; return; }
+    if (!vals) { el.style.display = 'none'; return; }
+
+    var going = num(vals.going);
+    var rise  = num(vals.riserh);
+    var width = num(vals.width);
+
+    var maxRun = num(regime.max_risers_run);
+    var rgMin  = num(regime.two_r_g_min);
+    var rgMax  = num(regime.two_r_g_max);
+    var minGo  = num(regime.min_going);
+    var minWid = num(regime.min_width);
+
+    var exceeded = false;
+
+    // 1. Risers per run > regime max (the "needs a landing" case).
+    if (maxRun !== null) {
+      var rpr = risersPerRun(vals);
+      if (rpr !== null && rpr > maxRun) exceeded = true;
+    }
+    // 2. 2R+G outside the comfort window (needs both rise and going).
+    if (!exceeded && rise !== null && going !== null) {
+      var rg = (2 * rise) + going;
+      if ((rgMin !== null && rg < rgMin) || (rgMax !== null && rg > rgMax)) exceeded = true;
+    }
+    // 3. Going / width below the regime minimum.
+    if (!exceeded && minGo !== null && going !== null && going < minGo) exceeded = true;
+    if (!exceeded && minWid !== null && width !== null && width < minWid) exceeded = true;
+
+    if (exceeded) {
+      el.textContent = (regime.on_exceed_message && String(regime.on_exceed_message).trim()) || DEFAULT_MSG;
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  jQuery(function () {
+    evaluate();
+    // Re-check after every recompute. Deferred a tick so the flight script's
+    // onLoad (which repopulates #risers via getStaircaseConfig) settles first.
+    jQuery('#stairbuild').on('change', ':input', function () {
+      window.setTimeout(evaluate, 0);
+    });
   });
 })();
 

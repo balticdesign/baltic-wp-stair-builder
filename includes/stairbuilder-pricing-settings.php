@@ -975,60 +975,86 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		 * repeaters (strings, construction types, treads, risers).
 		 */
 		private function render_generic_card_row( $name, $i, $subfields, $row, $lock_code = '' ) {
+			// One labelled sub-field. Extracted to a closure so the row can render its
+			// compact inputs and its textarea "notes" into two separate wrappers
+			// without duplicating the markup. $this is auto-bound in the closure, so
+			// render_multiselect_group() still resolves.
+			$render_field = function ( $sf ) use ( $name, $i, $row, $lock_code ) {
+				$fname   = $name . '[' . $i . '][' . $sf['id'] . ']';
+				$rv      = isset( $row[ $sf['id'] ] ) ? $row[ $sf['id'] ] : '';
+				$sf_type = isset( $sf['type'] ) ? $sf['type'] : 'text';
+				// Code lock: a persisted row's code is a stable machine key that
+				// tags + historical leads depend on, so it renders read-only once
+				// set. New rows (blank code, or the __i__ prototype) stay editable.
+				$is_locked_code = ( $lock_code !== '' && $sf['id'] === $lock_code && '__i__' !== (string) $i && $rv !== '' );
+				?>
+				<div class="stairbuilder-card-field stairbuilder-card-field--<?php echo esc_attr( $sf_type ); ?>" data-sf-id="<?php echo esc_attr( $sf['id'] ); ?>">
+					<label class="stairbuilder-card-label"><?php echo esc_html( $sf['label'] ); ?>
+						<?php if ( 'select' === $sf_type ) :
+							$choices = isset( $sf['choices'] ) ? $sf['choices'] : array();
+							// Keep any legacy stored value that predates the fixed list so
+							// a save never silently rewrites it (see §2 conversion note).
+							if ( $rv !== '' && ! isset( $choices[ $rv ] ) ) {
+								$choices = array( (string) $rv => (string) $rv ) + $choices;
+							}
+							$sel = ( $rv !== '' ) ? (string) $rv : ( isset( $sf['default'] ) ? (string) $sf['default'] : '' );
+							?>
+							<select name="<?php echo esc_attr( $fname ); ?>" class="widefat">
+								<?php foreach ( $choices as $cv => $cl ) : ?>
+									<option value="<?php echo esc_attr( $cv ); ?>" <?php selected( $sel, (string) $cv ); ?>><?php echo esc_html( $cl ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						<?php elseif ( 'multiselect' === $sf_type ) :
+							$this->render_multiselect_group( $fname, is_array( $rv ) ? $rv : array(), $sf );
+						elseif ( 'textarea' === $sf_type ) : ?>
+							<textarea name="<?php echo esc_attr( $fname ); ?>" rows="3" class="widefat"><?php echo esc_textarea( $rv ); ?></textarea>
+						<?php elseif ( 'toggle' === $sf_type ) : ?>
+							<input type="hidden" name="<?php echo esc_attr( $fname ); ?>" value="0" />
+							<input type="checkbox" name="<?php echo esc_attr( $fname ); ?>" value="1" <?php checked( ! empty( $rv ) ); ?> />
+						<?php elseif ( $is_locked_code ) : ?>
+							<input type="text" name="<?php echo esc_attr( $fname ); ?>"
+								value="<?php echo esc_attr( $rv ); ?>"
+								class="widefat" readonly
+								title="<?php esc_attr_e( 'Locked after creation — rename the label instead. Delete and re-create to change the code.', 'stairbuilder' ); ?>" />
+						<?php else :
+							// New rows (the __i__ prototype) pre-fill a sub-field 'default' so e.g.
+							// default_open_gap starts at 100. Existing rows keep their stored value —
+							// a saved blank stays blank (never retro-fill).
+							$field_val = ( '' === (string) $rv && '__i__' === (string) $i && isset( $sf['default'] ) ) ? $sf['default'] : $rv;
+							?>
+							<input type="<?php echo 'number' === $sf_type ? 'number' : 'text'; ?>" <?php echo 'number' === $sf_type ? 'step="any"' : ''; ?>
+								name="<?php echo esc_attr( $fname ); ?>"
+								value="<?php echo esc_attr( $field_val ); ?>"
+								placeholder="<?php echo isset( $sf['placeholder'] ) ? esc_attr( $sf['placeholder'] ) : ''; ?>"
+								class="widefat" />
+						<?php endif; ?>
+					</label>
+				</div>
+				<?php
+			};
+
+			// Partition: textareas are "notes" (Customer description, On-exceed
+			// message), the rest are compact "inputs". Order within each group is
+			// preserved. Repeaters with no textareas (strings/treads/risers/
+			// construction) get an empty notes group, collapsed by CSS :empty — so
+			// they render exactly as before.
+			$note_fields  = array();
+			$input_fields = array();
+			foreach ( $subfields as $sf ) {
+				if ( isset( $sf['type'] ) && 'textarea' === $sf['type'] ) {
+					$note_fields[] = $sf;
+				} else {
+					$input_fields[] = $sf;
+				}
+			}
 			?>
 			<div class="stairbuilder-component stairbuilder-card-row stairbuilder-card-row-generic">
-				<?php foreach ( $subfields as $sf ) :
-					$fname   = $name . '[' . $i . '][' . $sf['id'] . ']';
-					$rv      = isset( $row[ $sf['id'] ] ) ? $row[ $sf['id'] ] : '';
-					$sf_type = isset( $sf['type'] ) ? $sf['type'] : 'text';
-					// Code lock: a persisted row's code is a stable machine key that
-					// tags + historical leads depend on, so it renders read-only once
-					// set. New rows (blank code, or the __i__ prototype) stay editable.
-					$is_locked_code = ( $lock_code !== '' && $sf['id'] === $lock_code && '__i__' !== (string) $i && $rv !== '' );
-					?>
-					<div class="stairbuilder-card-field">
-						<label class="stairbuilder-card-label"><?php echo esc_html( $sf['label'] ); ?>
-							<?php if ( 'select' === $sf_type ) :
-								$choices = isset( $sf['choices'] ) ? $sf['choices'] : array();
-								// Keep any legacy stored value that predates the fixed list so
-								// a save never silently rewrites it (see §2 conversion note).
-								if ( $rv !== '' && ! isset( $choices[ $rv ] ) ) {
-									$choices = array( (string) $rv => (string) $rv ) + $choices;
-								}
-								$sel = ( $rv !== '' ) ? (string) $rv : ( isset( $sf['default'] ) ? (string) $sf['default'] : '' );
-								?>
-								<select name="<?php echo esc_attr( $fname ); ?>" class="widefat">
-									<?php foreach ( $choices as $cv => $cl ) : ?>
-										<option value="<?php echo esc_attr( $cv ); ?>" <?php selected( $sel, (string) $cv ); ?>><?php echo esc_html( $cl ); ?></option>
-									<?php endforeach; ?>
-								</select>
-							<?php elseif ( 'multiselect' === $sf_type ) :
-								$this->render_multiselect_group( $fname, is_array( $rv ) ? $rv : array(), $sf );
-							elseif ( 'textarea' === $sf_type ) : ?>
-								<textarea name="<?php echo esc_attr( $fname ); ?>" rows="2" class="widefat"><?php echo esc_textarea( $rv ); ?></textarea>
-							<?php elseif ( 'toggle' === $sf_type ) : ?>
-								<input type="hidden" name="<?php echo esc_attr( $fname ); ?>" value="0" />
-								<input type="checkbox" name="<?php echo esc_attr( $fname ); ?>" value="1" <?php checked( ! empty( $rv ) ); ?> />
-							<?php elseif ( $is_locked_code ) : ?>
-								<input type="text" name="<?php echo esc_attr( $fname ); ?>"
-									value="<?php echo esc_attr( $rv ); ?>"
-									class="widefat" readonly
-									title="<?php esc_attr_e( 'Locked after creation — rename the label instead. Delete and re-create to change the code.', 'stairbuilder' ); ?>" />
-							<?php else :
-								// New rows (the __i__ prototype) pre-fill a sub-field 'default' so e.g.
-								// default_open_gap starts at 100. Existing rows keep their stored value —
-								// a saved blank stays blank (never retro-fill).
-								$field_val = ( '' === (string) $rv && '__i__' === (string) $i && isset( $sf['default'] ) ) ? $sf['default'] : $rv;
-								?>
-								<input type="<?php echo 'number' === $sf_type ? 'number' : 'text'; ?>" <?php echo 'number' === $sf_type ? 'step="any"' : ''; ?>
-									name="<?php echo esc_attr( $fname ); ?>"
-									value="<?php echo esc_attr( $field_val ); ?>"
-									placeholder="<?php echo isset( $sf['placeholder'] ) ? esc_attr( $sf['placeholder'] ) : ''; ?>"
-									class="widefat" />
-							<?php endif; ?>
-						</label>
-					</div>
-				<?php endforeach; ?>
+				<div class="stairbuilder-card-inputs">
+					<?php foreach ( $input_fields as $sf ) { $render_field( $sf ); } ?>
+				</div>
+				<div class="stairbuilder-card-notes">
+					<?php foreach ( $note_fields as $sf ) { $render_field( $sf ); } ?>
+				</div>
 				<div class="stairbuilder-card-actions">
 					<button type="button" class="button stairbuilder-card-remove" aria-label="<?php esc_attr_e( 'Remove row', 'stairbuilder' ); ?>">&times;</button>
 				</div>
@@ -2302,7 +2328,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					margin: 0;
 				}
 				/* Generic card rows (strings, construction, treads, risers) —
-				   each sub-field a labelled input flowing in a flex row. */
+				   each sub-field a labelled input flowing in a flex row. The inputs
+				   now live in a .stairbuilder-card-inputs wrapper (the flex container);
+				   textarea sub-fields sit in .stairbuilder-card-notes, empty & collapsed
+				   for repeaters that have none, so those tabs are visually unchanged. */
 				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic {
 					display: flex;
 					flex-wrap: wrap;
@@ -2310,9 +2339,61 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					align-items: flex-end;
 					grid-template-columns: none;
 				}
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-inputs {
+					flex: 1 1 auto;
+					min-width: 0;
+					display: flex;
+					flex-wrap: wrap;
+					gap: 12px 16px;
+					align-items: flex-end;
+				}
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-notes:empty { display: none; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-field { flex: 1 1 160px; min-width: 140px; }
-				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-label { margin-bottom: 0; }
+				/* Stack every generic sub-field the same way — label text on its own
+				   line, input directly beneath — so no field (e.g. Max risers per run)
+				   can end up with its label sitting beside the input. */
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-label {
+					display: flex;
+					flex-direction: column;
+					gap: 4px;
+					margin-bottom: 0;
+				}
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-label input:not([type="checkbox"]),
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-label select,
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-label textarea { width: 100%; }
+				/* Toggle checkboxes (e.g. Derive riser board height) sit left, not stretched. */
+				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-label input[type="checkbox"] { align-self: flex-start; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-row-generic .stairbuilder-card-actions { flex: 0 0 auto; margin-left: auto; }
+
+				/* Construction Types → Building Regs card: 16 sub-fields, two of them
+				   textareas. Float the compact inputs into a left column and the two
+				   "notes" textareas (Customer description, On-exceed message) into a
+				   taller right column so they read as guidance, not another input.
+				   Scoped by the repeater data-field-id so the other generic
+				   repeaters (which share this markup) are untouched. */
+				.stairbuilder-pricing-wrap [data-field-id="building_regs"] .stairbuilder-card-row-generic {
+					display: grid;
+					grid-template-columns: minmax(0, 1fr) minmax(230px, 320px);
+					grid-template-areas: "inputs notes" "actions notes";
+					align-items: start;
+					gap: 14px 22px;
+				}
+				.stairbuilder-pricing-wrap [data-field-id="building_regs"] .stairbuilder-card-inputs { grid-area: inputs; }
+				.stairbuilder-pricing-wrap [data-field-id="building_regs"] .stairbuilder-card-notes {
+					grid-area: notes;
+					display: flex;
+					flex-direction: column;
+					gap: 14px;
+				}
+				.stairbuilder-pricing-wrap [data-field-id="building_regs"] .stairbuilder-card-notes .stairbuilder-card-field { flex: 0 0 auto; min-width: 0; }
+				.stairbuilder-pricing-wrap [data-field-id="building_regs"] .stairbuilder-card-notes textarea { min-height: 120px; resize: vertical; }
+				.stairbuilder-pricing-wrap [data-field-id="building_regs"] .stairbuilder-card-row-generic .stairbuilder-card-actions { grid-area: actions; margin: 0; align-self: start; }
+				@media (max-width: 960px) {
+					.stairbuilder-pricing-wrap [data-field-id="building_regs"] .stairbuilder-card-row-generic {
+						grid-template-columns: 1fr;
+						grid-template-areas: "inputs" "notes" "actions";
+					}
+				}
 				.stairbuilder-pricing-wrap .stairbuilder-card-label { display: block; font-size: 12px; font-weight: 600; color: #1d2327; margin-bottom: 8px; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-label input { font-weight: 400; }
 				.stairbuilder-pricing-wrap .stairbuilder-card-qty input { max-width: 90px; }
@@ -2574,10 +2655,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'two_r_g_max'           => 700,
 					'max_open_gap'          => 100,
 					'max_risers_run'        => '',
-					'on_exceed_mode'        => 'warn',
 					'on_exceed_message'     => '',
-					'on_exceed_url_quarter' => '',
-					'on_exceed_url_half'    => '',
 				),
 				array(
 					'building_reg_name'     => 'Commercial – public areas',
@@ -2592,10 +2670,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'two_r_g_max'           => 700,
 					'max_open_gap'          => 100,
 					'max_risers_run'        => 16,
-					'on_exceed_mode'        => 'redirect',
-					'on_exceed_message'     => 'A public-access stair this tall needs a landing. Try our quarter- or half-landing calculators, or call for advice.',
-					'on_exceed_url_quarter' => '',
-					'on_exceed_url_half'    => '',
+					// Blank → the front-end shows the generic on-exceed line (formLogic
+					// DEFAULT_MSG). Fill this in only to override copy for this regime.
+					'on_exceed_message'     => '',
 				),
 				array(
 					'building_reg_name'     => 'Commercial – staff & maintenance only',
@@ -2610,10 +2687,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'two_r_g_max'           => 700,
 					'max_open_gap'          => 100,
 					'max_risers_run'        => 16,
-					'on_exceed_mode'        => 'redirect',
-					'on_exceed_message'     => 'A utility stair this tall needs a landing. Try our quarter- or half-landing calculators, or call for advice.',
-					'on_exceed_url_quarter' => '',
-					'on_exceed_url_half'    => '',
+					'on_exceed_message'     => '',
 				),
 				array(
 					'building_reg_name'     => 'No Building Regulations',
@@ -2628,10 +2702,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'two_r_g_max'           => '',
 					'max_open_gap'          => '',
 					'max_risers_run'        => '',
-					'on_exceed_mode'        => 'warn',
 					'on_exceed_message'     => '',
-					'on_exceed_url_quarter' => '',
-					'on_exceed_url_half'    => '',
 				),
 			);
 		}
@@ -2922,10 +2993,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 									['id' => 'two_r_g_max', 'label' => '2R+G max (mm)', 'type' => 'number'],
 									['id' => 'max_open_gap', 'label' => 'Max open-riser gap (mm)', 'type' => 'number'],
 									['id' => 'max_risers_run', 'label' => 'Max risers per run', 'type' => 'number'],
-									['id' => 'on_exceed_mode', 'label' => 'On exceed', 'type' => 'select', 'choices' => ['warn' => 'Warn (allow)', 'block' => 'Block (no price)', 'redirect' => 'Redirect to landing calculator'], 'default' => 'warn'],
+									// Shown to the customer on the front-end quote when their configuration
+									// exceeds this regime's limits (risers per run, 2R+G window, or going/width
+									// below minimum). Blank falls back to a generic "please call us" default.
+									// The old on_exceed_mode select + landing-calculator URLs were removed in
+									// v2.20.6: the redirect flow was never built or requested — a lead that
+									// exceeds the limits is nudged to call, never redirected.
 									['id' => 'on_exceed_message', 'label' => 'On-exceed message', 'type' => 'textarea'],
-									['id' => 'on_exceed_url_quarter', 'label' => 'Quarter-landing URL', 'type' => 'text'],
-									['id' => 'on_exceed_url_half', 'label' => 'Half-landing URL', 'type' => 'text'],
 								],
 							],
 							[

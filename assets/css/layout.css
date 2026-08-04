@@ -467,6 +467,16 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   text-transform: none;
   opacity: 0.75;
 }
+/* Regime helper line under the Building Regs select. It's a standalone <p>, not
+   a label sub-line, so it doesn't inherit .form-sub — size it to match. */
+.bd-stairbuilder-layout #stairbuild .form-row .bd-regs-desc {
+  margin: 4px 0 0;
+  font-size: 0.75em;
+  font-weight: 400;
+  text-transform: none;
+  opacity: 0.75;
+  line-height: 1.35;
+}
 .bd-stairbuilder-layout h5 { margin-bottom: 5px; }
 
 /* Three-column custom-section (newel post pickers). */

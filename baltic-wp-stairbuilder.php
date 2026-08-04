@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.20.5
+Version:		2.20.6
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.20.5' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.20.6' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -113,7 +113,10 @@ function custom_enqueue_files() {
 	// stored: '' means "no constraint" (JS parseFloat('') === NaN → skipped).
 	$bd_regs_table  = array();
 	$bd_regs_rows   = stairbuilder_get_option( 'building_regs', array() );
-	$bd_regs_cols   = array( 'min_going', 'max_rise', 'min_rise', 'min_width', 'max_pitch', 'two_r_g_min', 'two_r_g_max', 'max_open_gap', 'max_risers_run', 'on_exceed_mode', 'on_exceed_message', 'on_exceed_url_quarter', 'on_exceed_url_half' );
+	// 'description' drives the regime helper line under the front-end Building Regs
+	// select (formLogic.applyRegimeDesc) — omitting it here is why it never showed.
+	// on_exceed_message drives the front-end exceed notice by the price total.
+	$bd_regs_cols   = array( 'description', 'min_going', 'max_rise', 'min_rise', 'min_width', 'max_pitch', 'two_r_g_min', 'two_r_g_max', 'max_open_gap', 'max_risers_run', 'on_exceed_message' );
 	if ( is_array( $bd_regs_rows ) ) {
 		foreach ( $bd_regs_rows as $bd_reg ) {
 			if ( ! is_array( $bd_reg ) ) {

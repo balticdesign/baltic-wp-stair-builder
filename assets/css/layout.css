@@ -30,7 +30,6 @@
   --bd-line: #E3DCCB;            /* hairline on the light panel */
   --bd-line-dark: rgba(239, 232, 216, 0.14);
   --bd-muted: #7A7062;           /* secondary text on light */
-  --bd-muted-dark: rgba(239, 232, 216, 0.55);
   --bd-panel-shadow: 0 4px 24px rgba(43, 37, 34, 0.14);
   --bd-transition: 350ms cubic-bezier(0.32, 0.72, 0.24, 1);
 
@@ -89,8 +88,29 @@
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  /* The title is an <h2>, so it was only *inheriting* the panel colour — and
+   * inheritance loses to any element-level `h2 { color }` in the host theme's
+   * main stylesheet, which painted it black on the dark Measurements panel.
+   * Declaring `inherit` explicitly wins at (0,2,0) and keeps one rule for both
+   * panels: each title follows its own panel's brand colour (Configure Panel —
+   * Text on the left, Measurements Panel — Text on the right). */
+  color: inherit;
 }
 .bd-stairbuilder-layout .bd-panel-head-spacer { flex: 1; }
+
+/* Support line under the CONFIGURE heading (Stairbuilder Pricing → General).
+ * `flex: none` keeps it out of the scroll region's flex growth, so it holds
+ * position while the sections scroll beneath it. Hidden entirely when the
+ * setting is blank — the element isn't rendered at all. */
+.bd-stairbuilder-layout .bd-panel-help {
+  flex: none;
+  margin: 0;
+  padding: 10px var(--bd-pad);
+  border-bottom: 1px solid var(--bd-line);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--bd-muted);
+}
 .bd-stairbuilder-layout .bd-panel-util {
   border: none;
   background: none;
@@ -267,6 +287,18 @@
   padding: 4px var(--bd-pad) var(--bd-pad);
 }
 
+/* Price on application. The breakdown has nothing to break down, so the cost
+ * and VAT rows go and "Submit for Quote" takes the total's place — sized down
+ * from the 26px figure, which is set for a currency amount, not a sentence. */
+.bd-stairbuilder-layout .bd-panel-foot.is-poa .price-breakdown li:not(.price-total-row) { display: none; }
+.bd-stairbuilder-layout .bd-panel-foot.is-poa .price-total-row {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.bd-stairbuilder-layout .bd-panel-foot.is-poa .price-total-row .price-label { display: none; }
+.bd-stairbuilder-layout .bd-panel-foot.is-poa .price-total-row .price { font-size: 19px; }
+
 /* ------------ Footer — the money bar ------------ */
 .bd-stairbuilder-layout .bd-panel-foot {
   flex: none;
@@ -365,7 +397,12 @@
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--bd-muted-dark);
+  /* Was a hard-coded 55%-alpha cream, which isn't brand-controlled and went
+   * near-illegible once Measurements Panel — Background was set to a mid grey.
+   * Takes Measurements Panel — Text at full strength now; hierarchy against
+   * the figures comes from size and weight, and the parenthetical .mm-sub
+   * keeps its own dimming below. */
+  color: var(--bd-mm-text, #EFE8D8);
   line-height: 1.3;
 }
 .bd-stairbuilder-layout .bd-fig-lab .mm-sub {
@@ -460,6 +497,13 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   text-transform: capitalize;
   vertical-align: middle;
 }
+/* Unit hint on the label's own line, e.g. "Floor Height (mm)". Labels are
+   `text-transform: capitalize`, which would render this as "(Mm)" — CSS
+   capitalises the first letter of the word regardless of the bracket. */
+.bd-stairbuilder-layout #stairbuild .form-row label .form-unit {
+  text-transform: none;
+  font-weight: 400;
+}
 .bd-stairbuilder-layout #stairbuild .form-row label .form-sub {
   display: block;
   font-size: 0.75em;
@@ -477,7 +521,52 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   opacity: 0.75;
   line-height: 1.35;
 }
+/* Form controls — selects, number/text inputs.
+ * `color` set on #stairbuild doesn't reach a <select> once a theme styles the
+ * element directly, and WooCommerce-flavoured themes commonly ship
+ * `.woocommerce form .form-row select { color: <grey> }` (0,2,1), which was
+ * winning and rendering the option text near-illegible. Claiming the controls
+ * here at (1,1,1) — the id outranks any all-class theme rule — keeps the
+ * plugin readable on any host theme without
+ * !important, and ties them to Configure Panel — Text & Ticks so the colour
+ * stays brand-controlled rather than theme-controlled. */
+.bd-stairbuilder-layout #stairbuild select,
+.bd-stairbuilder-layout #stairbuild input[type="number"],
+.bd-stairbuilder-layout #stairbuild input[type="text"] {
+  color: var(--bd-form-text, #2B2522);
+  background-color: var(--bd-field-bg, #FFFFFF);
+  /* The theme was also backgrounding selects and inputs differently from each
+   * other (grey selects, white inputs). Claim both from Configure — Field
+   * Background, and give the field its own hairline border so it still reads
+   * as a field when that background is close to the panel's. */
+  border: 1px solid var(--bd-line);
+  font: inherit;
+  line-height: 1.4;
+}
+/* Native dropdown list: Firefox (and Windows Chrome in dark mode) paints the
+   popup from the <option>, not the <select>. */
+.bd-stairbuilder-layout #stairbuild select option {
+  color: var(--bd-form-text, #2B2522);
+}
+/* Unfilled required field after a submit attempt. Outranks the field border
+   above on class count, so it wins without !important. */
+.bd-stairbuilder-layout #stairbuild .is-invalid {
+  border: 1px solid #B3261E;
+  box-shadow: 0 0 0 2px rgba(179, 38, 30, 0.16);
+}
+
+/* Locked/derived fields stay deliberately muted so they still read as
+   non-editable — the rule above would otherwise paint them full-strength.
+   (Readonly tread-count inputs carry their own inline colour and are unaffected.) */
+.bd-stairbuilder-layout #stairbuild select:disabled,
+.bd-stairbuilder-layout #stairbuild input:disabled {
+  color: var(--bd-muted);
+}
+
 .bd-stairbuilder-layout h5 { margin-bottom: 5px; }
+
+/* Newel spec block, hidden when no newel post is priced (formLogic.js). */
+.bd-stairbuilder-layout #stairbuild .bd-newel-fields.is-hidden { display: none; }
 
 /* Three-column custom-section (newel post pickers). */
 .bd-stairbuilder-layout #custom .form-col {

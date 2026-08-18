@@ -27,6 +27,9 @@ if ( ! function_exists( 'bd_stairbuilder_normalise_repeater' ) ) {
                 // front-end filter can address the row without a row identifier
                 // (codes are non-unique on tread/riser). Empty for untagged rows.
                 'available_for' => ( isset( $row['available_for'] ) && is_array( $row['available_for'] ) ) ? array_map( 'strval', $row['available_for'] ) : array(),
+                // Price-on-application flag. Only construction rows define it
+                // today; every other repeater simply has no such key and gets 0.
+                'poa' => ! empty( $row['construction_poa'] ) ? 1 : 0,
             );
         }
         return $out;

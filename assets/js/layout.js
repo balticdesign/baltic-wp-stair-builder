@@ -133,14 +133,24 @@
 
   /* ============ Accordion sections ============
    * Sections are class-based (.form-tab / .sec-head / .tab-content): clicking
-   * a head toggles .is-open on its .form-tab. Independent open/close — click
-   * an open head to collapse it — plus a header "Close others" that leaves
-   * only the first open section, matching the design mockup.
+   * a head toggles .is-open on its .form-tab. Exclusive: opening a section
+   * closes whichever was open, so the panel only ever shows one at a time and
+   * the price footer stays in view. Clicking the open head still collapses it,
+   * leaving none open.
    */
   function setSectionOpen(tab, open) {
     tab.classList.toggle('is-open', open);
     const head = tab.querySelector('.sec-head');
     if (head) head.setAttribute('aria-expanded', String(open));
+  }
+
+  /* Close every open section except `keep` (pass null to close all). Exported
+   * on the layout element's owner window so formLogic.js can reuse it when it
+   * opens Your Details to reveal a failed required field. */
+  function closeOtherSections(layout, keep) {
+    layout.querySelectorAll('.form-tab.is-open').forEach(function (t) {
+      if (t !== keep) setSectionOpen(t, false);
+    });
   }
 
   function wireSections(layout) {
@@ -149,16 +159,18 @@
       if (!head) return;
       const tab = head.closest('.form-tab');
       if (!tab) return;
-      setSectionOpen(tab, !tab.classList.contains('is-open'));
+      const willOpen = !tab.classList.contains('is-open');
+      closeOtherSections(layout, tab);
+      setSectionOpen(tab, willOpen);
     });
 
-    const closeOthers = layout.querySelector('#bd-close-others');
-    if (closeOthers) {
-      closeOthers.addEventListener('click', function () {
-        const open = layout.querySelectorAll('.form-tab.is-open');
-        open.forEach(function (tab, i) { if (i > 0) setSectionOpen(tab, false); });
-      });
-    }
+    // Reveal-on-validation-failure hook for formLogic.js: open one section and
+    // close the rest, so a red field can't be surfaced behind another section.
+    window.bdOpenOnlySection = function (tab) {
+      if (!tab) return;
+      closeOtherSections(layout, tab);
+      setSectionOpen(tab, true);
+    };
   }
 
   /* ============ Completion ticks + dynamic section summaries ============
@@ -188,7 +200,7 @@
       done: function () { return txt('floor-height') && txt('going') && txt('stair-width'); },
       summary: function () {
         return join([
-          txt('floor-height') && (Number(txt('floor-height')).toLocaleString() + ' mm rise'),
+          kv('Floor Height', mm('floor-height')),
           kv('Going', mm('going')),
           kv('Width', mm('stair-width')),
           kv('Turn', txt('sc-direction'))

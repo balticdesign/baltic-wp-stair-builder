@@ -21,6 +21,31 @@ function baltic_stair_get_vat_rate() {
 add_shortcode( 'vat_rate', 'baltic_stair_get_vat_rate' );
 
 /**
+ * Is this construction type priced on application?
+ *
+ * Mirrors the front-end `data-poa` flag (see priceCalc.js), read straight from
+ * the admin repeater so the server never depends on the client's word for it.
+ *
+ * @param string $code Submitted construction_type code.
+ * @return bool
+ */
+function baltic_stair_construction_is_poa( $code ) {
+	if ( '' === $code ) {
+		return false;
+	}
+	$rows = stairbuilder_get_option( 'construction_types', array() );
+	if ( ! is_array( $rows ) ) {
+		return false;
+	}
+	foreach ( $rows as $row ) {
+		if ( is_array( $row ) && isset( $row['construction_code'] ) && (string) $row['construction_code'] === $code ) {
+			return ! empty( $row['construction_poa'] );
+		}
+	}
+	return false;
+}
+
+/**
  * AJAX: configurator submit. Captures lead → generates PDF → emails →
  * fires action hook → returns redirect URL to thank-you page.
  */
@@ -166,6 +191,17 @@ function baltic_stair_submit_lead() {
 	$vat   = isset( $_POST['vat'] ) ? (float) $_POST['vat'] : 0;
 	$total = isset( $_POST['total'] ) ? (float) $_POST['total'] : 0;
 
+	// Price on application, resolved from the admin setting rather than trusted
+	// from the request — the client can't talk us into hiding (or revealing) a
+	// price. The figures above are still stored: the customer's PDF withholds
+	// them, but the lead keeps an internal baseline for whoever prices it.
+	$poa = baltic_stair_construction_is_poa(
+		isset( $form_data['construction_type'] ) ? (string) $form_data['construction_type'] : ''
+	);
+	// Persisted with the lead so the quote-view page stays faithful to what the
+	// customer was actually shown, even if the type is later un-flagged.
+	$form_data['_poa'] = $poa ? 1 : 0;
+
 	$canvas_dataurl = isset( $_POST['canvas_image'] ) ? $_POST['canvas_image'] : '';
 	$canvas_path    = baltic_stair_save_canvas_image( $canvas_dataurl );
 	if ( $canvas_path ) {
@@ -201,6 +237,7 @@ function baltic_stair_submit_lead() {
 		'price'    => $price,
 		'vat'      => $vat,
 		'total'    => $total,
+		'poa'      => $poa,
 		'form'     => $form_data,
 	);
 
@@ -278,6 +315,7 @@ function baltic_stair_generate_pdf( array $lead_data ) {
 	$content['price']    = $lead_data['price'];
 	$content['vat']      = $lead_data['vat'];
 	$content['total']    = $lead_data['total'];
+	$content['poa']      = ! empty( $lead_data['poa'] );
 
 	ob_start();
 	include plugin_dir_path( __FILE__ ) . '../templates/stairbuilder_pdf.php';
@@ -310,12 +348,16 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 		"Hi %s,\n\n" .
 		"Thanks for using our staircase configurator. Your indicative quote is attached as a PDF.\n\n" .
 		"You can also view and re-download your quote here: %s\n\n" .
-		"Indicative total (inc VAT): £%s\n\n" .
+		"%s\n\n" .
 		"We'll be in touch shortly to discuss your requirements.\n\n" .
 		"— %s",
 		$lead_data['name'],
 		$download_url,
-		number_format( (float) $lead_data['total'], 2 ),
+		// A POA staircase is quoted by hand, so the customer's copy carries no
+		// figure anywhere — the PDF withholds it and so does this.
+		empty( $lead_data['poa'] )
+			? sprintf( 'Indicative total (inc VAT): £%s', number_format( (float) $lead_data['total'], 2 ) )
+			: 'Total: price on application — we\'ll prepare your figure by hand and be in touch.',
 		$site_name
 	);
 
@@ -324,11 +366,15 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 	$admin_to             = apply_filters( 'baltic_stair_admin_notification_email', get_option( 'admin_email' ), $lead_data );
 	$project_delivery     = isset( $lead_data['form']['project_delivery_date'] ) ? (string) $lead_data['form']['project_delivery_date'] : '';
 	$urgency_line         = $project_delivery !== '' ? sprintf( "Project Delivery Date: %s\n\n", $project_delivery ) : '';
-	$admin_subject        = sprintf( 'New enquiry: %s — £%s', $lead_data['name'], number_format( (float) $lead_data['total'], 2 ) );
+	// The admin copy keeps the computed figures — they're the internal baseline
+	// for whoever prices it — but flags that the customer was shown none.
+	$poa_flag             = empty( $lead_data['poa'] ) ? '' : ' [PRICE ON APPLICATION]';
+	$admin_subject        = sprintf( 'New enquiry: %s — £%s%s', $lead_data['name'], number_format( (float) $lead_data['total'], 2 ), $poa_flag );
 	$admin_body    = sprintf(
 		"New staircase enquiry captured.\n\n" .
 		"%s" .
 		"Name: %s\nEmail: %s\nPhone: %s\nPostcode: %s\n\n" .
+		"%s" .
 		"Indicative subtotal: £%s\nVAT: £%s\nTotal: £%s\n\n" .
 		"Lead ref: %d\nView: %s\n",
 		$urgency_line,
@@ -336,6 +382,7 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 		$lead_data['email'],
 		$lead_data['phone'],
 		$lead_data['postcode'],
+		empty( $lead_data['poa'] ) ? '' : "PRICE ON APPLICATION — the customer was shown no figures. Those below are the configurator's internal calculation only.\n\n",
 		number_format( (float) $lead_data['price'], 2 ),
 		number_format( (float) $lead_data['vat'], 2 ),
 		number_format( (float) $lead_data['total'], 2 ),
@@ -392,7 +439,13 @@ function baltic_stair_quote_view_shortcode() {
 	<div class="baltic-stair-quote-view">
 		<h2>Thanks, <?php echo esc_html( $lead['name'] ); ?> — your quote is ready.</h2>
 		<p>We've also emailed a copy of your PDF quote to <strong><?php echo esc_html( $lead['email'] ); ?></strong>.</p>
+		<?php // Mirrors the PDF and the customer email: a POA quote shows no figure. ?>
+		<?php $bd_view_poa = ! empty( $lead['form_data']['_poa'] ); ?>
+		<?php if ( $bd_view_poa ) : ?>
+		<p><strong>Total:</strong> price on application — we'll prepare your figure by hand and be in touch.</p>
+		<?php else : ?>
 		<p><strong>Indicative total (inc VAT):</strong> £<?php echo esc_html( number_format( (float) $lead['total'], 2 ) ); ?></p>
+		<?php endif; ?>
 		<p>
 			<a class="button button-primary" href="<?php echo esc_url( $download_url ); ?>">Download your PDF quote</a>
 		</p>

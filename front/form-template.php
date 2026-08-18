@@ -73,11 +73,20 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
     <header class="bd-panel-head">
       <h2 class="bd-panel-title">Configure</h2>
       <span class="bd-panel-head-spacer"></span>
-      <button type="button" class="bd-panel-util" id="bd-close-others">Close others</button>
+      <?php // "Close others" removed with v2.21: sections are exclusive now, so
+            // there are never any others open for it to close. ?>
       <button type="button" class="bd-panel-collapse" data-bd-toggle="form" aria-label="Collapse configure panel">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.5 2.5L4 7l4.5 4.5" stroke="currentColor" stroke-width="1.5"/></svg>
       </button>
     </header>
+
+    <?php
+    // Optional support line, set in Stairbuilder Pricing → General. Sits between
+    // the header and the scroll region so it stays put as the sections scroll.
+    $bd_help_line = trim( (string) stairbuilder_get_option( 'configure_help_text', '' ) );
+    if ( $bd_help_line !== '' ) : ?>
+    <p class="bd-panel-help"><?php echo bd_stairbuilder_help_line_html( $bd_help_line ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></p>
+    <?php endif; ?>
 
     <div class="bd-scrollwrap">
       <div class="bd-scroll">
@@ -99,7 +108,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </div>
         <?php } ?>
         <div class="form-row">
-            <label for="floor-height">Floor Height <span class="form-sub">(Floor to Floor)</span></label>
+            <label for="floor-height">Floor Height <span class="form-unit">(mm)</span> <span class="form-sub">(Floor to Floor)</span></label>
             <input type="number" id="floor-height" name="floor-height" value="">
         </div>
         <div class="form-row">
@@ -112,18 +121,18 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
             </select>
         </div>
         <div class="form-row">
-            <label for="going">Tread Depth <span class="form-sub">(Going)</span></label>
+            <label for="going">Tread Depth <span class="form-unit">(mm)</span> <span class="form-sub">(Going)</span></label>
             <input type="number" id="going" name="going" value="">
         </div>
         <div class="form-row">
-            <label for="stair-width">Width <span class="form-sub">(Outside to Outside String)</span></label>
+            <label for="stair-width">Width <span class="form-unit">(mm)</span> <span class="form-sub">(Outside to Outside String)</span></label>
             <input type="number" id="stair-width" name="stair-width" value="">
             <?php if ($flight2) {?>
-            <label for="stair-width2">Flight 2 Width:</label>
+            <label for="stair-width2">Flight 2 Width <span class="form-unit">(mm)</span></label>
             <input type="number" id="stair-width2" name="stair-width2" value="">
             <?php } ?>
             <?php if ($flight3) {?>
-            <label for="stair-width3">Flight 3 Width:</label>
+            <label for="stair-width3">Flight 3 Width <span class="form-unit">(mm)</span></label>
             <input type="number" id="stair-width3" name="stair-width3" value="">
             <?php } ?>
             <input type="hidden" id="widthmulti" value="<?php echo $width_mp; ?>">
@@ -220,7 +229,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <select id="construction_type" name="construction_type">
     <?php if (!empty($construction_options)): ?>
       <?php foreach ($construction_options as $c_option): ?>
-        <option data-price="<?php echo esc_attr($c_option['value']); ?>" value="<?php echo esc_attr($c_option['code']); ?>">
+        <option data-price="<?php echo esc_attr($c_option['value']); ?>" data-poa="<?php echo esc_attr($c_option['poa']); ?>" value="<?php echo esc_attr($c_option['code']); ?>">
           <?php echo esc_html($c_option['name']); ?>
         </option>
       <?php endforeach; ?>
@@ -363,7 +372,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       </select>
     </div>
     <div id="custom">
-    <h3>Top (Flt.3)</h3>
+    <h3>Top</h3>
     <div class="form-row">
         <div class="form-col">
         <label for="tl-post">Left</label>
@@ -374,7 +383,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </div>
     </div>
     <?php if ($flight3) {?>
-      <h3>Box 2</h3>
+      <h3>Turn 2</h3>
       <div class="form-row">
         <div class="form-col">
         <label for="to-post2">Flt.2 Top Outside</label>
@@ -389,7 +398,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
     </div>
     <?php } ?>
     <?php if ($flight2) {?>
-      <h3>Box</h3>
+      <h3>Turn 1</h3>
       <div class="form-row">
         <div class="form-col">
         <label for="to-post">Flt.1 Top Outside</label>
@@ -403,7 +412,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </div>
     </div>
     <?php } ?>
-    <h3>Bottom (Flt.1)</h3>
+    <h3>Bottom</h3>
     <div class="form-row">
         <div class="form-col">
         <label for="bl-post">Left</label>
@@ -414,7 +423,14 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </div>
     </div>
     </div>
-    <div id="posts">
+    <?php // Grouping wrapper only. Was a second id="posts" (duplicate of the
+    // tab-content above), which is invalid HTML and made `#posts :input` in
+    // formLogic.js reach further than it reads. Nothing targets it. ?>
+    <div class="bd-post-materials">
+    <?php // Newel spec — hidden by formLogic.js when no newel post is actually
+          // priced (see bdUpdateNewelVisibility). Wrapped so the four rows hide
+          // as one block and the balustrade question closes up behind them. ?>
+    <div class="bd-newel-fields">
     <div class="form-row">
     <label for="newel_material">Newel Material</label>
       <select id="newel_material" name="newel_material" class="bd-mat-select">
@@ -446,6 +462,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         <option value="">Oak</option>
       </select>
     </div>
+    </div><!-- /.bd-newel-fields -->
     <div class="form-row">
     <h4>Do you require Ballustrades?</h4>
     <div class="form-col">
@@ -574,8 +591,8 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <?php if ( ! $delivery_section_enabled ) : ?>
         <?php if (!empty($project_delivery_date_options)) { ?>
         <div class="form-row">
-          <label for="project_delivery_date">Project Delivery Date:</label>
-          <select id="project_delivery_date" name="project_delivery_date">
+          <label for="project_delivery_date">Project Delivery Date *</label>
+          <select id="project_delivery_date" name="project_delivery_date" required>
             <option value="" disabled selected>Choose a delivery timeframe</option>
             <?php foreach ($project_delivery_date_options as $pdd_option): ?>
               <option value="<?php echo esc_attr($pdd_option['code']); ?>">
@@ -586,8 +603,8 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </div>
         <?php } ?>
         <div class="form-row">
-          <label for="postcode">Postcode</label>
-          <input type="text" id="postcode" name="postcode" placeholder="Your postcode">
+          <label for="postcode">Postcode *</label>
+          <input type="text" id="postcode" name="postcode" placeholder="Your postcode" required>
         </div>
       <?php endif; ?>
       <div class="form-row">
@@ -599,8 +616,8 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         <input type="email" id="contact_email" name="contact_email" required>
       </div>
       <div class="form-row">
-        <label for="contact_phone">Phone</label>
-        <input type="tel" id="contact_phone" name="contact_phone">
+        <label for="contact_phone">Phone *</label>
+        <input type="tel" id="contact_phone" name="contact_phone" required>
       </div>
       <p class="contact-note"><small>We'll email your PDF quote to the address above and follow up to discuss your project.</small></p>
       <input type="hidden" id="vatRate" value="<?php echo do_shortcode('[vat_rate]'); ?>">
@@ -618,7 +635,18 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       </ul>
       <button id="sbbuybtn" class="sb-buynow" type="button">Get Free Quote</button>
       <p id="sb-submit-error" class="sb-submit-error" style="display:none;"></p>
-      <p class="bd-foot-note">No payment taken now — every quote is checked by a joiner.</p>
+      <?php
+      // Reassurance line, set in Stairbuilder Pricing → General. Never saved =
+      // the shipped default (so existing installs keep the line without touching
+      // settings); saved-but-empty = deliberately hidden.
+      $bd_footnote = stairbuilder_get_option( 'quote_footnote', null );
+      if ( $bd_footnote === null ) {
+        $bd_footnote = 'No payment taken now — every quote is checked by our Design Team.';
+      }
+      $bd_footnote = trim( (string) $bd_footnote );
+      if ( $bd_footnote !== '' ) : ?>
+      <p class="bd-foot-note"><?php echo esc_html( $bd_footnote ); ?></p>
+      <?php endif; ?>
     </footer>
   </form>
 
@@ -634,7 +662,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <div class="bd-fig"><div class="bd-fig-lab">Floor to Floor <span class="mm-sub">(Total Rise)</span></div><div class="bd-fig-val"><span id="floor" class="msmnt">—</span></div></div>
       <div class="bd-fig"><div class="bd-fig-lab">Riser Height <span class="mm-sub">(Individual Rise)</span></div><div class="bd-fig-val"><span id="rise" class="msmnt">—</span></div></div>
       <div class="bd-fig"><div class="bd-fig-lab">Going <span class="mm-sub">(Tread Depth)</span></div><div class="bd-fig-val"><span id="tread" class="msmnt">—</span></div></div>
-      <div class="bd-fig"><div class="bd-fig-lab">Width <span class="mm-sub">(Out to Out String)</span></div><div class="bd-fig-val"><span id="scwidth" class="msmnt">—</span></div></div>
+      <div class="bd-fig"><div class="bd-fig-lab">Width <span class="mm-sub">(Outside to Outside String)</span></div><div class="bd-fig-val"><span id="scwidth" class="msmnt">—</span></div></div>
       <div class="bd-fig"><div class="bd-fig-lab">Angle <span class="mm-sub">(Pitch)</span></div><div class="bd-fig-val"><span id="angl" class="msmnt">—</span></div></div>
     </div>
   </section>

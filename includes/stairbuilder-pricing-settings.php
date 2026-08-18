@@ -747,6 +747,12 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 
 		private function render_text( $id, $name, $value, $field ) {
 			$placeholder = isset( $field['placeholder'] ) ? $field['placeholder'] : '';
+			// Per-field default when the option blob doesn't yet contain this key,
+			// matching render_color(). Without it a defaulted text field shows blank
+			// in the admin and saving would store '' — silently wiping the default.
+			if ( $value === null && isset( $field['default'] ) ) {
+				$value = $field['default'];
+			}
 			?>
 			<input type="text"
 				id="<?php echo esc_attr( $id ); ?>"
@@ -758,9 +764,11 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		private function render_textarea( $id, $name, $value, $field ) {
+			$placeholder = isset( $field['placeholder'] ) ? $field['placeholder'] : '';
 			?>
 			<textarea id="<?php echo esc_attr( $id ); ?>"
 				name="<?php echo esc_attr( $name ); ?>"
+				placeholder="<?php echo esc_attr( $placeholder ); ?>"
 				rows="5" cols="60" class="large-text code"><?php echo esc_textarea( $value ); ?></textarea>
 			<?php
 		}
@@ -2876,6 +2884,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				),
 				// Group 2 — staircase-wide settings + display.
 				array(
+					'general',
 					'construction_settings',
 					'geometry_defaults',
 					'base_costs',
@@ -2956,6 +2965,26 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					['id' => 'panel_gap_mm',   'label' => 'Panel Gap (mm)',   'type' => 'number'],
 				];
 				return [
+					// Site-wide front-end settings that aren't pricing or branding.
+					'general' => [
+						'label' => 'General',
+						'fields' => [
+							[
+								'id' => 'quote_footnote',
+								'label' => 'Configure Panel — Reassurance line',
+								'type' => 'text',
+								'default' => 'No payment taken now — every quote is checked by our Design Team.',
+								'description' => 'The small print under the "Get free quote" button. Clear the box to hide the line.',
+							],
+							[
+								'id' => 'configure_help_text',
+								'label' => 'Configure Panel — Help line',
+								'type' => 'textarea',
+								'placeholder' => 'e.g. Need help completing this form? Call 0191 380 4954 and ask for Andy or Daniel',
+								'description' => 'Shown directly under the CONFIGURE heading on the front end, above the sections. Leave blank to hide the line entirely. A phone number in the text is turned into a tap-to-call link automatically.',
+							],
+						],
+					],
 					'strings' => [
 						'label' => 'Strings',
 						'fields' => [
@@ -3015,6 +3044,11 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 									['id' => 'construction_name', 'label' => 'Construction Name', 'type' => 'text'],
 									['id' => 'construction_code', 'label' => 'Construction Code', 'type' => 'text'],
 									['id' => 'construction_value', 'label' => 'Construction Value', 'type' => 'number', 'adjustable' => true],
+									// Price on application. The configurator still works and the lead
+									// still submits — only the figures are withheld, for types that are
+									// quoted by hand (mini open riser, cut string). Per-row so a
+									// licensee decides which of their own types are POA.
+									['id' => 'construction_poa', 'label' => 'Price on application (show "Submit for Quote" instead of a price)', 'type' => 'toggle'],
 									// strict_for: repeaters this construction type gates strictly —
 									// only rows tagged available_for THIS type are selectable; untagged
 									// rows are excluded. Enforcement (option filtering) lands in Phase 2.
@@ -3539,6 +3573,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'description' => 'Background of the currently expanded accordion section.',
 							],
 							[
+								'id' => 'field_bg',
+								'label' => 'Configure — Field Background',
+								'type' => 'color',
+								'default' => '#FFFFFF',
+								'description' => 'Dropdowns and number inputs in the Configure panel. Claimed from the host theme, which otherwise styles them itself.',
+							],
+							[
 								'id' => 'panel_hairline',
 								'label' => 'Panel — Hairlines & Dividers',
 								'type' => 'color',
@@ -3742,5 +3783,33 @@ if ( ! function_exists( 'stairbuilder_get_option' ) ) {
 	 */
 	function stairbuilder_get_option( $key, $default = null ) {
 		return Stairbuilder_Pricing_Settings::get( $key, $default );
+	}
+}
+
+if ( ! function_exists( 'bd_stairbuilder_help_line_html' ) ) {
+	/**
+	 * Escape an admin-entered copy line and turn any phone number in it into a
+	 * tap-to-call link.
+	 *
+	 * Settings text is sanitised on save with sanitize_textarea_field(), so it
+	 * can never carry markup — the linking has to happen at render time. The
+	 * pattern is deliberately conservative: 10-16 digits, spaces allowed inside
+	 * but not at the ends, optional leading +. That matches "0191 380 4954" and
+	 * "+44 191 380 4954" while leaving measurements and prices alone.
+	 *
+	 * @param string $text Raw option value.
+	 * @return string Escaped HTML, safe to echo.
+	 */
+	function bd_stairbuilder_help_line_html( $text ) {
+		$safe = esc_html( trim( (string) $text ) );
+
+		return preg_replace_callback(
+			'/(?<![\d\p{L}])(\+?\d(?:[\d ]{8,14})\d)(?![\d\p{L}])/u',
+			static function ( $m ) {
+				$digits = preg_replace( '/\s+/', '', $m[1] );
+				return '<a href="tel:' . esc_attr( $digits ) . '">' . $m[1] . '</a>';
+			},
+			$safe
+		);
 	}
 }

@@ -25,6 +25,22 @@ function altBalustradePrice(mode, g) {
   return { price: (g.glassRun / 1000) * g.unitCost, count: 0 };
 }
 
+// Price on application, set per construction type in the admin (data-poa on the
+// option). These types are quoted by hand, so the configurator runs and the
+// lead still submits — only the figures are withheld.
+function bdIsPoaSelected() {
+  return jQuery('#construction_type option:selected').attr('data-poa') === '1';
+}
+
+// `is-poa` on the footer hides the cost + VAT rows and the total's label, so
+// "Submit for Quote" stands on its own where the total normally sits.
+function bdApplyPoaDisplay() {
+  jQuery('.bd-panel-foot').addClass('is-poa');
+  jQuery('#priceCalc').text('—');
+  jQuery('#vat').text('—');
+  jQuery('#total').text('Submit for Quote');
+}
+
 function calculateTotalPrice() {
   // Use stair-specific grabFormValues if available, otherwise fallback
   const formValues =
@@ -40,7 +56,20 @@ function calculateTotalPrice() {
   // the configuration as structurally impossible for the current riser count.
   // Never price an invalid staircase — blank the outputs and bail until the user
   // resolves it (increases risers / reduces the turns).
+  // A POA type is POA whatever else is going on, so resolve it before the
+  // invalid-configuration bail-out and clear the state when it's switched off.
+  const bdPoa = bdIsPoaSelected();
+  if (!bdPoa) {
+    jQuery('.bd-panel-foot').removeClass('is-poa');
+  }
+
   if (window.bdFlightInvalid) {
+    // Nothing was computed, so there's no internal figure to carry either.
+    window.bdComputedPrice = null;
+    if (bdPoa) {
+      bdApplyPoaDisplay();
+      return;
+    }
     jQuery("#priceCalc").text('—');
     jQuery("#vat").text('—');
     jQuery("#total").text('—');
@@ -264,9 +293,18 @@ function calculateTotalPrice() {
   jQuery("#scwidth").text($width + ' mm');
   jQuery("#angl").html($pitch.toFixed(2) + ' &deg;');
 
-  jQuery("#priceCalc").text('£' + price.toFixed(2));
-  jQuery("#vat").text('£' + vatAmount.toFixed(2));
-  jQuery("#total").text('£' + priceWithVat.toFixed(2));
+  // Keep the computed figures regardless of what's displayed. Under POA the
+  // panel shows no numbers, so this is the only place the submit can read them
+  // from — the lead still records an internal baseline for whoever prices it.
+  window.bdComputedPrice = { price: price, vat: vatAmount, total: priceWithVat };
+
+  if (bdPoa) {
+    bdApplyPoaDisplay();
+  } else {
+    jQuery("#priceCalc").text('£' + price.toFixed(2));
+    jQuery("#vat").text('£' + vatAmount.toFixed(2));
+    jQuery("#total").text('£' + priceWithVat.toFixed(2));
+  }
 
   // Capture the computed counts so the quote PDF shows exactly what was priced
   // (both are plain integers, so the submit-time colon strip leaves them intact).

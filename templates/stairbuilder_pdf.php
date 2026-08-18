@@ -137,6 +137,9 @@ $bd_price   = (float) ( $content['price'] ?? 0 );
 $bd_vat     = (float) ( $content['vat'] ?? 0 );
 $bd_total   = (float) ( $content['total'] ?? 0 );
 $bd_vat_pct = ( $bd_price > 0 ) ? round( $bd_vat / $bd_price * 100 ) : 0;
+// Price on application (construction-type toggle). The figures are still stored
+// on the lead for internal use — the customer's copy just doesn't carry them.
+$bd_poa     = ! empty( $content['poa'] );
 
 // Emit one spec row (label / value), skipping empty values.
 $bd_row = function ( $label, $value ) {
@@ -258,13 +261,19 @@ if ( $bd_left_step !== '' && $bd_left_step !== 'None' )  { $bd_row( 'Left Featur
 if ( $bd_right_step !== '' && $bd_right_step !== 'None' ) { $bd_row( 'Right Featured Step', $bd_right_step ); }
 $bd_sections[] = array( 'Staircase Details', ob_get_clean() );
 
-ob_start();
-$bd_row( 'Type', $bd_code_label( 'newel_types', $content['newel_type'] ?? '' ) );
-$bd_row( 'Material', $content['newel_material'] ?? '' );
-$bd_row( 'Number', (string) (int) $newel_number );
-$bd_row( 'Caps', $bd_code_label( 'cap_types', $content['newel_cap'] ?? '' ) );
-if ( ( $content['newel_cap'] ?? '' ) !== 'none' ) { $bd_row( 'Cap Number', (string) (int) $newel_number ); }
-$bd_sections[] = array( 'Newel Posts', ob_get_clean() );
+// No newel post priced (straight flight, "None Required") means there's nothing
+// to specify — the type/material selects still submit, so without this the quote
+// would list a newel spec for a staircase that has none. Gated as a whole
+// section, matching how Balustrading is handled below.
+if ( $newel_number > 0 ) {
+    ob_start();
+    $bd_row( 'Type', $bd_code_label( 'newel_types', $content['newel_type'] ?? '' ) );
+    $bd_row( 'Material', $content['newel_material'] ?? '' );
+    $bd_row( 'Number', (string) (int) $newel_number );
+    $bd_row( 'Caps', $bd_code_label( 'cap_types', $content['newel_cap'] ?? '' ) );
+    if ( ( $content['newel_cap'] ?? '' ) !== 'none' ) { $bd_row( 'Cap Number', (string) (int) $newel_number ); }
+    $bd_sections[] = array( 'Newel Posts', ob_get_clean() );
+}
 
 if ( $bd_show_bal ) {
     ob_start();
@@ -331,15 +340,17 @@ foreach ( $bd_sections as $bd_sec ) {
       <tr><td colspan="2" style="background: <?php echo $c_dark; ?>; color: #C9BC93; padding: 22px 24px 12px; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">Indicative Quote</td></tr>
       <tr>
         <td style="<?php echo $pb_cell; ?> width: 45%; color: <?php echo $c_panel; ?>;">Subtotal</td>
-        <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;">&pound;<?php echo esc_html( number_format( $bd_price, 2 ) ); ?></td>
+        <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_price, 2 ) ); ?></td>
       </tr>
       <tr>
-        <td style="<?php echo $pb_cell; ?> width: 45%; color: <?php echo $c_panel; ?>;">VAT<?php echo $bd_vat_pct ? ' (' . (int) $bd_vat_pct . '%)' : ''; ?></td>
-        <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;">&pound;<?php echo esc_html( number_format( $bd_vat, 2 ) ); ?></td>
+        <td style="<?php echo $pb_cell; ?> width: 45%; color: <?php echo $c_panel; ?>;">VAT<?php echo ( ! $bd_poa && $bd_vat_pct ) ? ' (' . (int) $bd_vat_pct . '%)' : ''; ?></td>
+        <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_vat, 2 ) ); ?></td>
       </tr>
       <tr>
-        <td style="<?php echo $pb_tot; ?> width: 45%; color: #ffffff; font-weight: 500;">Total inc VAT</td>
-        <td style="<?php echo $pb_tot; ?> width: 55%; color: #D3B96A; font-size: 22px; font-weight: 600; text-align: right;">&pound;<?php echo esc_html( number_format( $bd_total, 2 ) ); ?></td>
+        <td style="<?php echo $pb_tot; ?> width: 45%; color: #ffffff; font-weight: 500;">Total<?php echo $bd_poa ? '' : ' inc VAT'; ?></td>
+        <?php // POA sets its own size: "Price on application" at the 22px used for
+              // a currency figure would wrap out of the box. ?>
+        <td style="<?php echo $pb_tot; ?> width: 55%; color: #D3B96A; font-size: <?php echo $bd_poa ? '13px' : '22px'; ?>; font-weight: 600; text-align: right;"><?php echo $bd_poa ? 'Price on application' : '&pound;' . esc_html( number_format( $bd_total, 2 ) ); ?></td>
       </tr>
     </table>
 

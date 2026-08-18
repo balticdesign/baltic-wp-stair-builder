@@ -30,6 +30,33 @@ function getCapIds() {
 // ==============================
 // UI Update: AJAX/Cart/Materials
 // ==============================
+// Material option values are `<key>:<price>` (pine:42.50, oak:88, metal:12…).
+// The price half moves whenever the component type changes, so the key is the
+// only stable handle on "what the customer picked".
+function bdMaterialKey(value) {
+  return typeof value === 'string' && value.indexOf(':') !== -1 ? value.split(':')[0] : '';
+}
+
+// Replace a material select's options without losing the current choice.
+// Rebuilding with .html() alone dropped the selection back to the first option
+// (Pine) — visible as the select reverting a second after the customer chose
+// Oak, and silently repricing the quote in Pine.
+function bdSetMaterialOptions(selectId, optionHtml) {
+  const $sel = jQuery('#' + selectId);
+  if (!$sel.length) { return; }
+  const wanted = bdMaterialKey($sel.val());
+
+  $sel.html(optionHtml);
+
+  if (!wanted) { return; }
+  const $match = $sel.find('option').filter(function () {
+    return bdMaterialKey(this.value) === wanted;
+  }).first();
+  // No match means the new type doesn't offer that material (e.g. a metal-only
+  // row) — leaving it on the first option is the right fallback.
+  if ($match.length) { $sel.val($match.val()); }
+}
+
 function updateNewelPosts(newelType, capType, hrType, spindleType) {
   jQuery.ajax({
     url: stairBuilderVars.ajax_url,
@@ -41,9 +68,9 @@ function updateNewelPosts(newelType, capType, hrType, spindleType) {
     },
     dataType: 'json',
     success(response) {
-      jQuery('#newel_material').html(response.newel_options.join(''));
-      jQuery('#cap_material').html(response.cap_options.join(''));
-      jQuery('#hdr_material').html(response.handrail_options.join(''));
+      bdSetMaterialOptions('newel_material', response.newel_options.join(''));
+      bdSetMaterialOptions('cap_material', response.cap_options.join(''));
+      bdSetMaterialOptions('hdr_material', response.handrail_options.join(''));
       // Spindle material/style is now Material-first and resolved client-side
       // (see the bdSpindle* helpers) — no longer injected from this AJAX.
       calculateTotalPrice();
@@ -91,8 +118,46 @@ function submitStairLead() {
   const $err = jQuery('#sb-submit-error');
   $err.hide().text('');
 
-  if (!name || !email) {
-    $err.text('Please enter your name and email to receive your quote.').show();
+  // Every field in Your Details is required. Scan the section for [required]
+  // rather than listing ids, so the two that only render when the separate
+  // Delivery section is switched off (postcode, project delivery date) are
+  // covered without duplicating that condition here.
+  let $invalid = jQuery();
+  let emailFormatOnly = true;
+  jQuery('#contact').find('[required]').each(function () {
+    const $field = jQuery(this);
+    const value = (($field.val() || '') + '').trim();
+    let bad = value === '';
+    // Nothing native validates this: the quote button is type="button", so the
+    // browser's own required/email checks never run.
+    if (!bad && this.type === 'email') {
+      bad = !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
+    } else if (bad) {
+      emailFormatOnly = false;
+    }
+    $field.toggleClass('is-invalid', bad);
+    if (bad) { $invalid = $invalid.add($field); }
+  });
+
+  if ($invalid.length) {
+    $err.text(
+      emailFormatOnly && $invalid.length === 1
+        ? 'Please enter a valid email address so we can send your quote.'
+        : 'Please complete the highlighted fields to receive your quote.'
+    ).show();
+
+    // The red boxes are no use inside a collapsed accordion section. Sections
+    // are exclusive, so this goes through layout.js's helper to close whichever
+    // was open rather than leaving two expanded.
+    const $tab = $invalid.first().closest('.form-tab');
+    if ($tab.length) {
+      if (typeof window.bdOpenOnlySection === 'function') {
+        window.bdOpenOnlySection($tab.get(0));
+      } else {
+        $tab.addClass('is-open').find('.sec-head').attr('aria-expanded', 'true');
+      }
+    }
+    $invalid.first().trigger('focus');
     return;
   }
 
@@ -118,9 +183,17 @@ function submitStairLead() {
   const canvas = document.getElementById('canvas');
   const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
 
-  const price = readPriceFromDOM('#priceCalc');
-  const vat   = readPriceFromDOM('#vat');
-  const total = readPriceFromDOM('#total');
+  // Under price-on-application the panel shows no figures, so reading them back
+  // off the DOM would post zeros. Take the computed values priceCalc.js stashed
+  // instead: the customer's PDF still says "Price on application", but the lead
+  // record keeps the internal baseline for whoever prices it up.
+  const poa = typeof bdIsPoaSelected === 'function' && bdIsPoaSelected();
+  const computed = window.bdComputedPrice;
+  const useComputed = poa && computed;
+
+  const price = useComputed ? computed.price : readPriceFromDOM('#priceCalc');
+  const vat   = useComputed ? computed.vat   : readPriceFromDOM('#vat');
+  const total = useComputed ? computed.total : readPriceFromDOM('#total');
 
   const $btn = jQuery('#sbbuybtn');
   const originalLabel = $btn.text();
@@ -317,6 +390,7 @@ jQuery(document).ready(function () {
 
   jQuery('#newel-posts option[value="custom:0"]').val("custom:0");
   getNewelIds();
+  bdUpdateNewelVisibility();
 
   // Delivery update click
   jQuery('.deliv_btn').click(function (e) {
@@ -362,6 +436,7 @@ jQuery('#posts :input').change(function () {
     return this.value.startsWith('custom:');
   }).val(customValue);
   getNewelIds();
+  bdUpdateNewelVisibility();
   let newelType = jQuery('#newel_type').val();
   let spindleType = jQuery('#spindle_type').val();
   let hrType = jQuery('#handrail_type').val();
@@ -376,7 +451,39 @@ jQuery('#posts :input').change(function () {
     jQuery('#ball :input').prop('disabled', true);
   }
 
-  updateNewelPosts(newelType, capType, hrType, spindleType);
+  // Only the component *type* selects change what the material lists contain,
+  // so only they justify the refetch. This handler is bound to `#posts :input`,
+  // which also catches the material selects themselves and the custom-post
+  // checkboxes — refetching for those meant a customer's Pine/Oak choice was
+  // wiped by the response a second later. Everything else just reprices.
+  if (['newel_type', 'newel_cap', 'handrail_type'].indexOf(this.id) !== -1) {
+    updateNewelPosts(newelType, capType, hrType, spindleType);
+  } else {
+    calculateTotalPrice();
+  }
+});
+
+// Newel spec (material / style / caps / cap material) is only meaningful when a
+// newel post is actually priced. "None Required" on a straight flight prices
+// none, so the four rows are hidden and the balustrade question closes up.
+//
+// A turned staircase is different: priceCalc.js adds one mandatory box-corner
+// post per turn (quarter 1, half 2) whatever the dropdown says, and those are
+// priced off these selects — so they stay visible there, or the customer would
+// be charged for posts in a material they were never shown.
+function bdUpdateNewelVisibility() {
+  const stairType = jQuery('input[name="stair_type"]').val() || 'straight';
+  const mandatory = stairType === 'half' ? 2 : (stairType === 'quarter' ? 1 : 0);
+  const optional = BuilderUtils.getNumber('newel-posts') || 0;
+  jQuery('.bd-newel-fields').toggleClass('is-hidden', (optional + mandatory) === 0);
+}
+
+// Clear a field's red highlight as soon as it has content — re-checking the
+// email's format is left to the next submit, so typing isn't nagged mid-address.
+jQuery(document).on('input change', '#contact [required]', function () {
+  if ((((jQuery(this).val() || '') + '').trim()) !== '') {
+    jQuery(this).removeClass('is-invalid');
+  }
 });
 
 // Delivery options toggle
@@ -572,7 +679,7 @@ jQuery("input[name='delivery']").change(function () {
   // 2R+G window, going/width below min) — deliberately not breach-specific, since
   // a single per-regime message can't describe which limit was crossed. A regime
   // can still override this with its own On-exceed message in the admin.
-  var DEFAULT_MSG = 'This configuration does not meet the selected building regulations — please call us and a joiner will help you configure a compliant staircase.';
+  var DEFAULT_MSG = 'This configuration does not meet the selected building regulations — please call us and our Design Team will help you configure a compliant staircase.';
 
   function num(v) {
     if (v === '' || v === null || v === undefined) return null;

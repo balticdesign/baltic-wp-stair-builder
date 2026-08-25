@@ -209,9 +209,20 @@ function get_stepCost($featNumber, $material) {
   if ($featNumber == 0) {
     return 0;
   }
+  // Row order IS the feature value order: index 0 = value 1, index 1 = value 2, etc.
+  //   1 = curtail   2 = bullnose   3 = double curtail plus single curtail (DCC)
+  //   4 = double curtail plus bullnose (DCB)
+  // matching Stairs.js (isLeftCurtail = left == 1, isLeftBullnose = left == 2) and
+  // the option labels on #left-featured-step / #right-featured-step.
+  //
+  // Rows 1 and 2 were transposed until v2.23.0, so a curtail was charged at the
+  // bullnose price and a bullnose at the curtail price — under-charging SPD by
+  // £23-25 a side on curtails and over-charging the customer by the same on
+  // bullnoses. The drawing and the works order were always correct; only this
+  // lookup was wrong. Rows 3 and 4 were never affected.
   $stepMaterialPrices = [
-    ['mdf_bullnose_price', 'ply_bullnose_price', 'pine_bullnose_price', 'oak_bullnose_price'],
     ['mdf_curtail_price', 'ply_curtail_price', 'pine_curtail_price', 'oak_curtail_price'],
+    ['mdf_bullnose_price', 'ply_bullnose_price', 'pine_bullnose_price', 'oak_bullnose_price'],
     ['mdf_dbl_curtail_price', 'ply_dbl_curtail_price', 'pine_dbl_curtail_price', 'oak_dbl_curtail_price'],
     ['mdf_dcb_curtail_price', 'ply_dcb_curtail_price', 'pine_dcb_curtail_price', 'oak_dcb_curtail_price']
   ];

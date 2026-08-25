@@ -663,7 +663,9 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <div class="bd-fig"><div class="bd-fig-lab">Riser Height <span class="mm-sub">(Individual Rise)</span></div><div class="bd-fig-val"><span id="rise" class="msmnt">—</span></div></div>
       <div class="bd-fig"><div class="bd-fig-lab">Going <span class="mm-sub">(Tread Depth)</span></div><div class="bd-fig-val"><span id="tread" class="msmnt">—</span></div></div>
       <div class="bd-fig"><div class="bd-fig-lab">Width <span class="mm-sub">(Outside to Outside String)</span></div><div class="bd-fig-val"><span id="scwidth" class="msmnt">—</span></div></div>
+<?php if ( $measurements_angle_enabled ) : ?>
       <div class="bd-fig"><div class="bd-fig-lab">Angle <span class="mm-sub">(Pitch)</span></div><div class="bd-fig-val"><span id="angl" class="msmnt">—</span></div></div>
+<?php endif; ?>
     </div>
   </section>
 </div><!-- /.bd-stairbuilder-layout -->

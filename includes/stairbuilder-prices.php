@@ -203,6 +203,11 @@ $oak_baserail = stairbuilder_get_option('oak_baserail_price');
 // when an admin explicitly turns them on (Construction Settings tab).
 $material_quick_set_enabled = ! empty( stairbuilder_get_option( 'material_quick_set_enabled' ) );
 
+// Angle (Pitch) row in the Measurements panel (Geometry / Defaults tab). Display
+// only — pitch is still calculated and still drives the building-regs checks.
+// Missing counts as on, so existing installs keep the row after upgrading.
+$measurements_angle_enabled = bd_stairbuilder_is_enabled( 'measurements_angle_enabled' );
+
 if ( ! function_exists( 'bd_stairbuilder_render_type_field' ) ) {
     /**
      * Render an admin-driven "type/style" select — or, when only a single

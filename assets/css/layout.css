@@ -102,14 +102,26 @@
  * `flex: none` keeps it out of the scroll region's flex growth, so it holds
  * position while the sections scroll beneath it. Hidden entirely when the
  * setting is blank — the element isn't rendered at all. */
+/* Support/phone line under the CONFIGURE heading. A filled band rather than a
+   footnote — it's the "talk to a human" escape hatch and has to compete with the
+   sections below it. Colours come from Brand Colours (Help Line Background /
+   Text) and the size from General; the fallbacks here are the shipped look. */
 .bd-stairbuilder-layout .bd-panel-help {
   flex: none;
   margin: 0;
-  padding: 10px var(--bd-pad);
+  padding: 12px var(--bd-pad);
   border-bottom: 1px solid var(--bd-line);
-  font-size: 12px;
+  font-size: var(--bd-help-size, 15px);
   line-height: 1.4;
-  color: var(--bd-muted);
+  font-weight: 500;
+  background: var(--bd-help-bg, #8F7A34);
+  color: var(--bd-help-text, #FFFFFF);
+}
+/* The auto-generated tel: link must not fall back to the panel link colour —
+   on the filled band it would be unreadable. */
+.bd-stairbuilder-layout .bd-panel-help a {
+  color: inherit;
+  text-decoration: underline;
 }
 .bd-stairbuilder-layout .bd-panel-util {
   border: none;
@@ -548,9 +560,14 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
 .bd-stairbuilder-layout #stairbuild select option {
   color: var(--bd-form-text, #2B2522);
 }
-/* Unfilled required field after a submit attempt. Outranks the field border
-   above on class count, so it wins without !important. */
-.bd-stairbuilder-layout #stairbuild .is-invalid {
+/* Unfilled required field after a submit attempt.
+   The bare `.is-invalid` form is (1,2,0), which loses to the typed-input rule
+   above at (1,2,1) — that's why name/postcode (input[type="text"]) stayed
+   un-highlighted while email/tel (untyped by that rule) and select (1,1,1) went
+   red. The second selector re-states the attribute to reach (1,3,1) and take the
+   border back without !important. */
+.bd-stairbuilder-layout #stairbuild .is-invalid,
+.bd-stairbuilder-layout #stairbuild input[type].is-invalid {
   border: 1px solid #B3261E;
   box-shadow: 0 0 0 2px rgba(179, 38, 30, 0.16);
 }

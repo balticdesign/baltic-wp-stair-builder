@@ -102,6 +102,27 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			return isset( $options[ $key ] ) ? $options[ $key ] : $default;
 		}
 
+	/**
+		 * Tags an admin may use in `html_textarea` copy fields.
+		 *
+		 * Deliberately short: layout and emphasis only. No <script>, <style>,
+		 * <iframe>, no event-handler attributes, no inline styles — the look is
+		 * owned by the Brand Colours settings, not by pasted markup.
+		 *
+		 * @return array wp_kses allow-list.
+		 */
+		public static function copy_allowed_html() {
+			return array(
+				'br'     => array(),
+				'strong' => array(),
+				'b'      => array(),
+				'em'     => array(),
+				'i'      => array(),
+				'span'   => array( 'class' => array() ),
+				'a'      => array( 'href' => array(), 'title' => array(), 'target' => array(), 'rel' => array() ),
+			);
+		}
+
 		/**
 		 * Write a single value into the options blob (preserves other keys).
 		 *
@@ -666,6 +687,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					$this->render_text( $id, $name, $value, $field );
 					break;
 				case 'textarea':
+				// Same control as a textarea; only the sanitiser differs, letting
+				// the admin lay copy out with <br>, <strong> and links.
+				case 'html_textarea':
 					$this->render_textarea( $id, $name, $value, $field );
 					break;
 				case 'color':
@@ -1253,6 +1277,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						break;
 					case 'textarea':
 						$clean[ $id ] = is_scalar( $raw ) ? sanitize_textarea_field( (string) $raw ) : '';
+						break;
+					// Copy fields the admin formats themselves. wp_kses with a short
+					// allow-list keeps line breaks and emphasis while still stripping
+					// scripts, iframes and event handlers — sanitize_textarea_field()
+					// would eat the tags entirely.
+					case 'html_textarea':
+						$clean[ $id ] = is_scalar( $raw ) ? wp_kses( (string) $raw, self::copy_allowed_html() ) : '';
 						break;
 					case 'color':
 						$hex = is_scalar( $raw ) ? sanitize_hex_color( (string) $raw ) : '';
@@ -2757,8 +2788,11 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							$blob[ $id ] = $hex ? $hex : '';
 							break;
 						case 'textarea':
-							$blob[ $id ] = is_scalar( $v ) ? sanitize_textarea_field( (string) $v ) : '';
-							break;
+								$blob[ $id ] = is_scalar( $v ) ? sanitize_textarea_field( (string) $v ) : '';
+								break;
+							case 'html_textarea':
+								$blob[ $id ] = is_scalar( $v ) ? wp_kses( (string) $v, self::copy_allowed_html() ) : '';
+								break;
 						case 'text':
 						case 'select':
 							$blob[ $id ] = is_scalar( $v ) ? sanitize_text_field( (string) $v ) : '';
@@ -2979,9 +3013,17 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							[
 								'id' => 'configure_help_text',
 								'label' => 'Configure Panel — Help line',
-								'type' => 'textarea',
-								'placeholder' => 'e.g. Need help completing this form? Call 0191 380 4954 and ask for Andy or Daniel',
-								'description' => 'Shown directly under the CONFIGURE heading on the front end, above the sections. Leave blank to hide the line entirely. A phone number in the text is turned into a tap-to-call link automatically.',
+								'type' => 'html_textarea',
+								'placeholder' => 'e.g. Need help completing this form?<br/>Call 0191 380 4954 and ask for Andy or Daniel',
+								'description' => 'Shown directly under the CONFIGURE heading on the front end, above the sections. Leave blank to hide the line entirely. A phone number in the text is turned into a tap-to-call link automatically. Basic HTML is allowed for layout: &lt;br/&gt; for a line break, plus &lt;strong&gt;, &lt;em&gt;, &lt;span&gt; and &lt;a href&gt;. Colours and size are set under Brand Colours.',
+							],
+							[
+								'id' => 'configure_help_size',
+								'label' => 'Configure Panel — Help line size (px)',
+								'type' => 'number',
+								'placeholder' => 15,
+								'default' => 15,
+								'description' => 'Font size of the help line. 15 matches the section headings in the Configure panel; 12 gives the smaller footnote look used before v2.22.',
 							],
 						],
 					],
@@ -3395,6 +3437,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'default' => 0,
 								'description' => 'A fixed length added at the head of the flight where it meets the upper floor — display + drawing only, never priced (already absorbed in prices). This is a manufacturer spec, NOT a standard: default 0 reproduces pre-v2.16 geometry exactly. Stairparts Direct enter 43. On turned staircases it applies once, on the final flight.',
 							],
+							[
+								'id' => 'measurements_angle_enabled',
+								'label' => 'Angle (Pitch) measurement',
+								'type' => 'toggle',
+								'toggle_label' => 'Show the Angle (Pitch) row in the front-end Measurements panel',
+								'default' => 1,
+								'description' => 'Display only — turn off to hide the pitch angle from customers where the number invites debate but the rise/going figures do not. Pitch is still calculated and still drives the building-regs checks.',
+							],
 						],
 					],
 					'base_costs' => [
@@ -3564,6 +3614,20 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Configure Panel — Links',
 								'type' => 'color',
 								'default' => '#8F7A34',
+							],
+							[
+								'id' => 'help_line_bg',
+								'label' => 'Configure Panel — Help Line Background',
+								'type' => 'color',
+								'default' => '#8F7A34',
+								'description' => 'The support/phone line under the CONFIGURE heading (text set in General).',
+							],
+							[
+								'id' => 'help_line_text',
+								'label' => 'Configure Panel — Help Line Text',
+								'type' => 'color',
+								'default' => '#FFFFFF',
+								'description' => 'Also colours the tap-to-call link in that line.',
 							],
 							[
 								'id' => 'section_open_bg',
@@ -3791,25 +3855,52 @@ if ( ! function_exists( 'bd_stairbuilder_help_line_html' ) ) {
 	 * Escape an admin-entered copy line and turn any phone number in it into a
 	 * tap-to-call link.
 	 *
-	 * Settings text is sanitised on save with sanitize_textarea_field(), so it
-	 * can never carry markup — the linking has to happen at render time. The
-	 * pattern is deliberately conservative: 10-16 digits, spaces allowed inside
-	 * but not at the ends, optional leading +. That matches "0191 380 4954" and
-	 * "+44 191 380 4954" while leaving measurements and prices alone.
+	 * The field is an `html_textarea`, so a short allow-list of layout tags
+	 * (<br>, <strong>, <a>…) survives the save. Re-run wp_kses here rather than
+	 * trusting the stored value: options written before that type existed, or by
+	 * anything other than this settings screen, still get filtered.
+	 *
+	 * The phone pattern is deliberately conservative: 10-16 digits, spaces
+	 * allowed inside but not at the ends, optional leading +. That matches
+	 * "0191 380 4954" and "+44 191 380 4954" while leaving measurements and
+	 * prices alone. It's applied only to the text between tags, so a number
+	 * inside an href the admin wrote themselves is never rewritten, and an
+	 * existing <a> is never nested inside a generated one.
 	 *
 	 * @param string $text Raw option value.
 	 * @return string Escaped HTML, safe to echo.
 	 */
 	function bd_stairbuilder_help_line_html( $text ) {
-		$safe = esc_html( trim( (string) $text ) );
+		$safe = wp_kses( trim( (string) $text ), Stairbuilder_Pricing_Settings::copy_allowed_html() );
 
-		return preg_replace_callback(
-			'/(?<![\d\p{L}])(\+?\d(?:[\d ]{8,14})\d)(?![\d\p{L}])/u',
-			static function ( $m ) {
-				$digits = preg_replace( '/\s+/', '', $m[1] );
-				return '<a href="tel:' . esc_attr( $digits ) . '">' . $m[1] . '</a>';
-			},
-			$safe
-		);
+		// Split into tags and text runs; only the text runs get linkified.
+		$parts    = preg_split( '/(<[^>]*>)/', $safe, -1, PREG_SPLIT_DELIM_CAPTURE );
+		$in_anchor = false;
+		$out      = '';
+
+		foreach ( $parts as $part ) {
+			if ( $part === '' ) {
+				continue;
+			}
+			if ( $part[0] === '<' ) {
+				if ( stripos( $part, '<a' ) === 0 ) {
+					$in_anchor = true;
+				} elseif ( stripos( $part, '</a' ) === 0 ) {
+					$in_anchor = false;
+				}
+				$out .= $part;
+				continue;
+			}
+			$out .= $in_anchor ? $part : preg_replace_callback(
+				'/(?<![\d\p{L}])(\+?\d(?:[\d ]{8,14})\d)(?![\d\p{L}])/u',
+				static function ( $m ) {
+					$digits = preg_replace( '/\s+/', '', $m[1] );
+					return '<a href="tel:' . esc_attr( $digits ) . '">' . $m[1] . '</a>';
+				},
+				$part
+			);
+		}
+
+		return $out;
 	}
 }

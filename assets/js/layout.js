@@ -136,12 +136,29 @@
    * a head toggles .is-open on its .form-tab. Exclusive: opening a section
    * closes whichever was open, so the panel only ever shows one at a time and
    * the price footer stays in view. Clicking the open head still collapses it,
-   * leaving none open.
+   * leaving none open. The form loads with every section closed.
    */
+
+  /* Sections the user has actually opened this page load, by section key.
+   * A section can't earn its completion tick until it's in here — several
+   * sections are "done" from the moment the form renders, purely because their
+   * fields carry defaults, and a wall of pre-ticked sections reads as "nothing
+   * left to look at" and gets skipped. Opening is the whole test: any change
+   * requires the section to be open first, and a customer who opens a section,
+   * likes the defaults and closes it again has still made a decision. Not
+   * persisted — a fresh page load starts unticked again. */
+  const visitedSections = new Set();
+
+  function markVisited(tab) {
+    const key = sectionKey(tab);
+    if (key) visitedSections.add(key);
+  }
+
   function setSectionOpen(tab, open) {
     tab.classList.toggle('is-open', open);
     const head = tab.querySelector('.sec-head');
     if (head) head.setAttribute('aria-expanded', String(open));
+    if (open) markVisited(tab);
   }
 
   /* Close every open section except `keep` (pass null to close all). Exported
@@ -162,6 +179,9 @@
       const willOpen = !tab.classList.contains('is-open');
       closeOtherSections(layout, tab);
       setSectionOpen(tab, willOpen);
+      // The tick can only appear once a section is visited, so re-evaluate on
+      // open as well as on field input.
+      refreshSummaries(layout);
     });
 
     // Reveal-on-validation-failure hook for formLogic.js: open one section and
@@ -170,6 +190,7 @@
       if (!tab) return;
       closeOtherSections(layout, tab);
       setSectionOpen(tab, true);
+      refreshSummaries(layout);
     };
   }
 
@@ -286,7 +307,9 @@
       if (!key) return;
       const cfg = SECTION_CONFIG[key];
       let done = false, summary = '';
-      try { done = !!cfg.done(); } catch (_) {}
+      // Visited gate first: an untouched section stays unticked even when its
+      // defaults already satisfy done().
+      try { done = visitedSections.has(key) && !!cfg.done(); } catch (_) {}
       try { summary = cfg.summary() || ''; } catch (_) {}
       tab.classList.toggle('is-done', done);
       const sub = tab.querySelector('.sec-sub');
@@ -386,10 +409,9 @@
     }
     initCanvasResize();
 
-    // Open the first section (Measurements) by default so the panel doesn't
-    // load fully collapsed.
-    const firstTab = layout.querySelector('.form-tab');
-    if (firstTab) setSectionOpen(firstTab, true);
+    // Every section loads closed and unticked. Measurements used to open on
+    // load, which pre-visited it and pre-ticked it; the customer now opens the
+    // first section themselves, and the ticks track what they've been through.
   }
 
   if (document.readyState === 'loading') {

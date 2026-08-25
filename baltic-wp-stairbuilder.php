@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.21.0
+Version:		2.22.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.21.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.22.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -216,6 +216,8 @@ function custom_enqueue_files() {
 		'--bd-form-text'        => stairbuilder_get_option( 'form_text' ),
 		'--bd-form-link'        => stairbuilder_get_option( 'form_link' ),
 		'--bd-section-open-bg'  => stairbuilder_get_option( 'section_open_bg' ),
+		'--bd-help-bg'          => stairbuilder_get_option( 'help_line_bg' ),
+		'--bd-help-text'        => stairbuilder_get_option( 'help_line_text' ),
 		'--bd-field-bg'         => stairbuilder_get_option( 'field_bg' ),
 		'--bd-line'             => stairbuilder_get_option( 'panel_hairline' ),
 		'--bd-muted'            => stairbuilder_get_option( 'panel_muted' ),
@@ -237,6 +239,13 @@ function custom_enqueue_files() {
 		if ( $hex ) {
 			$bd_brand_colour_decls .= $var . ':' . $hex . ';';
 		}
+	}
+	// Help-line size (General tab) — a length, not a colour, so it can't ride the
+	// hex-validated loop above. Clamped to a sane px range; blank/0 keeps the
+	// stylesheet default.
+	$bd_help_size = (int) stairbuilder_get_option( 'configure_help_size', 0 );
+	if ( $bd_help_size >= 10 && $bd_help_size <= 32 ) {
+		$bd_brand_colour_decls .= '--bd-help-size:' . $bd_help_size . 'px;';
 	}
 	if ( $bd_brand_colour_decls !== '' ) {
 		wp_add_inline_style( 'baltic-stair-layout', '.bd-stairbuilder-layout{' . $bd_brand_colour_decls . '}' );

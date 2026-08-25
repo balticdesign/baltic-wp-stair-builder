@@ -230,7 +230,10 @@ function submitStairLead() {
 }
 
 function getFeaturedStepCosts() {
-  const variables = grabFormValues();
+  // Read the pair straight from the shared helper rather than via
+  // grabFormValues — the flight scripts and the fallback return different
+  // shapes, and this is the one place the two sides must agree.
+  const variables = BuilderUtils.bdFeaturedStepPair(jQuery);
   const treadMaterial = BuilderUtils.getString('tread_material');
   jQuery.ajax({
     url: stairBuilderVars.ajax_url,
@@ -250,6 +253,10 @@ function getFeaturedStepCosts() {
       }
       jQuery("#leftFeatStep").val(responseObj.leftCost);
       jQuery("#rightFeatStep").val(responseObj.rightCost);
+      // Combined subtotal with the both-sides uplift already applied, plus the
+      // price-on-application flag for a selected treatment with no price set.
+      jQuery("#featStepTotal").val(responseObj.total);
+      jQuery("#featStepPoa").val(responseObj.poa ? '1' : '0');
       calculateTotalPrice();
     }
   });
@@ -417,7 +424,10 @@ jQuery(document).ready(function () {
   });
 });
 
-jQuery('#feature_tread').on('change', getFeaturedStepCosts);
+// Tread material is part of the lookup, so a material change has to re-price the
+// featured step too — the combined dropdown never did this, leaving a stale
+// figure in the total after switching material.
+jQuery('#left-featured-step, #right-featured-step, #tread_material').on('change', getFeaturedStepCosts);
 
 // Newel posts, ballustrade, custom UI/logic
 jQuery('#posts :input').change(function () {

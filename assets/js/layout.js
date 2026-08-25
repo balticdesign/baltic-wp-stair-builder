@@ -242,7 +242,11 @@
     cnstr: {
       done: function () { return !!txt('construction_type'); },
       summary: function () {
-        var feat = txt('feature_tread');
+        // Featured step is two independent selects (v2.23.0); the shared
+        // helper owns the wording so the summary can't drift from the quote.
+        var feat = (window.BuilderUtils && window.BuilderUtils.bdFeaturedStepLabel)
+          ? window.BuilderUtils.bdFeaturedStepLabel(txt('left-featured-step'), txt('right-featured-step'))
+          : '';
         return join([
           txt('construction_type'),
           txt('tread-profile'),

@@ -74,12 +74,9 @@ function grabFormValues() {
   let rake = BuilderUtils.calculateRake(height, total_run).toFixed(2);
   let pitch = BuilderUtils.calculateStepPitch(riserh, going); // Doc K per-step pitch
 
-  // Feature tread config
-  let fl = 0, fr = 0;
-  const featureTreadConfig = jQuery('#feature_tread').find('option:selected').data('config');
-  if (featureTreadConfig) {
-    [fl, fr] = featureTreadConfig.split(',');
-  }
+  // Feature tread config — read per side (v2.23.0). Values unchanged:
+  // 0 none, 1 curtail, 2 bullnose, 3 DCC, 4 DCB.
+  const { fl, fr } = BuilderUtils.bdFeaturedStepPair(jQuery);
 
   // Post/feature logic
   let tl = false, tr = false, br = false, bl = false;

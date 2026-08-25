@@ -102,7 +102,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			return isset( $options[ $key ] ) ? $options[ $key ] : $default;
 		}
 
-	/**
+		/**
 		 * Tags an admin may use in `html_textarea` copy fields.
 		 *
 		 * Deliberately short: layout and emphasis only. No <script>, <style>,
@@ -1271,6 +1271,30 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						break;
 					case 'number':
 						$clean[ $id ] = ( $raw === '' || $raw === null ) ? '' : (float) $raw;
+						// Optional hard range. Out-of-range is REJECTED, not clamped —
+						// silently rewriting a price multiplier to the nearest legal
+						// value is how a quote goes out at a figure nobody chose. The
+						// previously stored value stands and the admin is told why.
+						if ( $clean[ $id ] !== '' && ( isset( $field['min'] ) || isset( $field['max'] ) ) ) {
+							$min = isset( $field['min'] ) ? (float) $field['min'] : -INF;
+							$max = isset( $field['max'] ) ? (float) $field['max'] : INF;
+							if ( $clean[ $id ] < $min || $clean[ $id ] > $max ) {
+								$previous     = self::get( $id, null );
+								$clean[ $id ] = ( $previous === null ) ? ( isset( $field['default'] ) ? (float) $field['default'] : '' ) : $previous;
+								add_settings_error(
+									self::OPTION_KEY,
+									'range_' . $id,
+									sprintf(
+										'%s must be between %s and %s — "%s" was rejected and the previous value kept.',
+										$field['label'],
+										rtrim( rtrim( number_format( $min, 2, '.', '' ), '0' ), '.' ),
+										rtrim( rtrim( number_format( $max, 2, '.', '' ), '0' ), '.' ),
+										esc_html( (string) $raw )
+									),
+									'error'
+								);
+							}
+						}
 						break;
 					case 'text':
 						$clean[ $id ] = is_scalar( $raw ) ? sanitize_text_field( (string) $raw ) : '';
@@ -2554,6 +2578,35 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					applyConditionals();
 					$(document).on("change", ".stairbuilder-pricing-wrap input[type=checkbox]", applyConditionals);
 
+					// Featured Step — live worked example under the both-sides uplift
+					// multiplier, using whatever the Oak prices on this tab currently
+					// say, so the effect is visible before saving rather than after a
+					// customer sees it. Uplift applies to the COMBINED price and only
+					// when both sides carry a feature.
+					var $fsMult = $("#featured_step_both_sides_multiplier");
+					if ($fsMult.length) {
+						var $fsEg = $("<p class=\"description stairbuilder-featstep-example\"></p>");
+						$fsMult.closest(".stairbuilder-field").append($fsEg);
+						var fsMoney = function(n){ return "£" + n.toFixed(2); };
+						var fsRender = function(){
+							var m = parseFloat($fsMult.val());
+							var c = parseFloat($("#oak_curtail_price").val());
+							var b = parseFloat($("#oak_bullnose_price").val());
+							if (isNaN(m)) { m = 1.5; }
+							if (isNaN(c) || isNaN(b)) { $fsEg.text("Worked example unavailable until the Oak Curtail and Oak Bullnose prices are set."); return; }
+							var bad = (m < 0.1 || m > 5);
+							$fsEg.html(
+								"<strong>Worked example, Oak at " + (bad ? "an out-of-range multiplier" : "×" + m) + ":</strong><br>" +
+								"Curtail one side only — " + fsMoney(c) + " (no uplift)<br>" +
+								"Curtail both sides — (" + fsMoney(c) + " + " + fsMoney(c) + ") × " + (bad ? "?" : m) + " = " + (bad ? "—" : fsMoney((c + c) * m)) + "<br>" +
+								"Curtail left, Bullnose right — (" + fsMoney(c) + " + " + fsMoney(b) + ") × " + (bad ? "?" : m) + " = " + (bad ? "—" : fsMoney((c + b) * m)) +
+								(bad ? "<br><em>Must be between 0.1 and 5 — this value will be rejected on save.</em>" : "")
+							);
+						};
+						fsRender();
+						$(document).on("input change", "#featured_step_both_sides_multiplier, #oak_curtail_price, #oak_bullnose_price", fsRender);
+					}
+
 					// Repeater: add row
 					$(document).on("click", ".stairbuilder-repeater-add", function(){
 						var $table = $(this).closest("table.stairbuilder-repeater");
@@ -3166,6 +3219,17 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'featured_step' => [
 						'label' => 'Featured Step',
 						'fields' => [
+							[
+								'id' => 'featured_step_both_sides_multiplier',
+								'label' => 'Both-sides uplift multiplier',
+								'type' => 'number',
+								'adjustable' => true,
+								'placeholder' => 1.5,
+								'default' => 1.5,
+								'min' => 0.1,
+								'max' => 5,
+								'description' => 'Applied to the combined price when a feature is fitted to both sides of the step. 1 = no uplift. 1.5 = 50% uplift. It is a multiplier, not an amount to add, and it never applies to a single-sided step. Must be between 0.1 and 5.',
+							],
 							[
 								'id' => 'mdf_bullnose_price',
 								'label' => 'MDF Bullnose',

@@ -29,7 +29,10 @@ function altBalustradePrice(mode, g) {
 // option). These types are quoted by hand, so the configurator runs and the
 // lead still submits — only the figures are withheld.
 function bdIsPoaSelected() {
-  return jQuery('#construction_type option:selected').attr('data-poa') === '1';
+  if (jQuery('#construction_type option:selected').attr('data-poa') === '1') return true;
+  // §5.6 — a selected featured step whose price field is empty or zero can't be
+  // quoted either. Same route, same wording, set by the pricing endpoint.
+  return jQuery('#featStepPoa').val() === '1';
 }
 
 // `is-poa` on the footer hides the cost + VAT rows and the total's label, so
@@ -163,8 +166,10 @@ function calculateTotalPrice() {
   const spPanelGap = parseFloat($balOpt.attr('data-panel-gap')) || 0;
   const $hdr_cost = BuilderUtils.getNumber('hdr_material');
   const $bsr_cost = BuilderUtils.getNumber('bsr_material');
-  const $leftFeatStep = parseFloat(jQuery('#leftFeatStep').val());
-  const $rightFeatStep = parseFloat(jQuery('#rightFeatStep').val());
+  // Featured step: one combined subtotal, computed server-side so the
+  // both-sides uplift (§5.1) is applied in exactly one place. The per-side
+  // figures stay available for the works order and diagnostics.
+  const $featStepTotal = parseFloat(jQuery('#featStepTotal').val()) || 0;
 
   const $newels_price = $newel_cost * $newel_amt;
   const $caps_price = $cap_cost * $newel_amt;
@@ -276,8 +281,7 @@ function calculateTotalPrice() {
     $xtrap +
     $asspkg +
     $delivery +
-    $leftFeatStep +
-    $rightFeatStep +
+    $featStepTotal +
     $addprice;
 
   const price = parseFloat($total); // before VAT

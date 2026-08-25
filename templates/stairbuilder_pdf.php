@@ -77,14 +77,20 @@ $bd_config_label   = $bd_config_labels[ $content['stair_config'] ?? '' ] ?? '';
 $bd_staircase_type = trim( $bd_type_label . ( $bd_config_label ? ' — ' . $bd_config_label : '' ) );
 
 $bd_treadit_labels = array( '1' => 'Quarter Landing', '2' => '2 Winders', '3' => '3 Winders', '4' => 'Half Landing' );
-$bd_feat_labels    = array( '0' => 'None', '1' => 'Curtail', '2' => 'Bullnose', '4' => 'Full Curtail & Bullnose' );
 $bd_map_label      = function ( $map, $key ) { $key = (string) $key; return $map[ $key ] ?? ''; };
 $bd_building_reg   = $bd_code_label( 'building_regs', $content['building_regs'] ?? '', 'building_reg_value', 'building_reg_name' );
 
 $bd_turn1      = $bd_map_label( $bd_treadit_labels, $content['treadit'] ?? '' );
 $bd_turn2      = $bd_map_label( $bd_treadit_labels, $content['treadit2'] ?? '' );
-$bd_left_step  = $bd_map_label( $bd_feat_labels, $content['left-featured-step'] ?? '' );
-$bd_right_step = $bd_map_label( $bd_feat_labels, $content['right-featured-step'] ?? '' );
+// Featured step (v2.23.0): one shared helper owns the wording for every
+// surface. Leads captured before the per-side split carry the old single enum
+// under `featured_step` — decompose it on read rather than migrating (§6).
+if ( isset( $content['left-featured-step'] ) || isset( $content['right-featured-step'] ) ) {
+    $bd_feat_pair = array( (string) ( $content['left-featured-step'] ?? '0' ), (string) ( $content['right-featured-step'] ?? '0' ) );
+} else {
+    $bd_feat_pair = bd_featured_step_from_legacy( $content['featured_step'] ?? '' );
+}
+$bd_featured_step = bd_featured_step_label( $bd_feat_pair[0], $bd_feat_pair[1] );
 
 // Newel count: prefer the exact figure priceCalc.js captured into #newel-count,
 // so the quote matches the price by construction. Leads captured before that
@@ -257,8 +263,7 @@ $bd_row_count( 'Treads before Turn', $content['treadbt'] ?? '' );
 $bd_row_count( 'Treads after Turn', $content['treadat'] ?? '' );
 $bd_row( 'Turn 2', $bd_turn2 );
 $bd_row_count( 'Treads after Turn 2', $content['treadat2'] ?? '' );
-if ( $bd_left_step !== '' && $bd_left_step !== 'None' )  { $bd_row( 'Left Featured Step', $bd_left_step ); }
-if ( $bd_right_step !== '' && $bd_right_step !== 'None' ) { $bd_row( 'Right Featured Step', $bd_right_step ); }
+if ( $bd_featured_step !== 'None' ) { $bd_row( 'Featured Step', $bd_featured_step ); }
 $bd_sections[] = array( 'Staircase Details', ob_get_clean() );
 
 // No newel post priced (straight flight, "None Required") means there's nothing

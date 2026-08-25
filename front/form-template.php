@@ -255,42 +255,41 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
     <div class="form-row">
         <h4>Do you require a feature tread?</h4>
 
-        <label for="feature_tread">Featured Tread:</label>
-      <select id="feature_tread" class="form-select">
-        <option data-config="0,0" value="None" selected="selected">None</option>
-        <option data-config="2,0" value="Left Bullnose Step">Left Bullnose Step</option>
-        <option data-config="0,2" value="Right Bullnose Step">Right Bullnose Step</option>
-        <option data-config="2,2" value="Double Bullnose Step">Double Bullnose Step</option>
-        <option data-config="1,0" value="Left D Step">Left Curtail Step</option>
-        <option data-config="0,1" value="Right D Step">Right Curtail Step</option>
-        <option data-config="1,1" value="Double D Step">Double Curtail Step</option>
-        <!--<option value="Left Double Curtail Step">Left Curtail Step</option> -->
-        <!--<option value="Right Double Curtail Step">Right Curtail Step</option> -->
-        <!--<option value="Double Curtail Step">Double Curtail Step</option> -->
-        <option data-config="4,0"  value="Left Curtail and Bullnose Step">Left Curtail and Bullnose Step</option>
-        <option data-config="0,4" value="Right Curtail and Bullnose Step">Right Curtail and Bullnose Step</option>
-        <option data-config="4,4" value="Double Curtail and Bullnose Step">Double Curtail and Bullnose Step</option>
+      <?php
+      // v2.23.0: the two sides are chosen independently. The combined
+      // #feature_tread dropdown these replace could only express symmetric or
+      // one-sided pairs, and its data-config attribute fed these same two
+      // selects behind the scenes — they were present but hidden. Values are
+      // the renderer's own vocabulary (Stairs.js): 0 none, 1 curtail,
+      // 2 bullnose, 3 double curtail plus single curtail, 4 double curtail
+      // plus bullnose. Option order follows the brief; value order does not.
+      $bd_feat_step_options = array(
+          '0' => 'None',
+          '2' => 'Bullnose Step',
+          '1' => 'Curtail Step',
+          '3' => 'Double Curtail plus Single Curtail',
+          '4' => 'Double Curtail plus Bullnose',
+      );
+      ?>
+      <label for="left-featured-step">Left Hand Side:</label>
+      <select id="left-featured-step" name="left-featured-step" class="form-select">
+        <?php foreach ( $bd_feat_step_options as $bd_fs_val => $bd_fs_label ) : ?>
+        <option value="<?php echo esc_attr( $bd_fs_val ); ?>"<?php selected( $bd_fs_val, '0' ); ?>><?php echo esc_html( $bd_fs_label ); ?></option>
+        <?php endforeach; ?>
       </select>
 
-      <!--<label for="left-featured-step">Left Hand Side:</label>-->
-      <select id="left-featured-step" name="left-featured-step">
-        <option value="0">None</option>
-        <option value="1">Curtail</option>
-        <option value="2">Bullnose</option>
-        <!--<option value="3">Curtail & Double Curtail</option>-->
-        <option value="4">Full Curtail & Bullnose</option>
+      <label for="right-featured-step">Right Hand Side:</label>
+      <select id="right-featured-step" name="right-featured-step" class="form-select">
+        <?php foreach ( $bd_feat_step_options as $bd_fs_val => $bd_fs_label ) : ?>
+        <option value="<?php echo esc_attr( $bd_fs_val ); ?>"<?php selected( $bd_fs_val, '0' ); ?>><?php echo esc_html( $bd_fs_label ); ?></option>
+        <?php endforeach; ?>
       </select>
-
-      <!--<label for="right-featured-step">Right Hand Side:</label>-->
-      <select id="right-featured-step" name="right-featured-step">
-        <option value="0">None</option>
-        <option value="1">Curtail</option>
-        <option value="2">Bullnose</option>
-        <!--<option value="3">Curtail & Double Curtail</option>-->
-        <option value="4">Full Curtail & Bullnose</option>
-      </select>
+      <?php // Per-side costs and the combined subtotal (uplift already applied
+            // server-side), kept as hidden fields so priceCalc can read them. ?>
       <input type="hidden" id="leftFeatStep" value="0">
       <input type="hidden" id="rightFeatStep" value="0">
+      <input type="hidden" id="featStepTotal" value="0">
+      <input type="hidden" id="featStepPoa" value="0">
 
     </div>
 </div>

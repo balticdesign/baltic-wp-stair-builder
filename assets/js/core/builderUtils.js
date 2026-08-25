@@ -170,6 +170,44 @@ function bdDisplayTotalRun(baseRunMm, includeLip) {
   return base + (includeLip ? bdTopLipMm() : 0);
 }
 
+/* ---- Featured step, per side (v2.23.0) ---------------------------------
+ * The two sides are chosen independently. Values are the renderer's own:
+ *   0 none · 1 curtail · 2 bullnose · 3 double curtail plus single curtail
+ *   4 double curtail plus bullnose
+ * Single reader for every caller (flight scripts, grabFormValues, priceCalc
+ * trigger) so the pair can never be assembled two different ways. Replaces the
+ * old data-config attribute on the combined #feature_tread dropdown. */
+var BD_FEAT_STEP_LABELS = {
+  '0': 'None',
+  '1': 'Curtail Step',
+  '2': 'Bullnose Step',
+  '3': 'Double Curtail plus Single Curtail',
+  '4': 'Double Curtail plus Bullnose'
+};
+
+function bdFeaturedStepPair($) {
+  $ = $ || window.jQuery;
+  var norm = function (v) {
+    var n = parseInt(v, 10);
+    return (n >= 0 && n <= 4) ? String(n) : '0';
+  };
+  return {
+    fl: norm($('#left-featured-step').val()),
+    fr: norm($('#right-featured-step').val())
+  };
+}
+
+/* §9 display string. "Both sides:" only when the two values are identical. */
+function bdFeaturedStepLabel(fl, fr) {
+  var L = BD_FEAT_STEP_LABELS[String(fl)] || 'None';
+  var R = BD_FEAT_STEP_LABELS[String(fr)] || 'None';
+  if (L === 'None' && R === 'None') return 'None';
+  if (String(fl) === String(fr))    return 'Both sides: ' + L;
+  if (R === 'None')                 return 'Left: ' + L;
+  if (L === 'None')                 return 'Right: ' + R;
+  return 'Left: ' + L + ' / Right: ' + R;
+}
+
 /**
  * Calculates the rake (diagonal length) of a staircase
  * @param {number} height - Total height of the staircase
@@ -464,7 +502,11 @@ function grab3dValues($ = window.jQuery) {
     hdr_material: getString('hdr_material', $).toUpperCase(),
     bsr_material: getString('bsr_material', $).toUpperCase(),
     construction_type: $("#construction_type").val(),
-    featured_step: $("#feature_tread").val()
+    // Per-side featured step (v2.23.0). The combined single-enum `featured_step`
+    // is kept for anything still reading it, now derived from the pair.
+    featured_step_left: bdFeaturedStepPair($).fl,
+    featured_step_right: bdFeaturedStepPair($).fr,
+    featured_step: bdFeaturedStepLabel(bdFeaturedStepPair($).fl, bdFeaturedStepPair($).fr)
   };
 }
 
@@ -501,8 +543,7 @@ function grabFormValues($ = window.jQuery) {
   let bl = false;
   let spLmod = 0;
   let spRmod = 0;
-  let featureTreadConfig = $('#feature_tread').find('option:selected').data('config');
-  const [fl, fr] = featureTreadConfig ? featureTreadConfig.split(',') : ['0', '0'];
+  const { fl, fr } = bdFeaturedStepPair($);
   let bal_l = false;
   let bal_r = false;
   let bal2_l = false;
@@ -694,6 +735,8 @@ if (typeof module !== 'undefined' && module.exports) {
     bdRiserBoard,
     bdTopLipMm,
     bdDisplayTotalRun,
+    bdFeaturedStepPair,
+    bdFeaturedStepLabel,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,
@@ -729,6 +772,8 @@ if (typeof window !== 'undefined') {
     bdRiserBoard,
     bdTopLipMm,
     bdDisplayTotalRun,
+    bdFeaturedStepPair,
+    bdFeaturedStepLabel,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,

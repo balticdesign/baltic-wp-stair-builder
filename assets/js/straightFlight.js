@@ -1,7 +1,3 @@
-// Hide featured steps on load
-jQuery('#left-featured-step').hide();
-jQuery('#right-featured-step').hide();
-
 /**
  * Parses the form and returns all variables needed for this stair type.
  */
@@ -46,12 +42,9 @@ function grabFormValues() {
     jQuery('#custom').hide();
   }
 
-  // Feature tread config
-  let fl = 0, fr = 0;
-  const featureTreadConfig = jQuery('#feature_tread').find('option:selected').data('config');
-  if (featureTreadConfig) {
-    [fl, fr] = featureTreadConfig.split(',');
-  }
+  // Feature tread config — read per side (v2.23.0). Values unchanged:
+  // 0 none, 1 curtail, 2 bullnose, 3 DCC, 4 DCB.
+  const { fl, fr } = BuilderUtils.bdFeaturedStepPair(jQuery);
 
   // Balustrade modifiers
   let spLmod = 0, spRmod = 0, bal_l = false, bal_r = false;

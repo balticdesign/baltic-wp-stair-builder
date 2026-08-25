@@ -227,24 +227,146 @@ function get_stepCost($featNumber, $material) {
     ['mdf_dcb_curtail_price', 'ply_dcb_curtail_price', 'pine_dcb_curtail_price', 'oak_dcb_curtail_price']
   ];
 
-  $materialIndex = ['mdf' => 0, 'ply' => 1, 'pine' => 2, 'oak' => 3][$material];
+  $materialMap = ['mdf' => 0, 'ply' => 1, 'pine' => 2, 'oak' => 3];
+  $material    = strtolower( (string) $material );
+  // An unknown material used to emit an undefined-key warning, which printed
+  // ahead of the JSON body and broke the response the caller tried to parse.
+  if ( ! isset( $materialMap[ $material ] ) || ! isset( $stepMaterialPrices[ $featNumber - 1 ] ) ) {
+    return 0;
+  }
+  $materialIndex = $materialMap[ $material ];
 
   $price = stairbuilder_get_option($stepMaterialPrices[$featNumber - 1][$materialIndex]);
 
   return $price;
 }
 
-function get_featured_step() {
-  $treadMaterial = $_POST['tread_material'];
-  $leftStep = $_POST['leftFeat'];
-  $rightStep = $_POST['rightFeat'];
+/**
+ * Featured step treatment labels, keyed by the renderer's own value vocabulary.
+ * SPD's wording — Andy and Daniel read these on the works order.
+ */
+function bd_featured_step_labels() {
+  return array(
+    '0' => 'None',
+    '1' => 'Curtail Step',
+    '2' => 'Bullnose Step',
+    '3' => 'Double Curtail plus Single Curtail',
+    '4' => 'Double Curtail plus Bullnose',
+  );
+}
 
-  $leftCost = get_stepCost($leftStep, $treadMaterial);
+/**
+ * §9 — the one place a (left, right) pair becomes a display string. Used by the
+ * PDF, the customer email, the works order and the form entry; the configurator
+ * summary uses the JS twin in builderUtils.js. Do not re-derive per surface.
+ *
+ * "Both sides:" only when the two values are identical.
+ */
+function bd_featured_step_label( $left, $right ) {
+  $labels = bd_featured_step_labels();
+  $l_key  = (string) $left;
+  $r_key  = (string) $right;
+  $l      = isset( $labels[ $l_key ] ) ? $labels[ $l_key ] : 'None';
+  $r      = isset( $labels[ $r_key ] ) ? $labels[ $r_key ] : 'None';
+
+  if ( 'None' === $l && 'None' === $r ) {
+    return 'None';
+  }
+  if ( $l_key === $r_key ) {
+    return 'Both sides: ' . $l;
+  }
+  if ( 'None' === $r ) {
+    return 'Left: ' . $l;
+  }
+  if ( 'None' === $l ) {
+    return 'Right: ' . $r;
+  }
+  return 'Left: ' . $l . ' / Right: ' . $r;
+}
+
+/**
+ * §6 — decompose a legacy single-enum featured step into (left, right).
+ *
+ * Leads captured before v2.23.0 stored the combined label chosen from the old
+ * #feature_tread dropdown. Read-time only: nothing rewrites stored entries.
+ * Returns the pair as renderer values. "Curtail and Bullnose Step" is the
+ * legacy DCB product — a two-step feature on ONE side — not a curtail composed
+ * with a bullnose.
+ */
+function bd_featured_step_from_legacy( $legacy ) {
+  $map = array(
+    'None'                             => array( '0', '0' ),
+    'Left Bullnose Step'               => array( '2', '0' ),
+    'Right Bullnose Step'              => array( '0', '2' ),
+    'Double Bullnose Step'             => array( '2', '2' ),
+    'Left Curtail Step'                => array( '1', '0' ),
+    'Left D Step'                      => array( '1', '0' ),
+    'Right Curtail Step'               => array( '0', '1' ),
+    'Right D Step'                     => array( '0', '1' ),
+    'Double Curtail Step'              => array( '1', '1' ),
+    'Double D Step'                    => array( '1', '1' ),
+    'Left Curtail and Bullnose Step'   => array( '4', '0' ),
+    'Right Curtail and Bullnose Step'  => array( '0', '4' ),
+    'Double Curtail and Bullnose Step' => array( '4', '4' ),
+  );
+  $key = trim( (string) $legacy );
+  return isset( $map[ $key ] ) ? $map[ $key ] : array( '0', '0' );
+}
+
+/**
+ * Both-sides uplift multiplier (§5.3). One global value — never per material
+ * and never per combination. Out-of-range stored values fall back to 1 (no
+ * uplift) rather than silently scaling by something nonsensical; the admin
+ * screen rejects them on save, so this only catches a hand-edited option row.
+ */
+function bd_featured_step_multiplier() {
+  $raw = stairbuilder_get_option( 'featured_step_both_sides_multiplier', null );
+  if ( $raw === null || $raw === '' ) {
+    return 1.5;                      // shipped default
+  }
+  $m = (float) $raw;
+  return ( $m >= 0.1 && $m <= 5 ) ? $m : 1.0;
+}
+
+/**
+ * Featured step subtotal (§5.1). Per-side sum, with the uplift applied to the
+ * COMBINED price only when both sides carry a feature.
+ *
+ * Full precision — no rounding here. The plugin formats component subtotals at
+ * display time (priceCalc.js toFixed(2)) and rounds nothing in between, so the
+ * multiplier lands on the unrounded sum exactly as §5.4 requires.
+ */
+function bd_featured_step_total( $leftCost, $rightCost, $multiplier ) {
+  $sum = (float) $leftCost + (float) $rightCost;
+  if ( $leftCost <= 0 || $rightCost <= 0 ) {
+    return $sum;                     // one side bare → no uplift
+  }
+  return $sum * (float) $multiplier;
+}
+
+function get_featured_step() {
+  $treadMaterial = isset( $_POST['tread_material'] ) ? sanitize_text_field( wp_unslash( $_POST['tread_material'] ) ) : '';
+  $leftStep      = isset( $_POST['leftFeat'] ) ? (int) $_POST['leftFeat'] : 0;
+  $rightStep     = isset( $_POST['rightFeat'] ) ? (int) $_POST['rightFeat'] : 0;
+
+  $leftCost  = get_stepCost($leftStep, $treadMaterial);
   $rightCost = get_stepCost($rightStep, $treadMaterial);
 
+  // §5.6 — a selected treatment whose price field is empty or zero can't be
+  // quoted. Rather than sending out a partial figure, the configuration takes
+  // the same price-on-application route as the POA construction types.
+  $poa = ( $leftStep > 0 && ! ( (float) $leftCost > 0 ) )
+      || ( $rightStep > 0 && ! ( (float) $rightCost > 0 ) );
+
+  $multiplier = bd_featured_step_multiplier();
+
   $feat_options = array(
-    'leftCost' => $leftCost,
-    'rightCost' => $rightCost
+    'leftCost'   => $leftCost,
+    'rightCost'  => $rightCost,
+    'multiplier' => $multiplier,
+    // Uplift applied when both sides carry a feature (§5.1).
+    'total'      => bd_featured_step_total( $leftCost, $rightCost, $multiplier ),
+    'poa'        => $poa ? 1 : 0,
   );
   echo json_encode($feat_options);
   wp_die();

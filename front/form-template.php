@@ -271,19 +271,27 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
           '4' => 'Double Curtail plus Bullnose',
       );
       ?>
-      <label for="left-featured-step">Left Hand Side:</label>
-      <select id="left-featured-step" name="left-featured-step" class="form-select">
-        <?php foreach ( $bd_feat_step_options as $bd_fs_val => $bd_fs_label ) : ?>
-        <option value="<?php echo esc_attr( $bd_fs_val ); ?>"<?php selected( $bd_fs_val, '0' ); ?>><?php echo esc_html( $bd_fs_label ); ?></option>
-        <?php endforeach; ?>
-      </select>
-
-      <label for="right-featured-step">Right Hand Side:</label>
-      <select id="right-featured-step" name="right-featured-step" class="form-select">
-        <?php foreach ( $bd_feat_step_options as $bd_fs_val => $bd_fs_label ) : ?>
-        <option value="<?php echo esc_attr( $bd_fs_val ); ?>"<?php selected( $bd_fs_val, '0' ); ?>><?php echo esc_html( $bd_fs_label ); ?></option>
-        <?php endforeach; ?>
-      </select>
+      <?php // The two sides sit side by side — they're one decision made twice,
+            // and stacking them read as two unrelated questions. Falls back to
+            // stacked on a narrow panel. ?>
+      <div class="bd-field-pair">
+        <div class="bd-field">
+          <label for="left-featured-step">Left Hand Side:</label>
+          <select id="left-featured-step" name="left-featured-step" class="form-select">
+            <?php foreach ( $bd_feat_step_options as $bd_fs_val => $bd_fs_label ) : ?>
+            <option value="<?php echo esc_attr( $bd_fs_val ); ?>"<?php selected( $bd_fs_val, '0' ); ?>><?php echo esc_html( $bd_fs_label ); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="bd-field">
+          <label for="right-featured-step">Right Hand Side:</label>
+          <select id="right-featured-step" name="right-featured-step" class="form-select">
+            <?php foreach ( $bd_feat_step_options as $bd_fs_val => $bd_fs_label ) : ?>
+            <option value="<?php echo esc_attr( $bd_fs_val ); ?>"<?php selected( $bd_fs_val, '0' ); ?>><?php echo esc_html( $bd_fs_label ); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
       <?php // Per-side costs and the combined subtotal (uplift already applied
             // server-side), kept as hidden fields so priceCalc can read them. ?>
       <input type="hidden" id="leftFeatStep" value="0">

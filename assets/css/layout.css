@@ -503,6 +503,26 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   body.admin-bar { --wp-admin-bar-height: 46px; }
 }
 
+/* Two fields on one line — one decision made once per side (featured step
+   Left/Right). Stacked, they read as two unrelated questions.
+   Grid, not flex: `minmax(0, 1fr)` keeps both columns exactly equal whatever the
+   option text is, where flex would let the longer list widen its own column. The
+   panel is a fixed 384px at every breakpoint (--bd-form-width), so there's no
+   width at which this needs to fall back to stacked. */
+.bd-stairbuilder-layout #stairbuild .bd-field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.bd-stairbuilder-layout #stairbuild .bd-field-pair .bd-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;                     /* let the column shrink; selects clip natively */
+}
+/* .form-row select is already width:100%; restate it against the narrower
+   column so a long option can't set the track width. */
+.bd-stairbuilder-layout #stairbuild .bd-field-pair select { width: 100%; }
+
 /* Form-row labels: full-width, capitalised. */
 .bd-stairbuilder-layout #stairbuild .form-row label {
   width: 100%;

@@ -242,6 +242,38 @@ function get_stepCost($featNumber, $material) {
 }
 
 /**
+ * Map a stored component code back to its admin-defined human label for
+ * display. Leads store codes in form_data; if a code is later renamed/removed
+ * the raw code is shown (same fragility as the legacy plugin — out of scope).
+ *
+ * $code_key / $name_key default to the plain 'code'/'name' sub-fields used by
+ * the newel/cap/handrail/spindle repeaters. The stringer/tread/riser/
+ * construction/profile repeaters use prefixed sub-keys (e.g. stringer_code /
+ * stringer_name), so those callers pass the matching keys explicitly.
+ *
+ * Lived as a closure inside templates/stairbuilder_pdf.php until v2.24.0. The
+ * Enquiries admin list resolves the same codes, and a template-local closure
+ * cannot be reached from there. Home is this file rather than
+ * stairbuilder-prices.php: that one is required from front/form-template.php
+ * only, so a helper there would not load in admin.
+ */
+function bd_code_label( $option_key, $code, $code_key = 'code', $name_key = 'name' ) {
+  $code = (string) $code;
+  if ( $code === '' ) {
+    return '';
+  }
+  $rows = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( $option_key, array() ) : array();
+  if ( is_array( $rows ) ) {
+    foreach ( $rows as $row ) {
+      if ( is_array( $row ) && isset( $row[ $code_key ] ) && (string) $row[ $code_key ] === $code && ! empty( $row[ $name_key ] ) ) {
+        return $row[ $name_key ];
+      }
+    }
+  }
+  return $code;
+}
+
+/**
  * Featured step treatment labels, keyed by the renderer's own value vocabulary.
  * SPD's wording — Andy and Daniel read these on the works order.
  */

@@ -14,29 +14,11 @@
  * in mPDF's font config later for the exact typeface.
  */
 
-// Map a stored component code back to its admin-defined human label for
-// display. Leads store codes in form_data; if a code is later renamed/removed
-// the raw code is shown (same fragility as the legacy plugin — out of scope).
-//
-// $code_key / $name_key default to the plain 'code'/'name' sub-fields used by
-// the newel/cap/handrail/spindle repeaters. The stringer/tread/riser/
-// construction/profile repeaters use prefixed sub-keys (e.g. stringer_code /
-// stringer_name), so those callers pass the matching keys explicitly.
-$bd_code_label = function ( $option_key, $code, $code_key = 'code', $name_key = 'name' ) {
-    $code = (string) $code;
-    if ( $code === '' ) {
-        return '';
-    }
-    $rows = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( $option_key, array() ) : array();
-    if ( is_array( $rows ) ) {
-        foreach ( $rows as $row ) {
-            if ( is_array( $row ) && isset( $row[ $code_key ] ) && (string) $row[ $code_key ] === $code && ! empty( $row[ $name_key ] ) ) {
-                return $row[ $name_key ];
-            }
-        }
-    }
-    return $code;
-};
+// Code → human label. The body moved to includes/stairbuilder-options.php in
+// v2.24.0 so the Enquiries admin list can resolve the same codes; the local
+// name stays bound to it as a callable string, leaving every call site below
+// byte-identical.
+$bd_code_label = 'bd_code_label';
 
 /* ------------------------------------------------------------------ */
 /* Branding — Brand Colours → "Quote PDF" group                        */

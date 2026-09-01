@@ -766,18 +766,28 @@ function baltic_stair_download_handler() {
 
 	// Anything already buffered — a notice from any plugin on the site, a stray
 	// newline from a badly closed PHP tag — would be streamed ahead of the PDF
-	// AND counted out of Content-Length, so the file arrives with junk on the
-	// front and the same number of bytes missing off the back. Observed on a
-	// WP_DEBUG install: 1,227 bytes of unrelated textdomain notices landed
-	// before %PDF and every reader rejected the download. Discard the lot.
-	while ( ob_get_level() > 0 ) {
-		ob_end_clean();
+	// AND counted out of Content-Length, so the file would arrive with junk on
+	// the front and the same number of bytes missing off the back. Observed on
+	// a WP_DEBUG install: 1,227 bytes of unrelated textdomain notices landed
+	// before %PDF and every reader rejected the download.
+	//
+	// v2.24.2: was a bespoke while/ob_end_clean here. Now the shared helper, so
+	// there is one implementation rather than two that drift apart.
+	if ( ! baltic_stair_prepare_raw_response( 'admin_post_baltic_stair_download' ) ) {
+		wp_die( 'Download unavailable.', 'Error', array( 'response' => 500 ) );
 	}
 
 	nocache_headers();
 	header( 'Content-Type: application/pdf' );
 	header( 'Content-Disposition: attachment; filename="quote_' . (int) $lead['id'] . '.pdf"' );
-	header( 'Content-Length: ' . filesize( $realpath ) );
+	// Only now that the buffer is confirmed clean is filesize() the true body
+	// length. A wrong Content-Length truncates silently; no Content-Length just
+	// ends the stream, which is the better failure — so send it only when the
+	// figure is trustworthy.
+	$size = filesize( $realpath );
+	if ( false !== $size ) {
+		header( 'Content-Length: ' . $size );
+	}
 	readfile( $realpath );
 	exit;
 }

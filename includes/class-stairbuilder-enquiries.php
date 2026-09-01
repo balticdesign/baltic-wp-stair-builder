@@ -390,7 +390,13 @@ class BD_Stair_Builder_Enquiries {
 
 	public function handle_export() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to export enquiries.', 'stairbuilder' ), 403 );
+			// wp_die( $message, $title, $args ) — a bare 403 here landed as the
+			// TITLE and the status quietly defaulted to 500.
+			wp_die(
+				esc_html__( 'You do not have permission to export enquiries.', 'stairbuilder' ),
+				esc_html__( 'Forbidden', 'stairbuilder' ),
+				array( 'response' => 403 )
+			);
 		}
 		check_admin_referer( self::EXPORT_ACTION );
 
@@ -410,7 +416,11 @@ class BD_Stair_Builder_Enquiries {
 		// is sent here — the rows are streamed, so the length is not known up
 		// front, and a wrong one truncates silently where none simply ends.
 		if ( ! baltic_stair_prepare_raw_response( 'admin_post_' . self::EXPORT_ACTION ) ) {
-			wp_die( esc_html__( 'Export unavailable — the page had already started sending output.', 'stairbuilder' ), 500 );
+			wp_die(
+				esc_html__( 'Export unavailable — the page had already started sending output.', 'stairbuilder' ),
+				esc_html__( 'Export unavailable', 'stairbuilder' ),
+				array( 'response' => 500 )
+			);
 		}
 
 		nocache_headers();

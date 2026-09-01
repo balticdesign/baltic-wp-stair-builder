@@ -12,6 +12,11 @@
 
 # WP / misc
 *.log
+
+# Working briefs. Kept alongside the code but never committed — `git add -A`
+# has swept them in twice. .git/info/exclude does not survive a clone, so the
+# rule lives here. Briefs predating this line stay tracked as they are.
+BRIEF-*.md
 # Vendor library metadata that shouldn't be in our repo
 vendor/**/.github/
 vendor/**/.gitignore

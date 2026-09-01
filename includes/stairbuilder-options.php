@@ -242,6 +242,77 @@ function get_stepCost($featNumber, $material) {
 }
 
 /**
+ * Clears the way for a response that is not HTML — a binary stream, a CSV, a
+ * JSON payload. Call as the FIRST statement of any such handler, before any
+ * header() call.
+ *
+ * Why this exists as a shared helper rather than a fix per handler: anything
+ * already written to the output buffer ends up in front of the payload, and
+ * the polluting output does not have to be ours. On a licensee's site it can
+ * come from any plugin or theme installed, which we do not control. Chasing
+ * each new cause is unbounded work; defending the responder is bounded, and is
+ * the right layer. Three separate handlers were corrupted this way before this
+ * function existed (v2.23.0 AJAX, v2.24.1 PDF stream, and the v2.24.0 CSV
+ * export which was exposed but never observed failing).
+ *
+ * It hides because it depends on display_errors — on under WP_DEBUG locally,
+ * off on most production hosts. Latent everywhere, visible almost nowhere.
+ *
+ * Discarding buffers opened by other plugins is correct and expected for a
+ * responder of this kind; every file-download implementation in WordPress does
+ * the same. No attempt is made to preserve foreign buffers.
+ *
+ * @param  string $hook Name of the calling hook, for the debug log.
+ * @return bool   False when headers have already gone out and the caller must
+ *                abort. True when the buffer is clean and it is safe to emit.
+ */
+function baltic_stair_prepare_raw_response( $hook = '' ) {
+  // Checked FIRST: once headers are on the wire the corruption has already
+  // shipped and no amount of buffer clearing undoes it. The caller has to fail
+  // cleanly instead. A user who sees "download unavailable" can try again; a
+  // user handed a silently truncated PDF cannot tell anything went wrong.
+  $file = '';
+  $line = 0;
+  if ( headers_sent( $file, $line ) ) {
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+      error_log( sprintf(
+        '[baltic-stairbuilder] %s: headers already sent at %s:%d — aborting rather than emitting a corrupt response.',
+        $hook !== '' ? $hook : 'raw response',
+        $file,
+        $line
+      ) );
+    }
+    return false;
+  }
+
+  // Buffers nest innermost-first, and an inner buffer's content has not yet
+  // reached the outer one — so each chunk discarded was emitted BEFORE the
+  // chunk discarded previously. Prepend to rebuild the original order.
+  $discarded = '';
+  while ( ob_get_level() > 0 ) {
+    $chunk = ob_get_clean();
+    if ( false !== $chunk ) {
+      $discarded = $chunk . $discarded;
+    }
+  }
+
+  // Bake in the diagnosis. Working out what had polluted the PDF stream in
+  // v2.24.1 took a byte-level look at the response; the next occurrence on a
+  // licensee's site should be one line in the log instead.
+  if ( '' !== $discarded && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+    error_log( sprintf(
+      '[baltic-stairbuilder] %s: discarded %d bytes of buffered output before responding: %s',
+      $hook !== '' ? $hook : 'raw response',
+      strlen( $discarded ),
+      // Enough to identify the culprit without filling the log with a page.
+      substr( preg_replace( '/\s+/', ' ', $discarded ), 0, 500 )
+    ) );
+  }
+
+  return true;
+}
+
+/**
  * Map a stored component code back to its admin-defined human label for
  * display. Leads store codes in form_data; if a code is later renamed/removed
  * the raw code is shown (same fragility as the legacy plugin — out of scope).

@@ -626,6 +626,18 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         <label for="contact_phone">Phone *</label>
         <input type="tel" id="contact_phone" name="contact_phone" required>
       </div>
+      <div class="form-row">
+        <label for="additional_notes">Additional notes:</label>
+        <?php
+        // Optional. maxlength is the convenience, not the enforcement — the
+        // server truncates independently in baltic_stair_submit_lead().
+        $bd_notes_max = defined( 'BD_STAIR_NOTES_MAX' ) ? BD_STAIR_NOTES_MAX : 1000;
+        ?>
+        <textarea id="additional_notes" name="additional_notes" rows="4"
+          maxlength="<?php echo (int) $bd_notes_max; ?>"
+          placeholder="Anything else we should know — for example your landing requirements."></textarea>
+        <p class="bd-notes-count"><span id="additional_notes_count">0</span> / <?php echo (int) $bd_notes_max; ?></p>
+      </div>
       <p class="contact-note"><small>We'll email your PDF quote to the address above and follow up to discuss your project.</small></p>
       <input type="hidden" id="vatRate" value="<?php echo do_shortcode('[vat_rate]'); ?>">
     </div>

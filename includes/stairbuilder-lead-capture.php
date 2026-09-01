@@ -11,6 +11,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Maximum length of the customer's additional notes, in characters.
+ * Enforced server-side on receipt; the textarea's maxlength mirrors it.
+ */
+if ( ! defined( 'BD_STAIR_NOTES_MAX' ) ) {
+	define( 'BD_STAIR_NOTES_MAX', 1000 );
+}
+
+/**
  * VAT rate used by the configurator. Reads `baltic_stair_vat_rate` option,
  * defaults to 20%. Replaces the old WC_Tax-backed [vat_rate] shortcode.
  */
@@ -204,6 +212,25 @@ function baltic_stair_submit_lead() {
 	// Persisted with the lead so the quote-view page stays faithful to what the
 	// customer was actually shown, even if the type is later un-flagged.
 	$form_data['_poa'] = $poa ? 1 : 0;
+
+	// Additional notes (v2.25.0). The only genuinely free-form customer text in
+	// the plugin, and it reaches an admin screen, an email and a PDF — sanitise
+	// on receipt and treat it as hostile at every one of those boundaries.
+	//
+	// Truncate AFTER sanitising: sanitize_textarea_field() can shorten the
+	// string (stripping tags), so cutting first would spend the budget on
+	// characters that are about to be removed. maxlength on the textarea is a
+	// convenience; this is the enforcement.
+	$bd_notes = isset( $form_data['additional_notes'] ) ? sanitize_textarea_field( (string) $form_data['additional_notes'] ) : '';
+	if ( '' !== $bd_notes ) {
+		$form_data['additional_notes'] = function_exists( 'mb_substr' )
+			? mb_substr( $bd_notes, 0, BD_STAIR_NOTES_MAX )
+			: substr( $bd_notes, 0, BD_STAIR_NOTES_MAX );
+	} else {
+		// Never store an empty key — the PDF and detail view both decide
+		// whether to render a section on its presence.
+		unset( $form_data['additional_notes'] );
+	}
 
 	$postcode = isset( $form_data['postcode'] ) ? sanitize_text_field( $form_data['postcode'] ) : '';
 

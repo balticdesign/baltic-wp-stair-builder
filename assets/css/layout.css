@@ -569,6 +569,27 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   opacity: 0.75;
   line-height: 1.35;
 }
+/* Additional notes (v2.25.0) — textarea plus its character counter. The
+   textarea has to be sized here because .form-row's control rules target
+   input/select only. */
+.bd-stairbuilder-layout #stairbuild .form-row textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 72px;
+  font: inherit;
+}
+.bd-stairbuilder-layout #stairbuild .form-row .bd-notes-count {
+  margin: 4px 0 0;
+  font-size: 0.75em;
+  text-align: right;
+  opacity: 0.6;
+}
+.bd-stairbuilder-layout #stairbuild .form-row .bd-notes-count .is-at-limit {
+  font-weight: 700;
+  opacity: 1;
+}
+
 /* Form controls — selects, number/text inputs.
  * `color` set on #stairbuild doesn't reach a <select> once a theme styles the
  * element directly, and WooCommerce-flavoured themes commonly ship

@@ -172,7 +172,14 @@ function submitStairLead() {
   const REVALIDATE_FIELDS = ['construction_type', 'stringer_material', 'tread_material', 'riser_material', 'tread-profile'];
   const revalidateMeta = jQuery.param(formDataArray.filter(f => REVALIDATE_FIELDS.indexOf(f.name) !== -1));
 
+  // Material values arrive as `code:price` and are stripped back to the code.
+  // FREE-TEXT FIELDS MUST BE EXEMPT: a customer writing "Second line: ..." in
+  // their notes would otherwise have everything from the first colon onwards
+  // silently discarded. Anything free-form added here later belongs in this
+  // list too.
+  const NO_COLON_STRIP = ['additional_notes'];
   formDataArray.forEach(field => {
+    if (NO_COLON_STRIP.indexOf(field.name) !== -1) return;
     const colonIndex = field.value.indexOf(':');
     if (colonIndex !== -1) {
       field.value = field.value.substring(0, colonIndex);
@@ -382,6 +389,23 @@ jQuery(document).ready(function () {
   bdInitSpindle();
   jQuery('#ball').hide();
   jQuery('#ball :input').prop('disabled', true);
+
+  // Additional notes character counter. maxlength already stops typing at the
+  // limit; this only tells the customer where they are. Enforcement is
+  // server-side — see baltic_stair_submit_lead().
+  (function bdNotesCounter() {
+    const $notes = jQuery('#additional_notes');
+    const $count = jQuery('#additional_notes_count');
+    if (!$notes.length || !$count.length) return;
+    const max = parseInt($notes.attr('maxlength'), 10) || 1000;
+    const update = function () {
+      const len = ($notes.val() || '').length;
+      $count.text(len);
+      $count.toggleClass('is-at-limit', len >= max);
+    };
+    $notes.on('input change', update);
+    update();
+  })();
 
   // Initial population
   let newelType = jQuery('#newel_type').val();

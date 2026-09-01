@@ -274,6 +274,30 @@ function bd_code_label( $option_key, $code, $code_key = 'code', $name_key = 'nam
 }
 
 /**
+ * Staircase type as one display string, from a lead's form_data.
+ *
+ * The same derivation the PDF template performs inline. Added here for the
+ * Enquiries admin list; the PDF is explicitly out of bounds this release, so
+ * it still carries its own copy and should adopt this helper next time it is
+ * legitimately open — one place owning the wording is the v2.23.0 §9 rule.
+ *
+ * Leads captured before the stair_type / stair_config hidden inputs existed
+ * carry neither and return '' rather than a guess.
+ */
+function bd_staircase_type_label( $form_data ) {
+  if ( ! is_array( $form_data ) ) {
+    return '';
+  }
+  $types   = array( 'straight' => 'Straight Flight', 'quarter' => 'Quarter Turn', 'half' => 'Half Turn' );
+  $configs = array( 'landing' => 'Landing', 'winder' => 'Winder', 'double_quarter' => 'Double Quarter Landing' );
+
+  $type   = isset( $types[ $form_data['stair_type'] ?? '' ] ) ? $types[ $form_data['stair_type'] ] : '';
+  $config = isset( $configs[ $form_data['stair_config'] ?? '' ] ) ? $configs[ $form_data['stair_config'] ] : '';
+
+  return trim( $type . ( ( $type && $config ) ? ' — ' . $config : '' ) );
+}
+
+/**
  * Featured step treatment labels, keyed by the renderer's own value vocabulary.
  * SPD's wording — Andy and Daniel read these on the works order.
  */

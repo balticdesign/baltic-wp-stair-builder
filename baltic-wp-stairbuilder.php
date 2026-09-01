@@ -39,6 +39,8 @@ require plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-options.php';
 require plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-lead-capture.php';
 if ( is_admin() ) {
 	require plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-debug.php';
+	require plugin_dir_path( __FILE__ ) . 'includes/class-stairbuilder-enquiries.php';
+	new BD_Stair_Builder_Enquiries();
 }
 
 // Leads table schema catch-up. install() runs on activation only, so without

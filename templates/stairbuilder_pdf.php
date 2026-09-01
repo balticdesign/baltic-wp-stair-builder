@@ -52,11 +52,15 @@ $cust_name  = (string) ( $content['name'] ?? '' );
 /* ------------------------------------------------------------------ */
 /* Derived spec values                                                 */
 /* ------------------------------------------------------------------ */
-$bd_type_labels    = array( 'straight' => 'Straight Flight', 'quarter' => 'Quarter Turn', 'half' => 'Half Turn' );
-$bd_config_labels  = array( 'landing' => 'Landing', 'winder' => 'Winder', 'double_quarter' => 'Double Quarter Landing' );
-$bd_type_label     = $bd_type_labels[ $content['stair_type'] ?? '' ] ?? '';
-$bd_config_label   = $bd_config_labels[ $content['stair_config'] ?? '' ] ?? '';
-$bd_staircase_type = trim( $bd_type_label . ( $bd_config_label ? ' — ' . $bd_config_label : '' ) );
+// Was derived inline here while this template was out of bounds in v2.24.0,
+// duplicating bd_staircase_type_label() in includes/stairbuilder-options.php —
+// the same drift risk bd_code_label() carried before it was relocated.
+//
+// The two agreed on every reachable input. They differed only where a config is
+// set without a recognised stair_type, which the form cannot produce (the two
+// hidden inputs are emitted together): inline returned a dangling "— Landing",
+// the function returns ''. The function's behaviour is the one kept.
+$bd_staircase_type = bd_staircase_type_label( $content );
 
 $bd_treadit_labels = array( '1' => 'Quarter Landing', '2' => '2 Winders', '3' => '3 Winders', '4' => 'Half Landing' );
 $bd_map_label      = function ( $map, $key ) { $key = (string) $key; return $map[ $key ] ?? ''; };

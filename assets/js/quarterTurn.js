@@ -3,10 +3,6 @@
 // the user's flight 1 value and only clamp what doesn't fit.
 let flightsInitialised = false;
 
-// Hide featured steps on load
-jQuery('#left-featured-step').hide();
-jQuery('#right-featured-step').hide();
-
 /**
  * Derives flight 2 (after the turn) and clamps flight 1 so neither is ever
  * negative, then writes the corrected values back into the tread inputs.

@@ -5,10 +5,6 @@ let wasFour = false;
 // the user's values and only clamp what doesn't fit.
 let flightsInitialised = false;
 
-// Hide featured steps on load
-jQuery('#left-featured-step').hide();
-jQuery('#right-featured-step').hide();
-
 /**
  * Derives / clamps the three straight flights of a half-turn staircase and
  * writes the corrected values back into the tread inputs. Half Landing

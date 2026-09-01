@@ -138,4 +138,143 @@ class BD_Stair_Builder_Leads {
 		$row['form_data'] = json_decode( $row['form_data'], true ) ?: array();
 		return $row;
 	}
+
+	/* --------------------------------------------------------------------- */
+	/* Listing (v2.24.0 — the Enquiries screen)                               */
+	/* --------------------------------------------------------------------- */
+
+	/**
+	 * Columns a caller may sort by. Whitelist, not a filter: $args['orderby']
+	 * reaches SQL as an identifier and cannot be placed by $wpdb->prepare().
+	 */
+	private static function sortable_columns() {
+		return array( 'created_at', 'name', 'total', 'id' );
+	}
+
+	/**
+	 * Builds the shared WHERE fragment for query() and count() so the two can
+	 * never disagree about what a filtered set contains — a paginator whose
+	 * total counts different rows than its page is worse than no paginator.
+	 *
+	 * Returns [ sql_without_the_word_WHERE, prepare_args ].
+	 */
+	private static function build_where( array $args ) {
+		$where = array( '1=1' );
+		$vals  = array();
+
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			global $wpdb;
+			// esc_like() first: a postcode search containing % or _ is a literal
+			// search for that character, not a wildcard scan of the table.
+			$like    = '%' . $wpdb->esc_like( $search ) . '%';
+			$where[] = '( name LIKE %s OR email LIKE %s OR postcode LIKE %s )';
+			$vals[]  = $like;
+			$vals[]  = $like;
+			$vals[]  = $like;
+		}
+
+		// Dates arrive as Y-m-d from the filter form and are inclusive at both
+		// ends, so the upper bound covers the whole of its day.
+		$from = isset( $args['date_from'] ) ? trim( (string) $args['date_from'] ) : '';
+		if ( '' !== $from && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) ) {
+			$where[] = 'created_at >= %s';
+			$vals[]  = $from . ' 00:00:00';
+		}
+		$to = isset( $args['date_to'] ) ? trim( (string) $args['date_to'] ) : '';
+		if ( '' !== $to && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) ) {
+			$where[] = 'created_at <= %s';
+			$vals[]  = $to . ' 23:59:59';
+		}
+
+		return array( implode( ' AND ', $where ), $vals );
+	}
+
+	/**
+	 * Total rows matching the same filters query() would apply.
+	 */
+	public static function count( array $args = array() ) {
+		global $wpdb;
+		list( $where, $vals ) = self::build_where( $args );
+
+		$sql = 'SELECT COUNT(*) FROM ' . self::table_name() . ' WHERE ' . $where;
+		if ( $vals ) {
+			$sql = $wpdb->prepare( $sql, $vals );
+		}
+
+		return (int) $wpdb->get_var( $sql );
+	}
+
+	/**
+	 * Paginated fetch for the Enquiries list.
+	 *
+	 * Supported args: search, date_from, date_to, orderby, order, per_page,
+	 * offset, with_form_data.
+	 *
+	 * On form_data: it is LONGTEXT holding the whole configuration, and the
+	 * brief asks that the list avoid it. It cannot — two of the list's columns
+	 * (staircase type, and the POA flag that decides whether a figure is shown
+	 * at all) exist only inside it. The alternative is JSON_EXTRACT in SQL,
+	 * which would tie the model to the database server's JSON support to save a
+	 * few tens of kilobytes per page of twenty. So the list loads and decodes
+	 * it, and `with_form_data` exists for callers that genuinely do not need it.
+	 */
+	public static function query( array $args = array() ) {
+		global $wpdb;
+
+		$args = array_merge(
+			array(
+				'orderby'        => 'created_at',
+				'order'          => 'DESC',
+				'per_page'       => 20,
+				'offset'         => 0,
+				'with_form_data' => true,
+			),
+			$args
+		);
+
+		$orderby = in_array( $args['orderby'], self::sortable_columns(), true ) ? $args['orderby'] : 'created_at';
+		$order   = ( strtoupper( (string) $args['order'] ) === 'ASC' ) ? 'ASC' : 'DESC';
+
+		$columns = 'id, token, created_at, name, email, phone, postcode, price, vat, total, pdf_path';
+		if ( ! empty( $args['with_form_data'] ) ) {
+			$columns .= ', form_data';
+		}
+
+		list( $where, $vals ) = self::build_where( $args );
+
+		// per_page 0 or below means "no limit" — the CSV export of a filtered
+		// set, which must not be silently truncated to a screen's worth.
+		$per_page = (int) $args['per_page'];
+		$limit    = '';
+		if ( $per_page > 0 ) {
+			$limit  = ' LIMIT %d OFFSET %d';
+			$vals[] = $per_page;
+			$vals[] = max( 0, (int) $args['offset'] );
+		}
+
+		$sql = 'SELECT ' . $columns . ' FROM ' . self::table_name()
+			. ' WHERE ' . $where
+			. ' ORDER BY ' . $orderby . ' ' . $order . ', id ' . $order
+			. $limit;
+
+		if ( $vals ) {
+			$sql = $wpdb->prepare( $sql, $vals );
+		}
+
+		$rows = $wpdb->get_results( $sql, ARRAY_A );
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+
+		// Decode to match get() / get_by_token(), so callers handle one shape.
+		if ( ! empty( $args['with_form_data'] ) ) {
+			foreach ( $rows as &$row ) {
+				$row['form_data'] = json_decode( $row['form_data'], true ) ?: array();
+			}
+			unset( $row );
+		}
+
+		return $rows;
+	}
 }

@@ -202,12 +202,6 @@ function baltic_stair_submit_lead() {
 	// customer was actually shown, even if the type is later un-flagged.
 	$form_data['_poa'] = $poa ? 1 : 0;
 
-	$canvas_dataurl = isset( $_POST['canvas_image'] ) ? $_POST['canvas_image'] : '';
-	$canvas_path    = baltic_stair_save_canvas_image( $canvas_dataurl );
-	if ( $canvas_path ) {
-		$form_data['canvas_image_path'] = $canvas_path;
-	}
-
 	$postcode = isset( $form_data['postcode'] ) ? sanitize_text_field( $form_data['postcode'] ) : '';
 
 	$lead = BD_Stair_Builder_Leads::create(
@@ -225,6 +219,19 @@ function baltic_stair_submit_lead() {
 
 	if ( is_wp_error( $lead ) ) {
 		wp_send_json_error( array( 'message' => $lead->get_error_message() ), 500 );
+	}
+
+	// Canvas write moved to AFTER lead creation (v2.24.1): both files now live
+	// under the lead's own token directory, and the token does not exist until
+	// create() has generated it. The alternative — minting the token in this
+	// handler and passing it into create() — would change a method the brief
+	// protects, and would invert where a lead's identity comes from. So the
+	// canvas is written here and folded back into the stored row.
+	$canvas_dataurl = isset( $_POST['canvas_image'] ) ? $_POST['canvas_image'] : '';
+	$canvas_path    = baltic_stair_save_canvas_image( $canvas_dataurl, $lead['token'] );
+	if ( $canvas_path ) {
+		$form_data['canvas_image_path'] = $canvas_path;
+		BD_Stair_Builder_Leads::update_form_data( $lead['id'], $form_data );
 	}
 
 	$lead_data = array(
@@ -261,10 +268,87 @@ add_action( 'wp_ajax_baltic_stair_submit_lead', 'baltic_stair_submit_lead' );
 add_action( 'wp_ajax_nopriv_baltic_stair_submit_lead', 'baltic_stair_submit_lead' );
 
 /**
- * Decodes a base64 canvas dataURL and writes it into uploads/stairbuilder_PDFs/img/.
- * Returns absolute path or null if no image.
+ * Root of the quote-file tree: uploads/stairbuilder_PDFs/.
  */
-function baltic_stair_save_canvas_image( $dataurl ) {
+function baltic_stair_pdf_basedir() {
+	$upload = wp_upload_dir();
+	return trailingslashit( $upload['basedir'] ) . 'stairbuilder_PDFs/';
+}
+
+/**
+ * The directory holding one lead's files, created if absent.
+ *
+ * Named by the lead's token — 48 hex characters from random_bytes(24) — not by
+ * its id. THE FILENAME IS THE SECRET. Under the old {lead_id}/quote_{lead_id}
+ * scheme the path was sequential, so anyone could walk the ids and read every
+ * customer's quote without a token, bypassing the download handler entirely.
+ *
+ * @return string|null Trailing-slashed path, or null if the token is unusable.
+ */
+function baltic_stair_lead_dir( $token ) {
+	$token = (string) $token;
+	// Belt and braces: the column is hex from generate_token(), but this value
+	// becomes a filesystem path, so refuse anything that is not.
+	if ( ! preg_match( '/^[a-f0-9]{32,64}$/i', $token ) ) {
+		return null;
+	}
+
+	$dir = baltic_stair_pdf_basedir() . $token . '/';
+	if ( ! file_exists( $dir ) ) {
+		wp_mkdir_p( $dir );
+	}
+	baltic_stair_protect_pdf_dir();
+
+	return $dir;
+}
+
+/**
+ * Drops index.php and .htaccess into the quote-file root.
+ *
+ * DEFENCE IN DEPTH ONLY — NOT the mechanism. The protection that actually holds
+ * is the unguessable token directory from baltic_stair_lead_dir(). These two
+ * files do nothing on nginx, which is what SPD staging runs on Kinsta and what
+ * a good share of licensees will be on, and a licensed plugin cannot assume the
+ * licensee's server config is right. Do not remove the token scheme believing
+ * these cover it.
+ *
+ * Idempotent: only writes what is missing.
+ */
+function baltic_stair_protect_pdf_dir() {
+	$base = baltic_stair_pdf_basedir();
+	if ( ! file_exists( $base ) ) {
+		wp_mkdir_p( $base );
+	}
+
+	$index = $base . 'index.php';
+	if ( ! file_exists( $index ) ) {
+		file_put_contents( $index, "<?php\n// Silence is golden.\n" );
+	}
+
+	$htaccess = $base . '.htaccess';
+	if ( ! file_exists( $htaccess ) ) {
+		// Apache 2.2 and 2.4 syntax together, so this holds either side of the
+		// mod_authz_core split without knowing which is loaded.
+		$rules = "<IfModule mod_authz_core.c>\n"
+			. "\tRequire all denied\n"
+			. "</IfModule>\n"
+			. "<IfModule !mod_authz_core.c>\n"
+			. "\tOrder deny,allow\n"
+			. "\tDeny from all\n"
+			. "</IfModule>\n";
+		file_put_contents( $htaccess, $rules );
+	}
+}
+
+/**
+ * Decodes a base64 canvas dataURL and writes it into the lead's token
+ * directory. Returns absolute path or null if there is no usable image.
+ *
+ * Was uploads/stairbuilder_PDFs/img/{time}_canvas_{6}.png — already hard to
+ * walk, but it sat in the same tree under a second scheme and carried the
+ * customer's drawing. One path to reason about now, not two.
+ */
+function baltic_stair_save_canvas_image( $dataurl, $token ) {
 	if ( ! $dataurl ) {
 		return null;
 	}
@@ -273,12 +357,12 @@ function baltic_stair_save_canvas_image( $dataurl ) {
 		return null;
 	}
 
-	$upload   = wp_upload_dir();
-	$dir      = trailingslashit( $upload['basedir'] ) . 'stairbuilder_PDFs/img/';
-	if ( ! file_exists( $dir ) ) {
-		wp_mkdir_p( $dir );
+	$dir = baltic_stair_lead_dir( $token );
+	if ( ! $dir ) {
+		return null;
 	}
-	$filename = $dir . time() . '_canvas_' . wp_generate_password( 6, false ) . '.png';
+
+	$filename = $dir . 'canvas.png';
 	file_put_contents( $filename, $bytes );
 	return $filename;
 }
@@ -323,12 +407,13 @@ function baltic_stair_generate_pdf( array $lead_data ) {
 
 	$mpdf->WriteHTML( $html );
 
-	$upload   = wp_upload_dir();
-	$dir      = trailingslashit( $upload['basedir'] ) . 'stairbuilder_PDFs/' . $lead_data['lead_id'] . '/';
-	if ( ! file_exists( $dir ) ) {
-		wp_mkdir_p( $dir );
+	// Token directory, not lead id — see baltic_stair_lead_dir().
+	$dir = baltic_stair_lead_dir( isset( $lead_data['token'] ) ? $lead_data['token'] : '' );
+	if ( ! $dir ) {
+		return null;
 	}
-	$pdf_path = $dir . 'quote_' . $lead_data['lead_id'] . '.pdf';
+
+	$pdf_path = $dir . 'quote.pdf';
 	$mpdf->Output( $pdf_path, \Mpdf\Output\Destination::FILE );
 
 	return $pdf_path;

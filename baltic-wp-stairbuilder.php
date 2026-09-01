@@ -276,12 +276,10 @@ function custom_enqueue_files() {
 }
 
 function on_plugin_activation() {
-    $upload_dir = wp_upload_dir();
-    $pdf_dir_path = $upload_dir['basedir'] . '/stairbuilder_PDFs/';
-
-    if (!file_exists($pdf_dir_path)) {
-        wp_mkdir_p($pdf_dir_path);
-    }
+    // Creates the directory if missing and writes index.php + .htaccess into
+    // it. Both are defence in depth only — the real protection is that quote
+    // files live under an unguessable per-lead token directory.
+    baltic_stair_protect_pdf_dir();
 
     BD_Stair_Builder_Leads::install();
     baltic_stair_install_quote_page();

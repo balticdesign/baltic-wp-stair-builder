@@ -113,6 +113,24 @@ class BD_Stair_Builder_Leads {
 		);
 	}
 
+	/**
+	 * Replaces a lead's stored form_data.
+	 *
+	 * Added in v2.24.1 for one caller: the canvas image is now written into the
+	 * lead's token directory, which means it cannot be written until the lead
+	 * exists, so its path is folded back into the row afterwards.
+	 */
+	public static function update_form_data( $lead_id, array $form_data ) {
+		global $wpdb;
+		$wpdb->update(
+			self::table_name(),
+			array( 'form_data' => wp_json_encode( $form_data ) ),
+			array( 'id' => (int) $lead_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	}
+
 	public static function get_by_token( $token ) {
 		global $wpdb;
 		$row = $wpdb->get_row(

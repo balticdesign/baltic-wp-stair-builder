@@ -405,6 +405,14 @@ class BD_Stair_Builder_Enquiries {
 
 		$filename = 'enquiries-' . gmdate( 'Y-m-d-His' ) . '.csv';
 
+		// Before any header(): anything already buffered would land in front of
+		// the header row and the file would not open as a CSV. No Content-Length
+		// is sent here — the rows are streamed, so the length is not known up
+		// front, and a wrong one truncates silently where none simply ends.
+		if ( ! baltic_stair_prepare_raw_response( 'admin_post_' . self::EXPORT_ACTION ) ) {
+			wp_die( esc_html__( 'Export unavailable — the page had already started sending output.', 'stairbuilder' ), 500 );
+		}
+
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );

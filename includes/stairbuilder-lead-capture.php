@@ -162,6 +162,9 @@ function bd_stairbuilder_revalidate_availability( $revalidate_raw ) {
 }
 
 function baltic_stair_submit_lead() {
+	if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_baltic_stair_submit_lead' ) ) {
+		wp_die( '', '', array( 'response' => 500 ) );
+	}
 	if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( $_POST['security'], 'sb-ajax-nonce' ) ) {
 		wp_send_json_error( array( 'message' => 'Nonce verification failed' ), 403 );
 	}

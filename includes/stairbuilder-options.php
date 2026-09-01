@@ -118,6 +118,9 @@ function getPriceAndID($row){
 }
 
 function fetch_sp_prices() {
+  if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_fetch_sp_prices' ) ) {
+    wp_die( '', '', array( 'response' => 500 ) );
+  }
   if (!isset($_POST['security'])) {
     wp_send_json_error('Nonce not received');
   }
@@ -472,6 +475,9 @@ function bd_featured_step_total( $leftCost, $rightCost, $multiplier ) {
 }
 
 function get_featured_step() {
+  if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_get_featured_step' ) ) {
+    wp_die( '', '', array( 'response' => 500 ) );
+  }
   $treadMaterial = isset( $_POST['tread_material'] ) ? sanitize_text_field( wp_unslash( $_POST['tread_material'] ) ) : '';
   $leftStep      = isset( $_POST['leftFeat'] ) ? (int) $_POST['leftFeat'] : 0;
   $rightStep     = isset( $_POST['rightFeat'] ) ? (int) $_POST['rightFeat'] : 0;
@@ -505,6 +511,9 @@ add_action( 'wp_ajax_nopriv_get_delivery_price', 'get_delivery_price' );
 add_action( 'wp_ajax_get_delivery_price', 'get_delivery_price' );
 
 function get_delivery_price() {
+  if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_get_delivery_price' ) ) {
+    wp_die( '', '', array( 'response' => 500 ) );
+  }
   if (!isset($_POST['security'])) {
     wp_send_json_error('Nonce not received');
   }

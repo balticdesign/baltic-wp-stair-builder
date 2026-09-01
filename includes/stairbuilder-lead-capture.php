@@ -618,11 +618,31 @@ function baltic_stair_download_handler() {
 		wp_die( 'Quote PDF not found.', 'Not found', array( 'response' => 404 ) );
 	}
 
+	// pdf_path is plugin-written today, so this is not a live hole. It is here
+	// so the column can never become one: resolve the real path and refuse
+	// anything outside the uploads directory before streaming it.
+	$upload   = wp_upload_dir();
+	$basedir  = realpath( $upload['basedir'] );
+	$realpath = realpath( $lead['pdf_path'] );
+	if ( ! $basedir || ! $realpath || strpos( $realpath, trailingslashit( $basedir ) ) !== 0 ) {
+		wp_die( 'Quote PDF not found.', 'Not found', array( 'response' => 404 ) );
+	}
+
+	// Anything already buffered — a notice from any plugin on the site, a stray
+	// newline from a badly closed PHP tag — would be streamed ahead of the PDF
+	// AND counted out of Content-Length, so the file arrives with junk on the
+	// front and the same number of bytes missing off the back. Observed on a
+	// WP_DEBUG install: 1,227 bytes of unrelated textdomain notices landed
+	// before %PDF and every reader rejected the download. Discard the lot.
+	while ( ob_get_level() > 0 ) {
+		ob_end_clean();
+	}
+
 	nocache_headers();
 	header( 'Content-Type: application/pdf' );
 	header( 'Content-Disposition: attachment; filename="quote_' . (int) $lead['id'] . '.pdf"' );
-	header( 'Content-Length: ' . filesize( $lead['pdf_path'] ) );
-	readfile( $lead['pdf_path'] );
+	header( 'Content-Length: ' . filesize( $realpath ) );
+	readfile( $realpath );
 	exit;
 }
 add_action( 'admin_post_baltic_stair_download', 'baltic_stair_download_handler' );

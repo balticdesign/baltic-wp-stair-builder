@@ -546,6 +546,139 @@ function baltic_stair_admin_email_headers( array $lead_data ) {
 }
 
 /**
+ * One-shot move of pre-v2.24.1 quote files onto the token path scheme.
+ *
+ * Leads captured before v2.24.1 have their PDF at {lead_id}/quote_{lead_id}.pdf
+ * and their canvas at img/{time}_canvas_{6}.png — the sequential path anyone
+ * could walk. Moves both under {token}/ and rewrites the stored paths.
+ *
+ * Safe to run repeatedly: rows already on the new scheme are skipped, the old
+ * file is only unlinked once the new one is confirmed written at the same size,
+ * and a row whose file has gone missing is left completely alone — pdf_path
+ * intact, so the Enquiries list keeps rendering its muted "no PDF", which is
+ * the correct visible state for it.
+ *
+ * @return array Counts, for the caller to log or assert on.
+ */
+function baltic_stair_migrate_pdf_paths() {
+	global $wpdb;
+
+	$stats = array( 'scanned' => 0, 'pdf_moved' => 0, 'canvas_moved' => 0, 'already' => 0, 'missing' => 0, 'failed' => 0 );
+
+	$rows = $wpdb->get_results( 'SELECT id, token, pdf_path, form_data FROM ' . BD_Stair_Builder_Leads::table_name(), ARRAY_A );
+	if ( ! is_array( $rows ) ) {
+		return $stats;
+	}
+
+	foreach ( $rows as $row ) {
+		$stats['scanned']++;
+
+		$dir = baltic_stair_lead_dir( $row['token'] );
+		if ( ! $dir ) {
+			$stats['failed']++;
+			continue;
+		}
+
+		$new_pdf    = $dir . 'quote.pdf';
+		$new_canvas = $dir . 'canvas.png';
+
+		$form_data = json_decode( (string) $row['form_data'], true );
+		if ( ! is_array( $form_data ) ) {
+			$form_data = array();
+		}
+
+		$old_pdf    = (string) $row['pdf_path'];
+		$old_canvas = isset( $form_data['canvas_image_path'] ) ? (string) $form_data['canvas_image_path'] : '';
+
+		$pdf_done    = ( '' !== $old_pdf && $old_pdf === $new_pdf );
+		$canvas_done = ( '' === $old_canvas || $old_canvas === $new_canvas );
+
+		if ( $pdf_done && $canvas_done ) {
+			$stats['already']++;
+			continue;
+		}
+
+		// PDF
+		if ( ! $pdf_done && '' !== $old_pdf ) {
+			if ( ! file_exists( $old_pdf ) ) {
+				// Leave the row untouched. A dangling pdf_path is already
+				// rendered as "no PDF"; rewriting it to another path that also
+				// holds nothing would only move the confusion.
+				$stats['missing']++;
+			} elseif ( baltic_stair_move_quote_file( $old_pdf, $new_pdf ) ) {
+				$wpdb->update(
+					BD_Stair_Builder_Leads::table_name(),
+					array( 'pdf_path' => $new_pdf ),
+					array( 'id' => (int) $row['id'] ),
+					array( '%s' ),
+					array( '%d' )
+				);
+				$stats['pdf_moved']++;
+			} else {
+				$stats['failed']++;
+			}
+		}
+
+		// Canvas
+		if ( ! $canvas_done ) {
+			if ( ! file_exists( $old_canvas ) ) {
+				$stats['missing']++;
+			} elseif ( baltic_stair_move_quote_file( $old_canvas, $new_canvas ) ) {
+				$form_data['canvas_image_path'] = $new_canvas;
+				BD_Stair_Builder_Leads::update_form_data( (int) $row['id'], $form_data );
+				$stats['canvas_moved']++;
+			} else {
+				$stats['failed']++;
+			}
+		}
+
+		// Only the directory this lead's PDF just vacated, and only if empty.
+		// Nothing recursive: this must never remove something it did not move.
+		$old_dir = trailingslashit( dirname( $old_pdf ) );
+		if ( '' !== $old_pdf && $old_dir !== $dir && strpos( $old_dir, baltic_stair_pdf_basedir() ) === 0 ) {
+			@rmdir( $old_dir );
+		}
+	}
+
+	// The shared img/ directory goes only once it is genuinely empty.
+	@rmdir( baltic_stair_pdf_basedir() . 'img/' );
+
+	return $stats;
+}
+
+/**
+ * Copy-verify-unlink. Deliberately not rename(): the old file survives until
+ * the new one is confirmed present at the same size, so a failure mid-move
+ * leaves the customer's quote where the database still points.
+ */
+function baltic_stair_move_quote_file( $from, $to ) {
+	if ( $from === $to ) {
+		return true;
+	}
+	if ( ! @copy( $from, $to ) ) {
+		return false;
+	}
+	if ( ! file_exists( $to ) || filesize( $to ) !== filesize( $from ) ) {
+		return false;
+	}
+	@unlink( $from );
+	return true;
+}
+
+/**
+ * Runs the migration once, then records that it has. The flag keeps it off
+ * every subsequent admin request; the function itself is idempotent regardless.
+ */
+function baltic_stair_maybe_migrate_pdf_paths() {
+	if ( get_option( 'baltic_stair_pdf_token_paths_migrated' ) ) {
+		return;
+	}
+	baltic_stair_migrate_pdf_paths();
+	update_option( 'baltic_stair_pdf_token_paths_migrated', 1 );
+}
+add_action( 'admin_init', 'baltic_stair_maybe_migrate_pdf_paths' );
+
+/**
  * Returns the URL the configurator submits to for the thank-you / download
  * view. Looks up `baltic_stair_quote_page_id` option (set on activation).
  * Falls back to home_url() with the token query var so the shortcode can be

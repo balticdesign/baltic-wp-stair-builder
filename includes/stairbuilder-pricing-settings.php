@@ -17,6 +17,32 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Shipped default for the Measurements panel standing note (v2.25.0).
+ *
+ * One source for the schema default, the front-end panel and the PDF, so the
+ * three cannot drift. It lives in THIS file rather than the usual shared home
+ * of stairbuilder-options.php because get_schema() runs from this file's own
+ * constructor at the bottom, which the main plugin requires BEFORE
+ * stairbuilder-options.php — a helper defined there would not exist yet.
+ *
+ * Plain text. The line breaks are the only formatting, and every consumer is
+ * responsible for escaping before converting them.
+ *
+ * SPD supplied this wording; it ships lightly tidied rather than verbatim —
+ * sentence casing fixed and the final clause made grammatical, since as
+ * supplied it did not parse. The field is admin-editable, so SPD can paste
+ * their exact text if they prefer; the point is not to bake a typo into the
+ * default every licensee inherits.
+ */
+function bd_measurements_note_default() {
+	return "Please note:\n"
+		. "All measurements are shown as a guide only.\n"
+		. "Full drawings will be provided on confirmation of order, and we will ask you to sign these off prior to production.\n"
+		. "Landing balustrades and posts are not included in the price shown. Please tell us your landing requirements in the additional notes section and these can be added to your final quotation.\n"
+		. "Further detail on the posts and balustrade components quoted will be provided in the full quotation from our design team.";
+}
+
 if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 
 	class Stairbuilder_Pricing_Settings {
@@ -789,6 +815,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 
 		private function render_textarea( $id, $name, $value, $field ) {
 			$placeholder = isset( $field['placeholder'] ) ? $field['placeholder'] : '';
+			// Per-field default when the blob doesn't yet contain this key, the
+			// same rule render_text() and render_color() follow. Without it a
+			// defaulted textarea shows blank and the first save stores '',
+			// silently wiping the shipped copy. No existing textarea carries a
+			// default, so this changes nothing already in the field.
+			if ( $value === null && isset( $field['default'] ) ) {
+				$value = $field['default'];
+			}
 			?>
 			<textarea id="<?php echo esc_attr( $id ); ?>"
 				name="<?php echo esc_attr( $name ); ?>"
@@ -3077,6 +3111,16 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'placeholder' => 15,
 								'default' => 15,
 								'description' => 'Font size of the help line. 15 matches the section headings in the Configure panel; 12 gives the smaller footnote look used before v2.22.',
+							],
+							[
+								'id' => 'measurements_note',
+								'label' => 'Measurements Panel — Standing note',
+								'type' => 'textarea',
+								// Plain text, not html_textarea: the line breaks are the
+								// only formatting this copy needs, and plain text plus
+								// nl2br( esc_html() ) on output is the safer contract.
+								'default' => bd_measurements_note_default(),
+								'description' => 'Shown at the bottom of the Measurements panel on the configurator. Not included on the PDF — it does not fit on every quote without adding a page. Line breaks are preserved; HTML is not rendered. Clear the box to hide the note entirely. Note that the shipped wording points the customer at the Additional notes field in Your Details.',
 							],
 							[
 								'id' => 'lead_notification_emails',

@@ -674,5 +674,23 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
       <div class="bd-fig"><div class="bd-fig-lab">Angle <span class="mm-sub">(Pitch)</span></div><div class="bd-fig-val"><span id="angl" class="msmnt">—</span></div></div>
 <?php endif; ?>
     </div>
+    <?php
+    // Standing note, admin-editable. Same null-vs-empty contract as the
+    // reassurance footnote above: option unset => shipped default; option set
+    // to '' => the admin cleared it deliberately, so render nothing at all.
+    $bd_meas_note = stairbuilder_get_option( 'measurements_note', null );
+    if ( $bd_meas_note === null ) {
+      $bd_meas_note = bd_measurements_note_default();
+    }
+    $bd_meas_note = trim( (string) $bd_meas_note );
+    if ( $bd_meas_note !== '' ) : ?>
+    <div class="bd-meas-note">
+      <?php
+      // Stored as plain text; the line breaks are the only formatting. Escape
+      // first, then convert breaks — never the other way round, and never raw.
+      echo nl2br( esc_html( $bd_meas_note ) );
+      ?>
+    </div>
+    <?php endif; ?>
   </section>
 </div><!-- /.bd-stairbuilder-layout -->

@@ -102,7 +102,8 @@ class BD_Stair_Builder_Enquiries {
 			.bd-enq-card tr + tr th, .bd-enq-card tr + tr td { border-top: 1px solid #f0f0f1; }
 			.bd-enq-total td { font-size: 15px; font-weight: 700; }
 			.bd-enq-poa-note { background: #fcf9e8; border-left: 4px solid #dba617; padding: 10px 12px; margin: 12px 0; }
-			.bd-enq-raw th { font-family: Consolas, Monaco, monospace; font-weight: 400; color: #646970; }'
+			.bd-enq-raw th { font-family: Consolas, Monaco, monospace; font-weight: 400; color: #646970; }
+			.bd-enq-notes { margin: 0; padding: 12px 14px; background: #f6f7f7; border-left: 3px solid #dba617; line-height: 1.6; white-space: normal; }'
 		);
 	}
 
@@ -251,7 +252,9 @@ class BD_Stair_Builder_Enquiries {
 				<h2><?php esc_html_e( 'Configuration', 'stairbuilder' ); ?></h2>
 				<table>
 					<?php
-					$consumed = array( '_poa' );
+					// additional_notes has its own card below, so keep it out of
+					// the generic unresolved-keys dump — otherwise it appears twice.
+					$consumed = array( '_poa', 'additional_notes' );
 
 					$type_label = bd_staircase_type_label( $fd );
 					if ( '' !== $type_label ) {
@@ -300,6 +303,21 @@ class BD_Stair_Builder_Enquiries {
 					</table>
 				<?php endif; ?>
 			</div>
+
+			<?php
+			// Customer's own notes. Given a labelled card of its own rather than
+			// being left in the generic unresolved-keys dump — it is the one
+			// field on this screen the customer wrote in their own words, and
+			// whoever prices the job needs to read it as prose.
+			$bd_notes = isset( $fd['additional_notes'] ) ? trim( (string) $fd['additional_notes'] ) : '';
+			if ( '' !== $bd_notes ) :
+				?>
+				<div class="bd-enq-card">
+					<h2><?php esc_html_e( 'Additional notes from the customer', 'stairbuilder' ); ?></h2>
+					<?php // Escaped, then line breaks restored. Never raw. ?>
+					<p class="bd-enq-notes"><?php echo nl2br( esc_html( $bd_notes ) ); ?></p>
+				</div>
+			<?php endif; ?>
 
 			<div class="bd-enq-card">
 				<h2><?php esc_html_e( 'Quote', 'stairbuilder' ); ?></h2>

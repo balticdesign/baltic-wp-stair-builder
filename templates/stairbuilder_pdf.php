@@ -367,6 +367,22 @@ foreach ( $bd_sections as $bd_sec ) {
       </table>
     </div>
 
+    <?php
+    // Customer's own notes (v2.25.0). Its own labelled block, and the block is
+    // omitted entirely when there are none rather than printing an empty
+    // heading. Escaped then line-broken — this is the only genuinely free-form
+    // customer text in the plugin, so it is treated as hostile here as well as
+    // on the admin screen and in the email.
+    $bd_cust_notes = trim( (string) ( $content['additional_notes'] ?? '' ) );
+    if ( $bd_cust_notes !== '' ) : ?>
+    <table class="block notes" style="width: 100%; border-collapse: collapse;"><tr>
+      <td style="background: <?php echo $c_panel; ?>; border-left: 3px solid <?php echo $c_accent; ?>; padding: 14px 16px;">
+        <div class="lbl">Your Notes</div>
+        <p><?php echo nl2br( esc_html( $bd_cust_notes ) ); ?></p>
+      </td>
+    </tr></table>
+    <?php endif; ?>
+
     <table class="block notes" style="width: 100%; border-collapse: collapse;"><tr>
       <td style="background: <?php echo $c_panel; ?>; border-left: 3px solid <?php echo $c_accent; ?>; padding: 14px 16px;">
         <div class="lbl">Notes</div>

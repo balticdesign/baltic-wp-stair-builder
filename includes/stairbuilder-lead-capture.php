@@ -488,10 +488,16 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 	// for whoever prices it — but flags that the customer was shown none.
 	$poa_flag             = empty( $lead_data['poa'] ) ? '' : ' [PRICE ON APPLICATION]';
 	$admin_subject        = sprintf( 'New enquiry: %s — £%s%s', $lead_data['name'], number_format( (float) $lead_data['total'], 2 ), $poa_flag );
+	// The customer's own notes go to whoever prices this — it is where they
+	// state landing requirements, which the measurements note asks them for.
+	// Own labelled block, omitted entirely when empty.
+	$bd_notes      = isset( $lead_data['form']['additional_notes'] ) ? trim( (string) $lead_data['form']['additional_notes'] ) : '';
+	$notes_line    = ( '' !== $bd_notes ) ? sprintf( "Additional notes from the customer:\n%s\n\n", $bd_notes ) : '';
 	$admin_body    = sprintf(
 		"New staircase enquiry captured.\n\n" .
 		"%s" .
 		"Name: %s\nEmail: %s\nPhone: %s\nPostcode: %s\n\n" .
+		"%s" .
 		"%s" .
 		"Indicative subtotal: £%s\nVAT: £%s\nTotal: £%s\n\n" .
 		"Lead ref: %d\nView: %s\n",
@@ -500,6 +506,7 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 		$lead_data['email'],
 		$lead_data['phone'],
 		$lead_data['postcode'],
+		$notes_line,
 		empty( $lead_data['poa'] ) ? '' : "PRICE ON APPLICATION — the customer was shown no figures. Those below are the configurator's internal calculation only.\n\n",
 		number_format( (float) $lead_data['price'], 2 ),
 		number_format( (float) $lead_data['vat'], 2 ),

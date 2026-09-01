@@ -363,7 +363,10 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 
 	wp_mail( $lead_data['email'], $customer_subject, $customer_body, array(), $attachments );
 
-	$admin_to             = apply_filters( 'baltic_stair_admin_notification_email', get_option( 'admin_email' ), $lead_data );
+	// Recipients: the General-tab setting first, the site admin email when it is
+	// blank or resolves to nothing usable. The filter runs last and unchanged,
+	// so any bespoke code hooking it still wins over the setting.
+	$admin_to             = apply_filters( 'baltic_stair_admin_notification_email', baltic_stair_notification_recipients(), $lead_data );
 	$project_delivery     = isset( $lead_data['form']['project_delivery_date'] ) ? (string) $lead_data['form']['project_delivery_date'] : '';
 	$urgency_line         = $project_delivery !== '' ? sprintf( "Project Delivery Date: %s\n\n", $project_delivery ) : '';
 	// The admin copy keeps the computed figures — they're the internal baseline
@@ -390,7 +393,71 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 		$download_url
 	);
 
-	wp_mail( $admin_to, $admin_subject, $admin_body, array(), $attachments );
+	wp_mail( $admin_to, $admin_subject, $admin_body, baltic_stair_admin_email_headers( $lead_data ), $attachments );
+}
+
+/**
+ * Notification recipients for the admin copy.
+ *
+ * `lead_notification_emails` is a comma-separated list on the General tab.
+ * Invalid addresses are dropped rather than sent to; if that leaves nothing,
+ * we fall back to the site admin email. An enquiry going to the wrong inbox is
+ * recoverable — an enquiry going nowhere is not.
+ *
+ * @return string|array One address, or an array of them for wp_mail().
+ */
+function baltic_stair_notification_recipients() {
+	$fallback = get_option( 'admin_email' );
+	$raw      = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( 'lead_notification_emails', '' ) : '';
+
+	if ( ! is_string( $raw ) || '' === trim( $raw ) ) {
+		return $fallback;
+	}
+
+	$valid = array();
+	foreach ( explode( ',', $raw ) as $candidate ) {
+		$address = sanitize_email( trim( $candidate ) );
+		if ( $address && is_email( $address ) ) {
+			$valid[] = $address;
+		}
+	}
+
+	return $valid ? $valid : $fallback;
+}
+
+/**
+ * Headers for the admin notification.
+ *
+ * Both emails used to pass array(), so replying to a lead notification replied
+ * to the site rather than to the person who sent the enquiry. Reply-To is on by
+ * default; a lead with no usable email address gets no header rather than a
+ * malformed one.
+ */
+function baltic_stair_admin_email_headers( array $lead_data ) {
+	// Unset means "use the shipped default" (on); a stored 0 means the setting
+	// was deliberately turned off. Same rule render_toggle() applies.
+	$stored = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( 'lead_notification_reply_to_customer', null ) : null;
+	$enabled = ( null === $stored ) ? true : ! empty( $stored );
+
+	if ( ! $enabled ) {
+		return array();
+	}
+
+	$email = isset( $lead_data['email'] ) ? sanitize_email( $lead_data['email'] ) : '';
+	if ( ! $email || ! is_email( $email ) ) {
+		return array();
+	}
+
+	$name = isset( $lead_data['name'] ) ? trim( (string) $lead_data['name'] ) : '';
+	// A name containing a comma or angle bracket would break the header, so
+	// strip those rather than emit something a mail server may reject.
+	$name = str_replace( array( ',', '<', '>', '"', "\r", "\n" ), '', $name );
+
+	return array(
+		'' !== $name
+			? sprintf( 'Reply-To: %s <%s>', $name, $email )
+			: sprintf( 'Reply-To: %s', $email ),
+	);
 }
 
 /**

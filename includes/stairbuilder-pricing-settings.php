@@ -3078,6 +3078,21 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'default' => 15,
 								'description' => 'Font size of the help line. 15 matches the section headings in the Configure panel; 12 gives the smaller footnote look used before v2.22.',
 							],
+							[
+								'id' => 'lead_notification_emails',
+								'label' => 'Enquiry notifications — Send to',
+								'type' => 'text',
+								'placeholder' => 'sales@example.com, andy@example.com',
+								'description' => 'Where the new-enquiry notification is sent. Separate several addresses with commas. Leave blank to use the site admin email under Settings → General.',
+							],
+							[
+								'id' => 'lead_notification_reply_to_customer',
+								'label' => 'Enquiry notifications — Reply goes to the customer',
+								'type' => 'toggle',
+								'toggle_label' => 'Set Reply-To to the enquiring customer',
+								'default' => 1,
+								'description' => 'On: hitting Reply on a notification email replies to the customer. Off: it replies to the site.',
+							],
 						],
 					],
 					'strings' => [

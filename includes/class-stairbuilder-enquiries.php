@@ -22,6 +22,9 @@ class BD_Stair_Builder_Enquiries {
 	/** Screen option name for rows-per-page. */
 	const PER_PAGE_OPTION = 'stairbuilder_enquiries_per_page';
 
+	/** admin_post action for the CSV export. */
+	const EXPORT_ACTION = 'bd_stair_export_enquiries';
+
 	/** @var string Hook suffix for the Enquiries page (set in add_menu). */
 	private $hook = '';
 
@@ -32,6 +35,8 @@ class BD_Stair_Builder_Enquiries {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 		add_filter( 'set-screen-option', array( $this, 'save_screen_option' ), 10, 3 );
 		add_filter( 'set_screen_option_' . self::PER_PAGE_OPTION, array( $this, 'save_screen_option' ), 10, 3 );
+		// Logged-in only. No admin_post_nopriv counterpart, deliberately.
+		add_action( 'admin_post_' . self::EXPORT_ACTION, array( $this, 'handle_export' ) );
 	}
 
 	/* --------------------------------------------------------------------- */
@@ -149,6 +154,7 @@ class BD_Stair_Builder_Enquiries {
 		?>
 		<div class="wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Enquiries', 'stairbuilder' ); ?></h1>
+			<a href="<?php echo esc_url( $this->export_url() ); ?>" class="page-title-action"><?php esc_html_e( 'Export CSV', 'stairbuilder' ); ?></a>
 			<hr class="wp-header-end" />
 
 			<form method="get">
@@ -344,5 +350,103 @@ class BD_Stair_Builder_Enquiries {
 
 	private function list_url() {
 		return add_query_arg( 'page', self::PAGE_SLUG, admin_url( 'admin.php' ) );
+	}
+
+	/* --------------------------------------------------------------------- */
+	/* CSV export                                                             */
+	/* --------------------------------------------------------------------- */
+
+	/**
+	 * Export link carrying the filters currently in force, so "Export CSV"
+	 * means "export what I am looking at" rather than "export everything".
+	 */
+	private function export_url() {
+		require_once plugin_dir_path( __FILE__ ) . 'class-stairbuilder-enquiries-list-table.php';
+		$args = BD_Stair_Builder_Enquiries_List_Table::request_args();
+
+		$query = array( 'action' => self::EXPORT_ACTION );
+		foreach ( array( 'search' => 's', 'date_from' => 'date_from', 'date_to' => 'date_to', 'orderby' => 'orderby', 'order' => 'order' ) as $key => $param ) {
+			if ( '' !== (string) $args[ $key ] ) {
+				$query[ $param ] = $args[ $key ];
+			}
+		}
+
+		return wp_nonce_url( add_query_arg( $query, admin_url( 'admin-post.php' ) ), self::EXPORT_ACTION );
+	}
+
+	/**
+	 * A cell beginning = + - or @ is a formula to Excel, Numbers and Sheets.
+	 * A customer controls their own name field, so prefix those with a single
+	 * quote: an export opened on the sales desk must not execute anything that
+	 * arrived through the public form.
+	 */
+	private function csv_cell( $value ) {
+		$value = (string) $value;
+		if ( '' !== $value && strpos( "=+-@", $value[0] ) !== false ) {
+			return "'" . $value;
+		}
+		return $value;
+	}
+
+	public function handle_export() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to export enquiries.', 'stairbuilder' ), 403 );
+		}
+		check_admin_referer( self::EXPORT_ACTION );
+
+		require_once plugin_dir_path( __FILE__ ) . 'class-stairbuilder-enquiries-list-table.php';
+		$args = BD_Stair_Builder_Enquiries_List_Table::request_args();
+
+		// per_page 0 = the whole filtered set. Exporting one screen's worth
+		// under a button labelled "Export CSV" would be a silent truncation.
+		$args['per_page'] = 0;
+		$args['offset']   = 0;
+		$rows = BD_Stair_Builder_Leads::query( $args );
+
+		$filename = 'enquiries-' . gmdate( 'Y-m-d-His' ) . '.csv';
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+
+		$out = fopen( 'php://output', 'w' );
+
+		fputcsv(
+			$out,
+			array( 'Lead ref', 'Date', 'Name', 'Email', 'Phone', 'Postcode', 'Total', 'Type', 'Quote URL' )
+		);
+
+		foreach ( $rows as $row ) {
+			$ts = strtotime( $row['created_at'] );
+
+			$total = self::is_poa( $row )
+				? 'POA' // Consistent with the list: a POA quote carries no figure here either.
+				: number_format( (float) $row['total'], 2, '.', '' );
+
+			$quote_url = ( function_exists( 'baltic_stair_get_quote_view_url' ) && ! empty( $row['token'] ) )
+				? baltic_stair_get_quote_view_url( $row['token'] )
+				: '';
+
+			fputcsv(
+				$out,
+				array_map(
+					array( $this, 'csv_cell' ),
+					array(
+						(int) $row['id'],
+						$ts ? date_i18n( 'Y-m-d H:i', $ts ) : $row['created_at'],
+						$row['name'],
+						$row['email'],
+						$row['phone'],
+						$row['postcode'],
+						$total,
+						bd_staircase_type_label( isset( $row['form_data'] ) ? $row['form_data'] : array() ),
+						$quote_url,
+					)
+				)
+			);
+		}
+
+		fclose( $out );
+		exit;
 	}
 }

@@ -41,6 +41,10 @@ if ( is_admin() ) {
 	require plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-debug.php';
 }
 
+// Leads table schema catch-up. install() runs on activation only, so without
+// this an already-active site would never receive a later column.
+add_action( 'admin_init', array( 'BD_Stair_Builder_Leads', 'maybe_upgrade' ) );
+
 add_action( 'wp_enqueue_scripts', 'custom_enqueue_files' );
 function custom_enqueue_files() {
 

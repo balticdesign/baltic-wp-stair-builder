@@ -50,6 +50,23 @@ class BD_Stair_Builder_Leads {
 		update_option( 'baltic_stair_leads_db_version', self::DB_VERSION );
 	}
 
+	/**
+	 * Re-run install() when the stored schema version is behind DB_VERSION.
+	 *
+	 * install() fires from register_activation_hook only, so on a site that is
+	 * already active a future column would never be created — the plugin would
+	 * update, the table would not, and nothing would say so. Added ahead of the
+	 * CRM work that will bring new columns, while it costs nothing.
+	 *
+	 * No-op when current, which is every request but the one after an upgrade.
+	 */
+	public static function maybe_upgrade() {
+		if ( get_option( 'baltic_stair_leads_db_version' ) === self::DB_VERSION ) {
+			return;
+		}
+		self::install();
+	}
+
 	public static function generate_token() {
 		return bin2hex( random_bytes( 24 ) );
 	}

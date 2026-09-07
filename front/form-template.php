@@ -493,19 +493,30 @@ $sb_hide = function ( $on, $extra_class = '' ) {
     </div>
     <?php if ($flight3) {?>
       <?php // Post labels carry flight numbers, so they follow the half-landing relabel
-      // above or they contradict it. Two of them are the mid-landing posts: internal
-      // flight 2 is the landing, so its "top" (turn 2) and "bottom" (turn 1) are both
-      // on the landing and both used to read "Flt.2". They are distinct inputs and are
-      // charged separately — that redundancy is SPD amend 10 and is NOT fixed here.
-      // These labels only stop the two of them sharing one name. Internal flight 3
-      // becomes "Flt.2"; the box corners already read correctly under the new
-      // numbering, each naming the landing corner nearest its flight. ?>
+      // above or they contradict it. Internal flight 3 becomes "Flt.2"; the box corners
+      // already read correctly under the new numbering, each naming the landing corner
+      // nearest its flight.
+      //
+      // #to-post2 is NOT RENDERED on half:landing. Internal flight 2 is collapsed to
+      // zero treads there — it IS the landing — so its "top" (turn 2) and its "bottom"
+      // (turn 1) are the same physical post. Two boxes meant a customer could tick both
+      // and pay for two newels and two caps where one post exists (SPD amend 10). The
+      // surviving box is #bo-post in the Turn 1 block below, labelled "Landing Middle",
+      // and halfTurn.js sets BOTH of this post's flags from it so the balustrade
+      // outcome is unchanged. Every other config keeps both boxes: flight 2 is real
+      // there and the two posts genuinely sit at opposite ends of it.
+      //
+      // v2.26.0 relabelled these to "Landing Middle (lower)/(upper)", presenting them
+      // as two deliberately distinct posts. That was wrong; this supersedes it. ?>
       <h3>Turn 2</h3>
       <div class="form-row">
+        <?php if ( ! $sb_is_half_landing ) : ?>
         <div class="form-col">
-        <label for="to-post2"><?php echo $sb_is_half_landing ? 'Landing Middle (upper)' : 'Flt.2 Top Outside'; ?></label>
+        <label for="to-post2">Flt.2 Top Outside</label>
             <input id="to-post2" type="checkbox" name="to-post2" value="1">
-            </div><div class="form-col">
+            </div>
+        <?php endif; ?>
+        <div class="form-col">
         <label for="bo-post2"><?php echo $sb_is_half_landing ? 'Flt.2 Bottom Outside' : 'Flt.3 Bottom Outside'; ?></label>
             <input id="bo-post2" type="checkbox" name="bo-post2" value="1">
             </div><div class="form-col">
@@ -521,7 +532,8 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         <label for="to-post">Flt.1 Top Outside</label>
             <input id="to-post" type="checkbox" name="to-post" value="1">
             </div><div class="form-col">
-        <label for="bo-post"><?php echo $sb_is_half_landing ? 'Landing Middle (lower)' : 'Flt.2 Bottom Outside'; ?></label>
+        <?php // half:landing — the one mid-landing post. See the Turn 2 note above. ?>
+        <label for="bo-post"><?php echo $sb_is_half_landing ? 'Landing Middle' : 'Flt.2 Bottom Outside'; ?></label>
             <input id="bo-post" type="checkbox" name="bo-post" value="1">
             </div><div class="form-col">
             <label for="box-post">Flt.1 Box Corner</label>

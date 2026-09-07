@@ -160,6 +160,22 @@ function grabFormValues() {
     if (jQuery("#to-post2").is(":checked")) {
       if (direction === 'left') f2to = true; else boxcorner2 = true;
     }
+    // Half landing: flight 2 is collapsed to zero treads — it IS the landing — so
+    // that flight's "bottom" (turn 1, #bo-post) and "top" (turn 2, #to-post2) are
+    // the same physical post. The form renders only #bo-post there, labelled
+    // "Landing Middle", so it must set the pair of flags that ticking both used to
+    // set. It is charged once because only one box exists to tick.
+    //
+    // Keyed on #to-post2 being ABSENT rather than on isHalfLanding alone: the open
+    // form (shortcode with no stair_config) still offers both boxes even when the
+    // customer picks "Half Landing" in Treads in Turn, and this must never fire
+    // where two boxes exist or one tick would set flags the other box also owns.
+    //
+    // Additive like every block above it — nothing here ever sets a flag false, so
+    // #box-post / #box-post2 keep contributing their own halves unchanged.
+    if (isHalfLanding && jQuery("#to-post2").length === 0 && jQuery("#bo-post").is(":checked")) {
+      if (direction === 'left') f2to = true; else boxcorner2 = true;
+    }
     f3bo = jQuery("#bo-post2").is(":checked");
     // Balustrades
     if (spinglass === "true") {

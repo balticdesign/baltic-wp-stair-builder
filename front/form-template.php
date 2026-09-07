@@ -77,19 +77,22 @@ $sb_is_half_landing = ( 'half:landing' === $sb_config_key );
 // class rather than a computed-style check, because the summary also renders
 // while the section is collapsed, when everything inside it is hidden anyway.
 // Helper so the class and the inline style can never drift apart.
-// Landing inclusion note, shown in place of the hidden treads-in-turn control.
-// Same null-vs-empty contract as the measurements note: option unset => shipped
-// default; option set to '' => the admin cleared it deliberately, so render
-// nothing at all rather than falling back to SPD's wording. One note per config
-// even where two controls are hidden (half:double_quarter).
+// Landing inclusion note, shown in place of the hidden treads-in-turn control on
+// quarter:landing and half:double_quarter. Same null-vs-empty contract as the
+// measurements note: option unset => shipped default; option set to '' => the
+// admin cleared it deliberately, so render nothing at all rather than falling
+// back to SPD's wording. One note per config even where two controls are hidden.
+//
+// half:landing does NOT take a note. v2.26.0 shipped one there reading "T&G
+// landing included", on the understanding that the landing was always included
+// and there was no choice to offer. That reading was wrong: SPD want the landing
+// priced as a distinct item, so half:landing takes a priced select instead (see
+// the Half landing row below) and landing_note_tandg has been removed.
 $sb_landing_note = '';
-if ( $sb_is_landing ) {
-	$sb_note_key     = $sb_is_half_landing ? 'landing_note_tandg' : 'landing_note_boards';
-	$sb_landing_note = stairbuilder_get_option( $sb_note_key, null );
+if ( $sb_is_landing && ! $sb_is_half_landing ) {
+	$sb_landing_note = stairbuilder_get_option( 'landing_note_boards', null );
 	if ( null === $sb_landing_note ) {
-		$sb_landing_note = $sb_is_half_landing
-			? bd_landing_note_tandg_default()
-			: bd_landing_note_boards_default();
+		$sb_landing_note = bd_landing_note_boards_default();
 	}
 	$sb_landing_note = trim( (string) $sb_landing_note );
 }

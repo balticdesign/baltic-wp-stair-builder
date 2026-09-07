@@ -249,6 +249,14 @@ $bd_row_count( 'Treads before Turn', $content['treadbt'] ?? '' );
 $bd_row_count( 'Treads after Turn', $content['treadat'] ?? '' );
 $bd_row( 'Turn 2', $bd_turn2 );
 $bd_row_count( 'Treads after Turn 2', $content['treadat2'] ?? '' );
+// T&G landing selection (half:landing only). The customer has to see what they
+// are or are not paying for. bd_tandg_landing_label() returns '' for an absent
+// or unrecognised value, so every other config -- and every lead predating the
+// field -- drops the row rather than asserting anything about a landing.
+// Labelled "Landing Boards", not "Half Landing": this section already carries a
+// "Turn 1 -> Half Landing" row on this config, and two rows opening with the same
+// words read as a contradiction. The value carries the wording either way.
+$bd_row( 'Landing Boards', bd_tandg_landing_label( $content['tandg_landing'] ?? '' ) );
 if ( $bd_featured_step !== 'None' ) { $bd_row( 'Featured Step', $bd_featured_step ); }
 $bd_sections[] = array( 'Staircase Details', ob_get_clean() );
 

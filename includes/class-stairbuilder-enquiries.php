@@ -272,6 +272,12 @@ class BD_Stair_Builder_Enquiries {
 						$this->row( $label, bd_code_label( $repeater, $fd[ $key ], $code_key, $name_key ) );
 					}
 
+					// T&G landing selection (half:landing only). Without this it would
+					// still surface, but raw in "Other submitted fields" as the stored
+					// code -- the workshop needs the wording, not `included`.
+					$consumed[] = 'tandg_landing';
+					$this->row( __( 'Landing Boards', 'stairbuilder' ), bd_tandg_landing_label( $fd['tandg_landing'] ?? '' ) );
+
 					// Featured step: the same decomposition the PDF applies, so a
 					// pre-v2.23.0 lead reads correctly here too.
 					if ( isset( $fd['left-featured-step'] ) || isset( $fd['right-featured-step'] ) ) {

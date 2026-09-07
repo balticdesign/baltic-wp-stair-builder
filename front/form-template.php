@@ -97,6 +97,14 @@ if ( $sb_is_landing && ! $sb_is_half_landing ) {
 	$sb_landing_note = trim( (string) $sb_landing_note );
 }
 
+// T&G landing boards charge, half:landing only. Blank/unset reads as 0, which is
+// a legitimate value and not a missing price -- the charge is ADDITIVE, so 0
+// means no extra charge and the quote still completes. Never routed through the
+// price-on-application path, which is for prices whose absence breaks a quote.
+$sb_tandg_price = $sb_is_half_landing
+	? (float) stairbuilder_get_option( 'tandg_landing_boards_price', 0 )
+	: 0.0;
+
 $sb_hide = function ( $on, $extra_class = '' ) {
 	$cls = trim( $extra_class . ( $on ? ' bd-hidden-row' : '' ) );
 	return ( '' !== $cls ? ' class="' . esc_attr( $cls ) . '"' : '' )
@@ -228,6 +236,32 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         // were simply never stated. Admin-editable, escaped on output. ?>
         <?php if ( '' !== $sb_landing_note ) : ?>
         <p class="bd-landing-note"><?php echo esc_html( $sb_landing_note ); ?></p>
+        <?php endif; ?>
+        <?php // half:landing prices its landing as a distinct item instead of stating it
+        // as included. Default is "T&G landing included" because every quote to date has
+        // included it, so out-of-the-box behaviour matches what is on staging now.
+        //
+        // The charge rides on the option's data-price, the same pattern #construction_type
+        // uses, and "Landing not included" carries 0 -- so the additive sum needs no
+        // special case and a config without this select contributes nothing.
+        //
+        // Values are plain enums with NO COLON: formLogic.js truncates every submitted
+        // value at its first colon (materials arrive as `code:price`), so a colon here
+        // would be silently eaten before the value reached form_data.
+        //
+        // Labels come from bd_tandg_landing_labels() so the form, the PDF and the
+        // Enquiries view cannot drift apart. ?>
+        <?php if ( $sb_is_half_landing ) : ?>
+        <div class="form-row">
+        <label for="tandg_landing">Half landing</label>
+        <select id="tandg_landing" name="tandg_landing">
+        <?php foreach ( bd_tandg_landing_labels() as $tl_value => $tl_label ) : ?>
+          <option value="<?php echo esc_attr( $tl_value ); ?>"
+            data-price="<?php echo esc_attr( 'included' === $tl_value ? $sb_tandg_price : 0 ); ?>"
+            <?php selected( 'included', $tl_value ); ?>><?php echo esc_html( $tl_label ); ?></option>
+        <?php endforeach; ?>
+        </select>
+        </div>
         <?php endif; ?>
         <?php // Half landing: internal flight 2 IS the landing — halfTurn.js pins its
         // treads to 0 on every recalculation, so this is a phantom control. Heading and

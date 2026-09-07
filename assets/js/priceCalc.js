@@ -170,6 +170,14 @@ function calculateTotalPrice() {
   // both-sides uplift (§5.1) is applied in exactly one place. The per-side
   // figures stay available for the works order and diagnostics.
   const $featStepTotal = parseFloat(jQuery('#featStepTotal').val()) || 0;
+  // T&G landing boards — half:landing only, additive. The charge rides on the
+  // selected option's data-price (the #construction_type pattern), and "Landing
+  // not included" carries 0. Every other config renders no such select, so the
+  // lookup misses and this contributes nothing. Additive means the landing is
+  // still inside the base price: "not included" therefore quotes the SAME total
+  // as before this field existed, and "included" quotes that plus the charge.
+  // Whether SPD reduce the base to compensate is their commercial decision.
+  const $tandgLanding = parseFloat(jQuery('#tandg_landing option:selected').attr('data-price')) || 0;
 
   const $newels_price = $newel_cost * $newel_amt;
   const $caps_price = $cap_cost * $newel_amt;
@@ -282,6 +290,7 @@ function calculateTotalPrice() {
     $asspkg +
     $delivery +
     $featStepTotal +
+    $tandgLanding +
     $addprice;
 
   const price = parseFloat($total); // before VAT

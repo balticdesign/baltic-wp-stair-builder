@@ -415,6 +415,38 @@ function bd_featured_step_label( $left, $right ) {
 }
 
 /**
+ * T&G landing selection labels — SPD's wording, half:landing only.
+ *
+ * Keyed by the value the select submits. The landing is a priced line item
+ * rather than a stated inclusion: "Landing not included" means the customer is
+ * supplying their own boards, so it costs nothing extra; "T&G landing included"
+ * adds tandg_landing_boards_price. NEITHER changes the drawing — the landing is
+ * structurally present either way — so nothing here may gate rendering.
+ */
+function bd_tandg_landing_labels() {
+  return array(
+    'not_included' => 'Landing not included',
+    'included'     => 'T&G landing included',
+  );
+}
+
+/**
+ * The one place a stored tandg_landing value becomes a display string. Used by
+ * the form, the quote PDF and the Enquiries detail view — do not re-derive it
+ * per surface (the same rule that collapsed bd_code_label() in v2.24.0 and
+ * bd_staircase_type_label() in v2.25.0).
+ *
+ * Returns '' for an absent or unrecognised value rather than guessing, so every
+ * lead that predates this field — and every config that never had the select —
+ * simply drops the row instead of asserting something about a landing.
+ */
+function bd_tandg_landing_label( $value ) {
+  $labels = bd_tandg_landing_labels();
+  $key    = (string) $value;
+  return isset( $labels[ $key ] ) ? $labels[ $key ] : '';
+}
+
+/**
  * §6 — decompose a legacy single-enum featured step into (left, right).
  *
  * Leads captured before v2.23.0 stored the combined label chosen from the old

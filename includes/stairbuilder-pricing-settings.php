@@ -3692,6 +3692,29 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'type' => 'number',
 								'adjustable' => true,
 							],
+							[
+								'id' => 'tandg_landing_boards_price',
+								'label' => 'T&G Landing Boards',
+								'type' => 'number',
+								'adjustable' => true,
+								'placeholder' => 0,
+								// Deliberately NOT called "Half Landing Price". The five
+								// fields above are named after a configuration but price a
+								// material-spec uplift, which is exactly why they read as
+								// landing prices and are not; do not add a sixth name that
+								// does not say what it prices.
+								//
+								// No 'default' key: render_number() does not honour one (only
+								// render_text/textarea/color do), so a default here would be
+								// decorative. Blank is the shipped state and the front end
+								// reads it as 0 — which is a legitimate value, not a missing
+								// price. The charge is ADDITIVE, so 0 simply means no extra
+								// charge and the staircase still quotes normally. This must
+								// NOT be routed through the price-on-application path: the
+								// landing is currently inside the base price, so 0 is a
+								// defensible starting value rather than a broken quote.
+								'description' => 'Flat charge added to a Half Landing staircase when the customer selects "T&G landing included". Not per-width or per-square-metre. Leave blank or set 0 for no extra charge — the quote still completes. This is a separate charge from the five uplift figures above, which price a material spec and are unrelated to landing boards.',
+							],
 						],
 					],
 					'postcode_areas' => [

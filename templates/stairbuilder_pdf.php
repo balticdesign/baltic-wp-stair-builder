@@ -231,9 +231,20 @@ $bd_row( 'Staircase Type', $bd_staircase_type );
 $bd_row( 'Building Regs', $bd_building_reg );
 $bd_row( 'Direction', $content['sc-direction'] ?? '' );
 $bd_row( 'Floor to Floor', ( $content['floor-height'] ?? '' ) !== '' ? $content['floor-height'] . 'mm' : '' );
+// Half landing numbers its flights 1 and 2 on the form (v2.26.0): internal flight
+// 2 is collapsed to zero treads and IS the landing, so #stair-width2 is the
+// landing's own width and internal flight 3 is what the customer calls flight 2.
+// The PDF followed the internal numbering until v2.28.0, which meant the quote
+// contradicted the form the customer had just filled in. Leads captured before
+// the stair_type / stair_config hidden inputs existed return false here and keep
+// the original numbering — their quotes went out under it and must still read
+// the way they were sent.
+$bd_hl        = bd_is_half_landing( $content );
+$bd_w2_label  = $bd_hl ? 'Staircase Width (Landing)'  : 'Staircase Width (Flight 2)';
+$bd_w3_label  = $bd_hl ? 'Staircase Width (Flight 2)' : 'Staircase Width (Flight 3)';
 $bd_row( ! empty( $content['stair-width2'] ) ? 'Staircase Width (Flight 1)' : 'Staircase Width', ( $content['stair-width'] ?? '' ) !== '' ? $content['stair-width'] . 'mm' : '' );
-$bd_row( 'Staircase Width (Flight 2)', ! empty( $content['stair-width2'] ) ? $content['stair-width2'] . 'mm' : '' );
-$bd_row( 'Staircase Width (Flight 3)', ! empty( $content['stair-width3'] ) ? $content['stair-width3'] . 'mm' : '' );
+$bd_row( $bd_w2_label, ! empty( $content['stair-width2'] ) ? $content['stair-width2'] . 'mm' : '' );
+$bd_row( $bd_w3_label, ! empty( $content['stair-width3'] ) ? $content['stair-width3'] . 'mm' : '' );
 $bd_row( 'Risers', $content['risers'] ?? '' );
 $bd_row( 'Going', ( $content['going'] ?? '' ) !== '' ? $content['going'] . 'mm' : '' );
 $bd_sections[] = array( 'Staircase Essentials', ob_get_clean() );

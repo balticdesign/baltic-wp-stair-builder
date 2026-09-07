@@ -372,6 +372,27 @@ function bd_staircase_type_label( $form_data ) {
 }
 
 /**
+ * Is this lead a half-turn HALF LANDING, from its form_data?
+ *
+ * The one config where internal flight 2 is collapsed to zero treads and is the
+ * landing itself, so the customer-facing surfaces number the flights 1 and 2 and
+ * name the middle section "Landing" rather than "Flight 2" (v2.26.0 on the form,
+ * v2.28.0 on the quote PDF). Shared so the form, the PDF and anything added later
+ * cannot disagree about which config that is.
+ *
+ * Leads captured before the stair_type / stair_config hidden inputs existed carry
+ * neither, so they return false and keep the original flight numbering — their
+ * quotes were produced under it and must still read the way they were sent.
+ */
+function bd_is_half_landing( $form_data ) {
+  if ( ! is_array( $form_data ) ) {
+    return false;
+  }
+  return 'half' === ( $form_data['stair_type'] ?? '' )
+    && 'landing' === ( $form_data['stair_config'] ?? '' );
+}
+
+/**
  * Featured step treatment labels, keyed by the renderer's own value vocabulary.
  * SPD's wording — Andy and Daniel read these on the works order.
  */

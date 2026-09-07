@@ -55,6 +55,33 @@ $sb_treadit2_hide = Stairbuilder_Plugin::$current_treadit2_hide;
 // Selected value: the locked value when locked, else the (editable) config default.
 $sb_treadit_sel   = $sb_lock_treadit  ? $sb_treadit  : Stairbuilder_Plugin::$current_treadit_default;
 $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$current_treadit2_default;
+
+// Landing vs winder. On the three landing configs the customer has no
+// treads-in-turn choice to make (the value is locked by the shortcode), so the
+// control is hidden and a static inclusion note shown in its place. The winder
+// configs keep their control exactly as it is. Keyed on the resolved config so
+// this stays independent of the locking mechanism that happens to imply it.
+$sb_config_key      = $stair_type . ':' . $sb_stair_config;
+$sb_is_landing      = in_array( $sb_config_key, array( 'quarter:landing', 'half:landing', 'half:double_quarter' ), true );
+
+// Half landing is built internally as flight 1, an empty flight 2 (the two
+// joined landing sections, treads pinned to 0 by halfTurn.js) and flight 3.
+// The customer is shown flight 1 and flight 2: the internal flight-2 row is
+// hidden and internal flight 3 is labelled "Flight 2". DISPLAY ONLY — field
+// names, form keys, form_data and the flight allocators are untouched.
+$sb_is_half_landing = ( 'half:landing' === $sb_config_key );
+
+// Emits the hide markers for a control the customer should not see. Hidden rows
+// carry .bd-hidden-row so the section summaries in layout.js can skip the fields
+// they hold — a summary must not advertise a control that isn't on screen. A
+// class rather than a computed-style check, because the summary also renders
+// while the section is collapsed, when everything inside it is hidden anyway.
+// Helper so the class and the inline style can never drift apart.
+$sb_hide = function ( $on, $extra_class = '' ) {
+	$cls = trim( $extra_class . ( $on ? ' bd-hidden-row' : '' ) );
+	return ( '' !== $cls ? ' class="' . esc_attr( $cls ) . '"' : '' )
+		. ( $on ? ' style="display:none"' : '' );
+};
 ?>
 
 <div class="bd-stairbuilder-layout">
@@ -127,12 +154,15 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         <div class="form-row">
             <label for="stair-width">Width <span class="form-unit">(mm)</span> <span class="form-sub">(Outside to Outside String)</span></label>
             <input type="number" id="stair-width" name="stair-width" value="">
+            <?php // Half landing: #stair-width2 is the width of the landing itself (it
+            // drives the middle section of the diagram, halfTurn.js), so it is a
+            // rename and not a field to hide. Internal flight 3 becomes "Flight 2". ?>
             <?php if ($flight2) {?>
-            <label for="stair-width2">Flight 2 Width <span class="form-unit">(mm)</span></label>
+            <label for="stair-width2"><?php echo $sb_is_half_landing ? 'Landing Width' : 'Flight 2 Width'; ?> <span class="form-unit">(mm)</span></label>
             <input type="number" id="stair-width2" name="stair-width2" value="">
             <?php } ?>
             <?php if ($flight3) {?>
-            <label for="stair-width3">Flight 3 Width <span class="form-unit">(mm)</span></label>
+            <label for="stair-width3"><?php echo $sb_is_half_landing ? 'Flight 2 Width' : 'Flight 3 Width'; ?> <span class="form-unit">(mm)</span></label>
             <input type="number" id="stair-width3" name="stair-width3" value="">
             <?php } ?>
             <input type="hidden" id="widthmulti" value="<?php echo $width_mp; ?>">
@@ -168,8 +198,13 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </select>
         <?php if ( $sb_lock_treadit ) : ?><input type="hidden" name="treadit" value="<?php echo esc_attr( $sb_treadit ); ?>"><?php endif; ?>
         </div>
-        <h4>Flight 2</h4>
-        <div class="form-row">
+        <?php // Half landing: internal flight 2 IS the landing — halfTurn.js pins its
+        // treads to 0 on every recalculation, so this is a phantom control. Heading and
+        // row are hidden as a unit; hiding only the label would strand an editable field
+        // with no heading above it. display:none does not stop a field POSTing, so the
+        // value still reaches form_data and the PDF exactly as before. ?>
+        <h4<?php echo $sb_hide( $sb_is_half_landing ); ?>>Flight 2</h4>
+        <div<?php echo $sb_hide( $sb_is_half_landing, 'form-row' ); ?>>
         <label for="treadat">Treads after Turn:</label>
         <?php // Quarter turn: #treadat is the DERIVED flight (auto-filled, readonly) — it must
         // stay readonly (not disabled) so its value still POSTs into the lead + PDF.
@@ -190,7 +225,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </select>
         <?php if ( $sb_lock_treadit2 ) : ?><input type="hidden" name="treadit2" value="<?php echo esc_attr( $sb_treadit2 ); ?>"><?php endif; ?>
         </div>
-        <h4>Flight 3</h4>
+        <h4><?php echo $sb_is_half_landing ? 'Flight 2' : 'Flight 3'; ?></h4>
         <div class="form-row">
         <label for="treadat2">Treads after Turn2:</label>
         <?php // Derived flight 3 (auto-filled). readonly (not disabled) so it still POSTs. ?>
@@ -390,13 +425,21 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         </div>
     </div>
     <?php if ($flight3) {?>
+      <?php // Post labels carry flight numbers, so they follow the half-landing relabel
+      // above or they contradict it. Two of them are the mid-landing posts: internal
+      // flight 2 is the landing, so its "top" (turn 2) and "bottom" (turn 1) are both
+      // on the landing and both used to read "Flt.2". They are distinct inputs and are
+      // charged separately — that redundancy is SPD amend 10 and is NOT fixed here.
+      // These labels only stop the two of them sharing one name. Internal flight 3
+      // becomes "Flt.2"; the box corners already read correctly under the new
+      // numbering, each naming the landing corner nearest its flight. ?>
       <h3>Turn 2</h3>
       <div class="form-row">
         <div class="form-col">
-        <label for="to-post2">Flt.2 Top Outside</label>
+        <label for="to-post2"><?php echo $sb_is_half_landing ? 'Landing Middle (upper)' : 'Flt.2 Top Outside'; ?></label>
             <input id="to-post2" type="checkbox" name="to-post2" value="1">
             </div><div class="form-col">
-        <label for="bo-post2">Flt.3 Bottom Outside</label>
+        <label for="bo-post2"><?php echo $sb_is_half_landing ? 'Flt.2 Bottom Outside' : 'Flt.3 Bottom Outside'; ?></label>
             <input id="bo-post2" type="checkbox" name="bo-post2" value="1">
             </div><div class="form-col">
             <label for="box-post2">Flt.2 Box Corner</label>
@@ -411,7 +454,7 @@ $sb_treadit2_sel  = $sb_lock_treadit2 ? $sb_treadit2 : Stairbuilder_Plugin::$cur
         <label for="to-post">Flt.1 Top Outside</label>
             <input id="to-post" type="checkbox" name="to-post" value="1">
             </div><div class="form-col">
-        <label for="bo-post">Flt.2 Bottom Outside</label>
+        <label for="bo-post"><?php echo $sb_is_half_landing ? 'Landing Middle (lower)' : 'Flt.2 Bottom Outside'; ?></label>
             <input id="bo-post" type="checkbox" name="bo-post" value="1">
             </div><div class="form-col">
             <label for="box-post">Flt.1 Box Corner</label>

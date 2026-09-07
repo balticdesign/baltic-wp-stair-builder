@@ -208,6 +208,17 @@
     return (el.value || '').trim();
   }
   function mm(id) { const v = txt(id); return v ? Number(v).toLocaleString() + ' mm' : ''; }
+  // As txt(), but blank for a control the template has hidden (.bd-hidden-row):
+  // on the landing configs the treads-in-turn selects and the half landing's
+  // phantom middle flight still hold and still POST their locked values, but a
+  // section summary must not list a choice the customer was never shown. Keyed
+  // on the class, not computed style — the summary also renders while the
+  // section is collapsed, when everything inside it is hidden regardless.
+  function txtVisible(id) {
+    const el = document.getElementById(id);
+    if (!el || (el.closest && el.closest('.bd-hidden-row'))) return '';
+    return txt(id);
+  }
   function join(parts) { return parts.filter(Boolean).join(' · '); }
   // "Key value" pair, or '' when the value is empty — so each section summary
   // can list every choice it holds with a short label, dropping blank ones.
@@ -233,9 +244,9 @@
       summary: function () {
         return join([
           kv('Before', txt('treadbt')),
-          txt('treadit'),
-          kv('After', txt('treadat')),
-          txt('treadit2')
+          txtVisible('treadit'),
+          kv('After', txtVisible('treadat')),
+          txtVisible('treadit2')
         ]);
       }
     },

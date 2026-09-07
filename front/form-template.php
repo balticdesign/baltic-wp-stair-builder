@@ -208,7 +208,7 @@ $sb_hide = function ( $on, $extra_class = '' ) {
     <div id="tits" class="tab-content">
           <div class="form-row">
             <h4>Flight 1</h4>
-        <label for="treadit">Treads before Turn:</label>
+        <label for="treadbt">Treads before Turn:</label>
         <?php // Default is derived on load by the flight script (even distribution), not hardcoded. ?>
         <input type="number" id="treadbt" name="treadbt" value="" min="0">
         </div>

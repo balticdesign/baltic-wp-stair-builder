@@ -43,6 +43,30 @@ function bd_measurements_note_default() {
 		. "Further detail on the posts and balustrade components quoted will be provided in the full quotation from our design team.";
 }
 
+/**
+ * Shipped defaults for the landing inclusion notes (v2.26.0).
+ *
+ * On the three landing configs the treads-in-turn control is hidden — the
+ * customer has no choice to make — and one of these notes is shown in its
+ * place, stating what the landing already includes. They live here for the
+ * same load-order reason as bd_measurements_note_default() above, and they
+ * are one source for both the schema default and the front-end panel.
+ *
+ * Not hardcoded at the render site: this states SPD's inclusion policy, and a
+ * wpstairs licensee will have their own. Clearing the field to empty hides the
+ * note entirely with no fallback, so a licensee who does not include landing
+ * boards can say nothing at all.
+ *
+ * Short single-line labels, not paragraphs — plain text, escaped on output.
+ */
+function bd_landing_note_boards_default() {
+	return 'Landing boards & skirting included';
+}
+
+function bd_landing_note_tandg_default() {
+	return 'T&G landing included';
+}
+
 if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 
 	class Stairbuilder_Pricing_Settings {
@@ -3121,6 +3145,20 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								// nl2br( esc_html() ) on output is the safer contract.
 								'default' => bd_measurements_note_default(),
 								'description' => 'Shown at the bottom of the Measurements panel on the configurator. Not included on the PDF — it does not fit on every quote without adding a page. Line breaks are preserved; HTML is not rendered. Clear the box to hide the note entirely. Note that the shipped wording points the customer at the Additional notes field in Your Details.',
+							],
+							[
+								'id' => 'landing_note_boards',
+								'label' => 'Landing note — Boards & skirting',
+								'type' => 'text',
+								'default' => bd_landing_note_boards_default(),
+								'description' => 'Shown on the configurator in place of the Treads in Turn control on Quarter Landing and Double Quarter Landing, which the customer cannot change. States what the landing already includes. Clear the box to hide the note entirely — there is no fallback to the shipped wording, so a licensee who does not include landing boards can say nothing.',
+							],
+							[
+								'id' => 'landing_note_tandg',
+								'label' => 'Landing note — T&G landing',
+								'type' => 'text',
+								'default' => bd_landing_note_tandg_default(),
+								'description' => 'The same note for the Half Landing configuration, which includes a T&G landing rather than boards and skirting. Clear the box to hide it entirely.',
 							],
 							[
 								'id' => 'lead_notification_emails',

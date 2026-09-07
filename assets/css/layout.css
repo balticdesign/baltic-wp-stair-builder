@@ -569,6 +569,21 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   opacity: 0.75;
   line-height: 1.35;
 }
+/* Landing inclusion note (v2.26.0). Stands where the treads-in-turn control was
+   on the landing configs, so it sits directly in the section rather than inside
+   a .form-row and needs its own spacing. Sized like .bd-regs-desc — it is a
+   statement of what is included, not a field label. */
+.bd-stairbuilder-layout #stairbuild .bd-landing-note {
+  margin: 0 0 14px;
+  padding-left: 10px;
+  border-left: 2px solid var(--bd-form-text, #2B2522);
+  font-size: 0.8em;
+  font-weight: 400;
+  text-transform: none;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
 /* Additional notes (v2.25.0) — textarea plus its character counter. The
    textarea has to be sized here because .form-row's control rules target
    input/select only. */

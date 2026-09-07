@@ -77,6 +77,23 @@ $sb_is_half_landing = ( 'half:landing' === $sb_config_key );
 // class rather than a computed-style check, because the summary also renders
 // while the section is collapsed, when everything inside it is hidden anyway.
 // Helper so the class and the inline style can never drift apart.
+// Landing inclusion note, shown in place of the hidden treads-in-turn control.
+// Same null-vs-empty contract as the measurements note: option unset => shipped
+// default; option set to '' => the admin cleared it deliberately, so render
+// nothing at all rather than falling back to SPD's wording. One note per config
+// even where two controls are hidden (half:double_quarter).
+$sb_landing_note = '';
+if ( $sb_is_landing ) {
+	$sb_note_key     = $sb_is_half_landing ? 'landing_note_tandg' : 'landing_note_boards';
+	$sb_landing_note = stairbuilder_get_option( $sb_note_key, null );
+	if ( null === $sb_landing_note ) {
+		$sb_landing_note = $sb_is_half_landing
+			? bd_landing_note_tandg_default()
+			: bd_landing_note_boards_default();
+	}
+	$sb_landing_note = trim( (string) $sb_landing_note );
+}
+
 $sb_hide = function ( $on, $extra_class = '' ) {
 	$cls = trim( $extra_class . ( $on ? ' bd-hidden-row' : '' ) );
 	return ( '' !== $cls ? ' class="' . esc_attr( $cls ) . '"' : '' )
@@ -184,7 +201,13 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         <?php // Default is derived on load by the flight script (even distribution), not hardcoded. ?>
         <input type="number" id="treadbt" name="treadbt" value="" min="0">
         </div>
-        <div class="form-row">
+        <?php // Landing configs: the value is locked by the shortcode and the customer
+        // has no choice to make, so the heading and select are hidden and a static
+        // inclusion note shown in their place. The value is unchanged and still
+        // submitted -- the hidden input below carries it, because a disabled select
+        // does not POST. treadit never reaches pricing; it feeds only the flight
+        // allocators, so hiding the control moves no number. Winders keep theirs. ?>
+        <div<?php echo $sb_hide( $sb_is_landing, 'form-row' ); ?>>
         <label for="treadit">Treads in Turn:</label>
         <select id="treadit" name="treadit"<?php disabled( $sb_lock_treadit ); ?>>
         <?php
@@ -198,6 +221,11 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         </select>
         <?php if ( $sb_lock_treadit ) : ?><input type="hidden" name="treadit" value="<?php echo esc_attr( $sb_treadit ); ?>"><?php endif; ?>
         </div>
+        <?php // Disclosure, not a new inclusion: these have always been included, they
+        // were simply never stated. Admin-editable, escaped on output. ?>
+        <?php if ( '' !== $sb_landing_note ) : ?>
+        <p class="bd-landing-note"><?php echo esc_html( $sb_landing_note ); ?></p>
+        <?php endif; ?>
         <?php // Half landing: internal flight 2 IS the landing — halfTurn.js pins its
         // treads to 0 on every recalculation, so this is a phantom control. Heading and
         // row are hidden as a unit; hiding only the label would strand an editable field
@@ -212,7 +240,9 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         <input type="number" id="treadat" name="treadat" value="" min="0"<?php echo ( $flight2 && ! $flight3 ) ? ' readonly style="background:#f3f3f3;color:#555;"' : ''; ?>>
         </div>
         <?php if ($flight3) {?>
-         <div class="form-row"<?php if ( $sb_hide_treadit2 ) echo ' style="display:none"'; ?>>
+        <?php // Already hidden on half:landing (treadit = 4 leaves no second turn);
+        // half:double_quarter locks it too and now hides it on the same grounds. ?>
+         <div<?php echo $sb_hide( $sb_hide_treadit2 || $sb_is_landing, 'form-row' ); ?>>
         <label for="treadit2">Treads in Turn2:</label>
         <select id="treadit2" name="treadit2"<?php disabled( $sb_lock_treadit2 ); ?>>
         <?php

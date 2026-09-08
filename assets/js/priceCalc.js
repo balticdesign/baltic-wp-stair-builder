@@ -240,7 +240,39 @@ function calculateTotalPrice() {
       section3Length = $htAfter2 * rakeDivided * (rightBal3 + leftBal3);
     }
 
-    const boxSpindles = $boxSpindleNo * (boxBal1 + boxBal2 + boxBal3 + boxBal4);
+    // Landing rails vs turn rails.
+    //
+    // With NO middle flight the landing is three separately priced runs (SPD,
+    // 8 September 2026), and they are measured off the landing rather than off
+    // flight 1's width:
+    //
+    //   outer run   = flight 1 width + flight 2 width. The 58mm spacer is NOT
+    //                 added: it cancels against the newel post at each end of
+    //                 the run. Counted ONCE -- turntop and turn2top are both set
+    //                 to the same landingOuter flag in halfTurn.js, so adding
+    //                 both would bill the run twice.
+    //   each side   = the landing depth, #stair-width2, undeducted.
+    //
+    // Before this, boxBal3/boxBal4 added spindles but NO length at all, so half
+    // the landing rail was drawn and spindled and never measured; and every
+    // landing figure was taken as one flight-1 width regardless of the landing's
+    // actual size.
+    //
+    // With a real middle flight nothing changes: the turn rails keep their
+    // existing flight-1-width treatment.
+    const $landingRails = ( $stairType === 'half' && $qtAfter === 0 );
+    let activeBoxWidth = 0;
+    let boxSpindles = 0;
+    if ($landingRails) {
+      const $w3 = parseFloat(jQuery('#stair-width3').val()) || $width;
+      const $depth = parseFloat(jQuery('#stair-width2').val()) || $width;
+      const $outer = $width + $w3;
+      if (boxBal1) { activeBoxWidth += $outer; boxSpindles += Math.ceil($outer / 112); }
+      if (boxBal2) { activeBoxWidth += $depth; boxSpindles += Math.ceil($depth / 112); }
+      if (boxBal4) { activeBoxWidth += $depth; boxSpindles += Math.ceil($depth / 112); }
+    } else {
+      boxSpindles = $boxSpindleNo * (boxBal1 + boxBal2 + boxBal3 + boxBal4);
+    }
     totalSpindles = parseInt(flight1Spindles + flight2Spindles + flight3Spindles + boxSpindles);
     $spindle_price = totalSpindles * $spindle_cost;
     $spindleCount = totalSpindles; // wood; overridden below for metal/glass
@@ -249,9 +281,10 @@ function calculateTotalPrice() {
     const section1Length = $qtBefore * rakeDivided * (rightBal + leftBal);
     const section2Length = $qtAfter * rakeDivided * (rightBal2 + leftBal2);
 
-    let activeBoxWidth = 0;
-    if (boxBal1) activeBoxWidth += $width;
-    if (boxBal2) activeBoxWidth += $width;
+    if (!$landingRails) {
+      if (boxBal1) activeBoxWidth += $width;
+      if (boxBal2) activeBoxWidth += $width;
+    }
 
     const totalLength = section1Length + section2Length + section3Length + activeBoxWidth;
     const totalUnits = Math.ceil(totalLength / 1000);

@@ -319,6 +319,13 @@ function onLoad(changedElement = null) {
       if (!isFinite(per)) per = 29;
       return per * 2;
     })(),
+    // Two quarter landings meeting with no flight between them -- separate
+    // platforms a riser apart, so the drawing needs a boundary. titsRaw is read
+    // BEFORE the half-landing remap, which rewrites both to 1 and would otherwise
+    // make a half landing indistinguishable from this.
+    isDoubleQuarterLanding: (parseFloat(jQuery('#treadit').val()) === 1
+                             && parseFloat(jQuery('#treadit2').val()) === 1
+                             && (parseInt(jQuery('#treadat').val(), 10) || 0) === 0),
     turn1TreadsAmount: variables.tits,
     flight2Treads: {
       maxAmount: 6,

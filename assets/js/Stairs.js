@@ -607,6 +607,9 @@ Stairs.setHalfturnStairsOptions = function(config){
 
     Stairs.options.turn1TreadsAmount = parseInt(config.turn1TreadsAmount);
     Stairs.options.turn2TreadsAmount = parseInt(config.turn2TreadsAmount);
+    // Two quarter landings meeting, as opposed to a half landing. Both reach the
+    // renderer with turn amounts of 1, so only the caller knows which this is.
+    Stairs.options.isDoubleQuarterLanding = ( config.isDoubleQuarterLanding === true );
 
     // Landing spacer, mm -> px. When the middle flight has NO treads the two
     // flights previously abutted, so their inner stringers overlapped. The gap
@@ -1084,6 +1087,7 @@ Stairs.drawTreads = function(context, y, treads){
                         t += Stairs.options.turn2TreadsAmount -1;
                         break;
                 }
+                Stairs.drawLandingDivider(context, y);
             }
             else{
                 Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, flight1LeftX, y, flight1Treads.width, flight2Treads.width, s);
@@ -2626,6 +2630,36 @@ Stairs.drawQuarterturnMeasures = function(context){
 
     context.restore();
 }
+
+/**
+ * Divider between two quarter landings that meet with no flight between them.
+ *
+ * They are two separate platforms, one a riser above the other, not one surface
+ * -- so the drawing needs a boundary. A HALF landing is two landings at the same
+ * height joined into one and must NOT get a line: that is the whole difference
+ * between the two, and both arrive here as turn amounts of 1 (see the tits remap
+ * in halfTurn.js), so the config value is the only thing that can tell them apart.
+ *
+ * Drawing only. The elevation change is already in the riser count, which is
+ * fixed by floor height and going -- nothing here affects a number.
+ */
+Stairs.drawLandingDivider = function(context, y){
+    if (!Stairs.options.isDoubleQuarterLanding) return;
+    var flight1Treads = Stairs.options.flight1Treads;
+    var flight2Treads = Stairs.options.flight2Treads;
+    // The join sits between the two flights, i.e. across the landing spacer.
+    var x = (Stairs.options.direction === 'left')
+        ? Stairs.startX1 - Stairs.landingSpacerPx / 2
+        : Stairs.startX2 + Stairs.landingSpacerPx / 2;
+    context.save();
+    context.beginPath();
+    context.strokeStyle = flight1Treads.strokeColor || StairConstants.DEFAULT_TREAD_STROKE_COLOR;
+    context.lineWidth = 1;
+    context.moveTo(x, y);
+    context.lineTo(x, y + flight2Treads.width);
+    context.stroke();
+    context.restore();
+};
 
 Stairs.drawHalfturnMeasures = function(context){
     context.save();

@@ -240,7 +240,10 @@ $bd_row( 'Floor to Floor', ( $content['floor-height'] ?? '' ) !== '' ? $content[
 // the original numbering — their quotes went out under it and must still read
 // the way they were sent.
 $bd_hl        = bd_is_half_landing( $content );
-$bd_w2_label  = $bd_hl ? 'Staircase Width (Landing)'  : 'Staircase Width (Flight 2)';
+// Not a staircase width at all on this config — #stair-width2 sets the landing's
+// DEPTH. v2.28.1 printed it as "Staircase Width (Landing)", which was wrong twice
+// over: wrong dimension, and the word "Width" stated outright.
+$bd_w2_label  = $bd_hl ? 'Landing Depth'                : 'Staircase Width (Flight 2)';
 $bd_w3_label  = $bd_hl ? 'Staircase Width (Flight 2)' : 'Staircase Width (Flight 3)';
 $bd_row( ! empty( $content['stair-width2'] ) ? 'Staircase Width (Flight 1)' : 'Staircase Width', ( $content['stair-width'] ?? '' ) !== '' ? $content['stair-width'] . 'mm' : '' );
 $bd_row( $bd_w2_label, ! empty( $content['stair-width2'] ) ? $content['stair-width2'] . 'mm' : '' );

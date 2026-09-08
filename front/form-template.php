@@ -182,11 +182,16 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         <div class="form-row">
             <label for="stair-width">Width <span class="form-unit">(mm)</span> <span class="form-sub">(Outside to Outside String)</span></label>
             <input type="number" id="stair-width" name="stair-width" value="">
-            <?php // Half landing: #stair-width2 is the width of the landing itself (it
-            // drives the middle section of the diagram, halfTurn.js), so it is a
-            // rename and not a field to hide. Internal flight 3 becomes "Flight 2". ?>
+            <?php // Half landing: #stair-width2 sets the landing's DEPTH — the dimension
+            // running away from flight 1, not across it. The landing's width is not an
+            // input at all; the renderer derives it from the two flights. On a winder the
+            // same field really is flight 2's width, hence the split. Internal flight 3
+            // becomes "Flight 2".
+            //
+            // v2.26.0 labelled this "Landing Width" and v2.28.1 carried that onto the
+            // quote. Both were wrong: it asked for a depth under the word width. ?>
             <?php if ($flight2) {?>
-            <label for="stair-width2"><?php echo $sb_is_half_landing ? 'Landing Width' : 'Flight 2 Width'; ?> <span class="form-unit">(mm)</span></label>
+            <label for="stair-width2"><?php echo $sb_is_half_landing ? 'Landing Depth' : 'Flight 2 Width'; ?> <span class="form-unit">(mm)</span></label>
             <input type="number" id="stair-width2" name="stair-width2" value="">
             <?php } ?>
             <?php if ($flight3) {?>

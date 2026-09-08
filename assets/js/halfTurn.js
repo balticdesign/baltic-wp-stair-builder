@@ -286,6 +286,21 @@ function onLoad(changedElement = null) {
       strokeColor: bd_diagram_colours.treads_outline,
       textColor: bd_diagram_colours.treads_text
     },
+    // Gap between the two flights when the middle flight is empty, in MILLIMETRES.
+    // Two newel overhangs: each flight's stringer meets the middle of its own
+    // post, so the flights are pushed apart by one overhang each. Drawing only --
+    // it is never priced, and consumes no extra stringer or handrail.
+    // Zero when a middle flight exists; its treads already separate the flights.
+    landingSpacerMm: (function () {
+      var vars = window.stairBuilderVars || {};
+      var geo  = vars.geometry || {};
+      var map  = geo.newel_overhang_mm || {};
+      var code = (jQuery('#newel_type').val() || '').split(':')[0];
+      var per  = parseFloat(map[code]);
+      if (!isFinite(per)) per = parseFloat(geo.newel_overhang_default);
+      if (!isFinite(per)) per = 29;
+      return per * 2;
+    })(),
     turn1TreadsAmount: variables.tits,
     flight2Treads: {
       maxAmount: 6,

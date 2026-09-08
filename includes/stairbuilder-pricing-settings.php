@@ -3063,6 +3063,22 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					['id' => 'pine_id',        'label' => 'Pine Product ID', 'type' => 'product_id'],
 					['id' => 'oak_id',         'label' => 'Oak Product ID',  'type' => 'product_id'],
 				];
+
+				// Newel rows carry one extra dimension. $variant_subfields is SHARED with
+				// Handrail Types, so it must not be edited in place -- an "Overhang" field
+				// on a handrail would be meaningless.
+				//
+				// Overhang is how far a newel stands proud of the stringer it sits on. On a
+				// staircase whose middle flight is empty, the two flights are pushed apart by
+				// TWO of these, because each flight's stringer connects to the middle of its
+				// own post: 29 + 29 = the 58mm gap the drawing needs. Placeholder rather than
+				// 'default', because render_number() ignores a 'default' key -- the fallback
+				// is applied where the value is read.
+				$newel_subfields = array_merge(
+					array_slice( $variant_subfields, 0, 2 ),
+					[ ['id' => 'overhang_mm', 'label' => 'Overhang (mm)', 'type' => 'number', 'placeholder' => 29] ],
+					array_slice( $variant_subfields, 2 )
+				);
 				// Caps additionally carry a per-newel quantity multiplier. The
 				// front-end cap select encodes this as `{code}:{caps_per_newel}`
 				// (mirroring the always-present `none:0` no-cap choice), which the
@@ -3287,8 +3303,8 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'label' => 'Newel Post Types',
 								'type' => 'repeater',
 								'style' => 'card',
-								'description' => 'Each row is a selectable newel style. Name = label shown to the customer; Code = stable machine key.',
-								'subfields' => $variant_subfields,
+								'description' => 'Each row is a selectable newel style. Name = label shown to the customer; Code = stable machine key. Overhang is how far the post stands proud of its stringer — two of them set the gap between the flights on a staircase with no middle flight.',
+								'subfields' => $newel_subfields,
 							],
 						],
 					],

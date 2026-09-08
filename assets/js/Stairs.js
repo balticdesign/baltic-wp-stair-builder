@@ -535,7 +535,17 @@ Stairs.setHalfturnStairsOptions = function(config){
     Stairs.maxWidthPx = Stairs.canvas.width - StairConstants.SIDE_MEASURE_TAG_WIDTH * 2;
 
     // width-height in MM, for printing purposes.
-    Stairs.printMMWidth = parseInt(config.flight1Treads.width) + parseInt(config.treadHeight) * parseInt(config.flight2Treads.amount) + parseInt(config.flight3Treads.width);
+    //
+    // The landing spacer counts toward the drawn (b) dimension: the staircase is
+    // physically that much wider. It is only non-zero when the middle flight has
+    // no treads. Note this is the OVERALL WIDTH -- the landing's RAIL is measured
+    // as flight 1 + flight 3, because the 58mm cancels against the newel post at
+    // each end of the run (SPD, 8 September 2026). The two figures differ on
+    // purpose; do not reconcile them.
+    var bdLandingSpacerMm = ( parseInt(config.flight2Treads.amount) === 0 )
+        ? ( parseFloat(config.landingSpacerMm) || 0 )
+        : 0;
+    Stairs.printMMWidth = parseInt(config.flight1Treads.width) + parseInt(config.treadHeight) * parseInt(config.flight2Treads.amount) + parseInt(config.flight3Treads.width) + bdLandingSpacerMm;
     Stairs.printMMHeight1 = parseInt(config.treadHeight) * parseInt(config.flight1Treads.amount) + parseInt(config.flight2Treads.width);
     // v2.16.0 Phase 4b: the top lip is at the head of the LAST flight (flight 3),
     // so it extends the (c) run dimension (printMMHeight2). Flight 1 (printMMHeight1)
@@ -598,8 +608,23 @@ Stairs.setHalfturnStairsOptions = function(config){
     Stairs.options.turn1TreadsAmount = parseInt(config.turn1TreadsAmount);
     Stairs.options.turn2TreadsAmount = parseInt(config.turn2TreadsAmount);
 
+    // Landing spacer, mm -> px. When the middle flight has NO treads the two
+    // flights previously abutted, so their inner stringers overlapped. The gap
+    // is two newel overhangs (see halfTurn.js landingSpacerMm). Scaled off the
+    // going, the same way Stairs.lipPx above is: this sits on the going axis,
+    // which is what the middle flight's treads are measured along.
+    //
+    // Zero whenever a middle flight exists -- its treads already separate them.
+    Stairs.landingSpacerPx = 0;
+    if (Stairs.options.flight2Treads.amount === 0 && bdHalfGoingMm > 0) {
+        var bdSpacerMm = parseFloat(config.landingSpacerMm);
+        if (isFinite(bdSpacerMm) && bdSpacerMm > 0) {
+            Stairs.landingSpacerPx = bdSpacerMm * Stairs.options.treadHeight / bdHalfGoingMm;
+        }
+    }
+
     // width in pixels of the complete stairs
-    Stairs.widthPx = Stairs.options.flight1Treads.width + Stairs.options.flight3Treads.width + Stairs.options.treadHeight * Stairs.options.flight2Treads.amount + StairConstants.SIDE_MEASURE_TAG_WIDTH * 2;
+    Stairs.widthPx = Stairs.options.flight1Treads.width + Stairs.options.flight3Treads.width + Stairs.options.treadHeight * Stairs.options.flight2Treads.amount + Stairs.landingSpacerPx + StairConstants.SIDE_MEASURE_TAG_WIDTH * 2;
 
     //Posts
     Stairs.options.posts = {};
@@ -1043,17 +1068,19 @@ Stairs.drawTreads = function(context, y, treads){
                         positionX = flight1LeftX - flight2Treads.height;
                         var t = s;
                         positionX += flight2Treads.height;
-                        positionX -= flight3Treads.width;
+                        // Push flight 3 clear of flight 1 by the landing spacer, so the two
+                        // inner stringers sit side by side instead of on top of each other.
+                        positionX -= flight3Treads.width + Stairs.landingSpacerPx;
                         Stairs.insideTurnX2 = positionX + flight3Treads.width;
                         Stairs.outsideTurnX2 = positionX;
-                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, positionX, y, flight1Treads.width + flight3Treads.width, flight2Treads.width, t, true);
+                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, positionX, y, flight1Treads.width + flight3Treads.width + Stairs.landingSpacerPx, flight2Treads.width, t, true);
                         break;
                     case 'right':
                         var t = s;
-                        var positionX = flight1LeftX + flight1Treads.width;
+                        var positionX = flight1LeftX + flight1Treads.width + Stairs.landingSpacerPx;
                         Stairs.insideTurnX2 = positionX;
                         Stairs.outsideTurnX2 = positionX + flight3Treads.width;
-                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, flight1LeftX, y, flight1Treads.width + flight3Treads.width, flight2Treads.width, t, true);
+                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, flight1LeftX, y, flight1Treads.width + flight3Treads.width + Stairs.landingSpacerPx, flight2Treads.width, t, true);
                         t += Stairs.options.turn2TreadsAmount -1;
                         break;
                 }
@@ -1077,13 +1104,18 @@ Stairs.drawTreads = function(context, y, treads){
                             positionX -= flight2Treads.height;
                         }
                         positionX += flight2Treads.height;
-                        positionX -= flight3Treads.width;
+                        // landingSpacerPx is 0 whenever the middle flight has treads -- they
+                        // already separate the flights. It is only non-zero on the empty-
+                        // middle-flight staircases, where the two turns would otherwise
+                        // abut and their inner stringers overlap. Applies to the winder
+                        // variant here as well as the landings in the fused branch above.
+                        positionX -= flight3Treads.width + Stairs.landingSpacerPx;
                         Stairs.insideTurnX2 = positionX + flight3Treads.width;
                         Stairs.outsideTurnX2 = positionX;
                         Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn2TreadsAmount, positionX, y, flight3Treads.width, flight2Treads.width, t, true);
                         break;
                     case 'right':
-                        var positionX = flight1LeftX + flight1Treads.width;
+                        var positionX = flight1LeftX + flight1Treads.width + Stairs.landingSpacerPx;
                         for(var t = s; t < flight2Treads.amount + s; t++){
                             Stairs.drawRegularTread(flight2Treads,context, positionX, y, flight2Treads.height, flight2Treads.width, t);
                             positionX += flight2Treads.height;

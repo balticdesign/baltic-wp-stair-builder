@@ -436,6 +436,37 @@ function bd_featured_step_label( $left, $right ) {
 }
 
 /**
+ * Newel overhang per style, as code => millimetres.
+ *
+ * How far a newel stands proud of the stringer it sits on. Two of them set the
+ * gap between the flights on a staircase whose middle flight is empty: each
+ * flight's stringer connects to the middle of its own post, so the flights are
+ * pushed apart by one overhang each. 29 + 29 = the 58mm the drawing needs.
+ *
+ * Drawing geometry only -- this is never priced, and the gap consumes no extra
+ * stringer or handrail (SPD, 8 September 2026).
+ *
+ * Rows with no value fall back to 29 rather than 0: a zero would put the two
+ * flights back on top of each other, which is the defect this exists to fix.
+ */
+function bd_newel_overhang_map() {
+  $rows = stairbuilder_get_option( 'newel_types', array() );
+  $map  = array();
+  if ( is_array( $rows ) ) {
+    foreach ( $rows as $row ) {
+      if ( ! is_array( $row ) || empty( $row['code'] ) ) {
+        continue;
+      }
+      $mm = isset( $row['overhang_mm'] ) && is_numeric( $row['overhang_mm'] )
+        ? (float) $row['overhang_mm']
+        : 29.0;
+      $map[ (string) $row['code'] ] = $mm;
+    }
+  }
+  return $map;
+}
+
+/**
  * T&G landing selection labels — SPD's wording, half:landing only.
  *
  * Keyed by the value the select submits. The landing is a priced line item

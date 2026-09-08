@@ -206,6 +206,13 @@ function custom_enqueue_files() {
 			// Top lip (Phase 4) — display/drawing only, never priced. Default 0 =
 			// pre-v2.16 geometry. SPD enters 43. See §5.2 boundary.
 			'top_lip_mm'       => stairbuilder_get_option( 'top_lip_mm', 0 ),
+			// Newel overhang per style, code => mm. On a staircase whose middle
+			// flight is empty the two flights are separated by TWO overhangs --
+			// each flight's stringer meets the middle of its own post -- which is
+			// the 58mm gap at the shipped 29mm. Drawing only; never priced.
+			// Keyed by newel code so it follows the customer's newel selection.
+			'newel_overhang_mm' => bd_newel_overhang_map(),
+			'newel_overhang_default' => 29,
 		),
 		'availability' => $bd_availability,
 	) );

@@ -125,9 +125,35 @@ function calculateTotalPrice() {
   const $tread_profile_price = parseFloat(jQuery('#tread-profile option:selected').attr('data-price')) || 0;
 
   // === Derived Values ===
-  const $adj = parseFloat($height / 0.90040404);
   const $going = parseFloat(jQuery("#going").val());
-  const $risers = Math.ceil($adj / $going);
+
+  // Price the staircase the customer actually selected.
+  //
+  // #risers is a dropdown of the riser counts valid for this height and going
+  // under the active building-regs regime (BuilderUtils.getStaircaseConfig). The
+  // drawing, the measurements, the angle and the quote PDF have all followed it
+  // for releases -- this file did not. It derived its own count from height and
+  // going and never read the selection, so a staircase could gain five risers,
+  // five treads and 1200mm of stringer without the quote moving by a penny, and
+  // the PDF would print "Risers: 18" beside a price computed for 13.
+  //
+  // The flight scripts were brought onto the dropdown in an earlier release --
+  // see the comment at the top of straightFlight.js, which already states that
+  // the angle, PRICE and canvas should describe the same staircase. This is the
+  // call site that was missed then.
+  //
+  // formValues.risers and NOT formValues.treads: straightFlight.js adds a tread
+  // when the regs cap on riser height is exceeded (treads = risers + modifier),
+  // so on a straight flight the two counts differ by one. Stringer and riser
+  // material scale with risers, which is what this figure is for.
+  const $selectedRisers = parseFloat(formValues.risers);
+  // Fallback only for an empty or unset dropdown -- never the primary path. Same
+  // legacy estimate straightFlight.js keeps for the same reason; 0.90040404 is
+  // an undocumented adjustment factor shared by all the flight scripts.
+  const $risers = ( Number.isFinite($selectedRisers) && $selectedRisers > 0 )
+    ? $selectedRisers
+    : Math.ceil( parseFloat($height / 0.90040404) / $going );
+
   const $str_price = ($stringer_price + $tread_price + $tread_profile_price + $riser_price) * $risers;
 
   // === Delivery & Optional Extras ===

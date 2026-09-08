@@ -525,6 +525,14 @@ function grabFormValues($ = window.jQuery) {
   let nposts = getString("newel-posts", $);
   let spinglass = $('input[name="ballustrades"]:checked').val();
   let height = parseFloat(floor_h.replace(/,/g, ''));
+  // 0.90040404: undocumented adjustment factor shared with the flight scripts.
+  //
+  // NOTE, v2.29.0: the risers line below derives the count rather than reading the
+  // #risers dropdown -- the same defect that was fixed in priceCalc.js this
+  // release. It is left alone because this whole function is a fallback that only
+  // runs when a stair-specific grabFormValues is unavailable, so the path cannot
+  // be exercised to verify a change. If it ever becomes reachable, read the
+  // dropdown here too and keep this derivation as the empty-dropdown fallback.
   let adj = parseFloat(height / 0.90040404);
   let widthadj = parseFloat($("#stair-width").val());
   let width = (widthadj);

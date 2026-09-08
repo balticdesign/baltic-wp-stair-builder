@@ -102,6 +102,11 @@ function grabFormValues() {
   let nposts = BuilderUtils.getString("newel-posts");
   let spinglass = jQuery('input[name="ballustrades"]:checked').val();
   let height = parseFloat((floor_h || '0').replace(/,/g, ''));
+  // 0.90040404 is an undocumented adjustment factor, the same in all four flight
+  // scripts and in builderUtils. It converts floor height into a going-based
+  // estimate of the riser count. NOTHING IN THIS FILE USES adj -- the riser count
+  // comes from the #risers dropdown below -- it is only passed out in the returned
+  // object. Kept for callers; do not reintroduce it as a source of truth.
   let adj = height / 0.90040404;
   let width = parseFloat(jQuery("#stair-width").val()) || 800;
   let width2 = parseFloat(jQuery("#stair-width2").val()) || 800;

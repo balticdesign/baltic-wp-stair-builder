@@ -227,7 +227,17 @@ function calculateTotalPrice() {
 
     if ($htAfter2) {
       flight3Spindles = $htAfter2 * 2 * (rightBal3 + leftBal3);
-      section3Length = $htAfter2 * rakeDivided * (rightBal2 + leftBal2);
+      // Flight 3's rail length takes FLIGHT 3's balustrade sides. It read bal2
+      // until v2.30.0 -- the single break in this file's otherwise exact 1/2/3
+      // parallel, and the only use of rightBal2/leftBal2 that was not about
+      // flight 2. SPD confirmed the sides are a per-flight property (per side,
+      // in fact: a wall at any edge removes the need for balustrading there), so
+      // borrowing flight 2's count was never defensible.
+      //
+      // It does NOT correct in one direction. Where flight 3 is railed on more
+      // sides than flight 2 the quote rises; where flight 3 has no balustrade of
+      // its own but the landing does, it falls.
+      section3Length = $htAfter2 * rakeDivided * (rightBal3 + leftBal3);
     }
 
     const boxSpindles = $boxSpindleNo * (boxBal1 + boxBal2 + boxBal3 + boxBal4);

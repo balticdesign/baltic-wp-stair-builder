@@ -497,7 +497,15 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         </div>
     </div>
     <?php if ($flight3) {?>
-      <?php // Post labels carry flight numbers, so they follow the half-landing relabel
+      <?php // The two MID-FLIGHT posts (#to-post2 here, #bo-post below) sit at the ends
+      // of the middle flight. They carry .bd-midflight-post and formLogic.js shows or
+      // hides the pair as #treadat crosses zero: with no middle flight there are no
+      // posts at its ends, and offering both was the double-charge behind SPD amend 10.
+      // Bound to the flight rather than the shortcode config, because the customer can
+      // empty the middle flight on any half turn -- which is how the v2.28.0 fix missed
+      // the double winder. v2.28.0's single "Landing Middle" box is superseded.
+      //
+      // Post labels carry flight numbers, so they follow the half-landing relabel
       // above or they contradict it. Internal flight 3 becomes "Flt.2"; the box corners
       // already read correctly under the new numbering, each naming the landing corner
       // nearest its flight.
@@ -515,12 +523,10 @@ $sb_hide = function ( $on, $extra_class = '' ) {
       // as two deliberately distinct posts. That was wrong; this supersedes it. ?>
       <h3>Turn 2</h3>
       <div class="form-row">
-        <?php if ( ! $sb_is_half_landing ) : ?>
-        <div class="form-col">
+        <div class="form-col bd-midflight-post">
         <label for="to-post2">Flt.2 Top Outside</label>
             <input id="to-post2" type="checkbox" name="to-post2" value="1">
             </div>
-        <?php endif; ?>
         <div class="form-col">
         <label for="bo-post2"><?php echo $sb_is_half_landing ? 'Flt.2 Bottom Outside' : 'Flt.3 Bottom Outside'; ?></label>
             <input id="bo-post2" type="checkbox" name="bo-post2" value="1">
@@ -536,9 +542,8 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         <div class="form-col">
         <label for="to-post">Flt.1 Top Outside</label>
             <input id="to-post" type="checkbox" name="to-post" value="1">
-            </div><div class="form-col">
-        <?php // half:landing — the one mid-landing post. See the Turn 2 note above. ?>
-        <label for="bo-post"><?php echo $sb_is_half_landing ? 'Landing Middle' : 'Flt.2 Bottom Outside'; ?></label>
+            </div><div class="form-col bd-midflight-post">
+        <label for="bo-post">Flt.2 Bottom Outside</label>
             <input id="bo-post" type="checkbox" name="bo-post" value="1">
             </div><div class="form-col">
             <label for="box-post">Flt.1 Box Corner</label>

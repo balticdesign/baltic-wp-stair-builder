@@ -161,6 +161,11 @@ function grabFormValues() {
   let spin_style = (jQuery("#spindle_type").val() || '').toUpperCase();
   let newel_cap = (BuilderUtils.getString("newel_cap") || '').toUpperCase();
 
+  // A staircase with no middle flight: half landing (forced), or a double winder
+  // or double quarter landing where the customer set Treads After Turn to 0.
+  // Read from the live input, not the shortcode config -- it changes as they type.
+  const middleFlightEmpty = (parseInt(jQuery('#treadat').val(), 10) || 0) === 0;
+
   if (nposts === "custom") {
     jQuery('#custom').show();
     if (jQuery("#tl-post").is(":checked")) {
@@ -185,22 +190,6 @@ function grabFormValues() {
     if (jQuery("#to-post2").is(":checked")) {
       if (direction === 'left') f2to = true; else boxcorner2 = true;
     }
-    // Half landing: flight 2 is collapsed to zero treads — it IS the landing — so
-    // that flight's "bottom" (turn 1, #bo-post) and "top" (turn 2, #to-post2) are
-    // the same physical post. The form renders only #bo-post there, labelled
-    // "Landing Middle", so it must set the pair of flags that ticking both used to
-    // set. It is charged once because only one box exists to tick.
-    //
-    // Keyed on #to-post2 being ABSENT rather than on isHalfLanding alone: the open
-    // form (shortcode with no stair_config) still offers both boxes even when the
-    // customer picks "Half Landing" in Treads in Turn, and this must never fire
-    // where two boxes exist or one tick would set flags the other box also owns.
-    //
-    // Additive like every block above it — nothing here ever sets a flag false, so
-    // #box-post / #box-post2 keep contributing their own halves unchanged.
-    if (isHalfLanding && jQuery("#to-post2").length === 0 && jQuery("#bo-post").is(":checked")) {
-      if (direction === 'left') f2to = true; else boxcorner2 = true;
-    }
     f3bo = jQuery("#bo-post2").is(":checked");
     // Balustrades
     if (spinglass === "true") {
@@ -219,6 +208,35 @@ function grabFormValues() {
           turntop = boxcorner && f2bo; turnside = f1to && f2bo;
           turn2top = boxcorner2 && f2to; turn2side = f2to && f3bo;
           break;
+      }
+
+      // ---- Landing rails, when the middle flight is empty -------------------
+      //
+      // With no middle flight there are no posts at its ends, so #bo-post and
+      // #to-post2 are not rendered (formLogic.js binds them to #treadat) and the
+      // direction-mapped flags they fed are dead. The landing's three rails are
+      // therefore gated on the surviving checkboxes DIRECTLY, not on those flags:
+      // reading boxcorner/boxcorner2 here would work on a left-hand stair and
+      // silently fail on a right-hand one, because which variable a box feeds
+      // depends on the direction.
+      //
+      // SPD's model: every edge either has a rail or has none, so the landing is
+      // three separately switchable, separately priced runs.
+      //
+      //   outer run  -- both box corners        (one span, not two halves)
+      //   side, flight 1 end                    (#to-post)
+      //   side, flight 2 end                    (#bo-post2)
+      //
+      // The outer run is one continuous rail across the landing. It is expressed
+      // as both halves being true together, which is what the renderer draws as a
+      // full-width run; there is no middle post to break it at, and none is drawn
+      // now that the mid-flight boxes are gone.
+      if (middleFlightEmpty) {
+        const landingOuter = jQuery("#box-post").is(":checked") && jQuery("#box-post2").is(":checked");
+        turntop  = landingOuter;
+        turn2top = landingOuter;
+        turnside  = jQuery("#to-post").is(":checked");
+        turn2side = jQuery("#bo-post2").is(":checked");
       }
     }
   } else {

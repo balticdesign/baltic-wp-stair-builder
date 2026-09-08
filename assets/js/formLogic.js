@@ -422,6 +422,7 @@ jQuery(document).ready(function () {
   jQuery('#newel-posts option[value="custom:0"]').val("custom:0");
   getNewelIds();
   bdUpdateNewelVisibility();
+  bdUpdateMidFlightPosts();
 
   // Delivery update click
   jQuery('.deliv_btn').click(function (e) {
@@ -471,6 +472,7 @@ jQuery('#posts :input').change(function () {
   }).val(customValue);
   getNewelIds();
   bdUpdateNewelVisibility();
+  bdUpdateMidFlightPosts();
   let newelType = jQuery('#newel_type').val();
   let spindleType = jQuery('#spindle_type').val();
   let hrType = jQuery('#handrail_type').val();
@@ -511,6 +513,31 @@ function bdUpdateNewelVisibility() {
   const optional = BuilderUtils.getNumber('newel-posts') || 0;
   jQuery('.bd-newel-fields').toggleClass('is-hidden', (optional + mandatory) === 0);
 }
+
+// The two MID-FLIGHT post checkboxes (#bo-post, #to-post2) sit at the ends of the
+// middle flight, so they exist only while that flight does. SPD amend 10 was a
+// double charge: on a staircase with no middle flight the two are the same
+// physical point, and a customer could tick both and pay for two newels and two
+// caps where one post exists.
+//
+// Bound to #treadat, not to the shortcode config. The customer can empty the
+// middle flight on ANY half turn by setting Treads After Turn to 0 -- a double
+// winder or a double quarter landing as well as a half landing -- which is why
+// the v2.28.0 fix, keyed on the config, missed two of the three.
+//
+// Hidden boxes are also UNCHECKED. A checkbox left ticked behind display:none
+// still posts and is still counted by the newel tally, which would keep the
+// original overcharge alive out of sight.
+function bdUpdateMidFlightPosts() {
+  const midTreads = parseInt(jQuery('#treadat').val(), 10) || 0;
+  const hide = (midTreads === 0);
+  jQuery('.bd-midflight-post').toggle(!hide);
+  if (hide) {
+    jQuery('#bo-post, #to-post2').filter(':checked').prop('checked', false).trigger('change');
+  }
+}
+jQuery(document).on('input change', '#treadat', bdUpdateMidFlightPosts);
+jQuery(function () { bdUpdateMidFlightPosts(); });
 
 // Clear a field's red highlight as soon as it has content — re-checking the
 // email's format is left to the next submit, so typing isn't nagged mid-address.

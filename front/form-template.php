@@ -190,9 +190,26 @@ $sb_hide = function ( $on, $extra_class = '' ) {
             //
             // v2.26.0 labelled this "Landing Width" and v2.28.1 carried that onto the
             // quote. Both were wrong: it asked for a depth under the word width. ?>
+            <?php // On a staircase with no middle flight this is the landing's depth and
+            // the customer has nothing to decide: it follows the widest flight. Hidden by
+            // default and derived, with a checkbox to reveal it for commercial jobs or a
+            // change of mind. Editing the revealed field overrides the derivation; leaving
+            // it alone keeps it running. The value still POSTs while hidden -- display:none
+            // does not stop a field submitting -- so it still reaches form_data and the PDF.
+            //
+            // formLogic.js owns the show/hide and the label, because the condition is the
+            // live #treadat value, not the shortcode config: the customer can empty the
+            // middle flight on any half turn. ?>
             <?php if ($flight2) {?>
-            <label for="stair-width2"><?php echo $sb_is_half_landing ? 'Landing Depth' : 'Flight 2 Width'; ?> <span class="form-unit">(mm)</span></label>
+            <div class="bd-depth-field">
+            <label for="stair-width2" id="stair-width2-label"><?php echo $sb_is_half_landing ? 'Landing Depth' : 'Flight 2 Width'; ?> <span class="form-unit">(mm)</span></label>
             <input type="number" id="stair-width2" name="stair-width2" value="">
+            </div>
+            <?php if ($flight3) { ?>
+            <div class="bd-depth-toggle" style="display:none">
+              <label for="bd-show-depth"><input type="checkbox" id="bd-show-depth"> Set the landing depth myself</label>
+            </div>
+            <?php } ?>
             <?php } ?>
             <?php if ($flight3) {?>
             <label for="stair-width3"><?php echo $sb_is_half_landing ? 'Flight 2 Width' : 'Flight 3 Width'; ?> <span class="form-unit">(mm)</span></label>

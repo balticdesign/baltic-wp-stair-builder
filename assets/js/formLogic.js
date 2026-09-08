@@ -423,6 +423,7 @@ jQuery(document).ready(function () {
   getNewelIds();
   bdUpdateNewelVisibility();
   bdUpdateMidFlightPosts();
+  bdUpdateLandingDepth();
 
   // Delivery update click
   jQuery('.deliv_btn').click(function (e) {
@@ -473,6 +474,7 @@ jQuery('#posts :input').change(function () {
   getNewelIds();
   bdUpdateNewelVisibility();
   bdUpdateMidFlightPosts();
+  bdUpdateLandingDepth();
   let newelType = jQuery('#newel_type').val();
   let spindleType = jQuery('#spindle_type').val();
   let hrType = jQuery('#handrail_type').val();
@@ -538,6 +540,53 @@ function bdUpdateMidFlightPosts() {
 }
 jQuery(document).on('input change', '#treadat', bdUpdateMidFlightPosts);
 jQuery(function () { bdUpdateMidFlightPosts(); });
+
+// #stair-width2 is flight 2's width while there IS a flight 2. With no middle
+// flight it is the landing's depth, and the customer has nothing to decide: the
+// landing has to take the widest flight. So it is hidden and derived, with a
+// checkbox to reveal it for a commercial job or a change of mind.
+//
+// The derivation keeps running until the customer edits the revealed field --
+// then it stops for the rest of the session and their number stands. The value
+// still POSTs while hidden; display:none does not stop a field submitting.
+//
+// Keyed on the live #treadat, not the shortcode config, for the same reason as
+// the mid-flight posts: any half turn can have its middle flight emptied.
+let bdDepthOverridden = false;
+function bdUpdateLandingDepth() {
+  const depth = jQuery('#stair-width2');
+  if (!depth.length) return;
+  const midTreads = parseInt(jQuery('#treadat').val(), 10) || 0;
+  const isLanding = (midTreads === 0) && jQuery('#stair-width3').length > 0;
+  const reveal = jQuery('#bd-show-depth').is(':checked');
+
+  jQuery('.bd-depth-toggle').toggle(isLanding);
+  jQuery('.bd-depth-field').toggle(!isLanding || reveal);
+
+  // Label follows the dimension it actually is, on every config.
+  const label = jQuery('#stair-width2-label');
+  if (label.length) {
+    label.contents().filter(function () { return this.nodeType === 3; }).first()
+      .replaceWith(isLanding ? 'Landing Depth ' : 'Flight 2 Width ');
+  }
+
+  if (isLanding && !bdDepthOverridden) {
+    const w1 = parseFloat(jQuery('#stair-width').val()) || 0;
+    const w3 = parseFloat(jQuery('#stair-width3').val()) || 0;
+    const widest = Math.max(w1, w3);
+    if (widest > 0 && parseFloat(depth.val()) !== widest) {
+      depth.val(widest);
+    }
+  }
+}
+jQuery(document).on('input change', '#treadat, #stair-width, #stair-width3', bdUpdateLandingDepth);
+jQuery(document).on('change', '#bd-show-depth', bdUpdateLandingDepth);
+// Only a customer edit of the REVEALED field counts as an override -- the
+// derivation writes to this input too, and must not switch itself off.
+jQuery(document).on('input', '#stair-width2', function (e) {
+  if (e.originalEvent && jQuery('#bd-show-depth').is(':checked')) bdDepthOverridden = true;
+});
+jQuery(function () { bdUpdateLandingDepth(); });
 
 // Clear a field's red highlight as soon as it has content — re-checking the
 // email's format is left to the next submit, so typing isn't nagged mid-address.

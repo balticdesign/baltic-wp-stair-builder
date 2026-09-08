@@ -14,7 +14,27 @@ let flightsInitialised = false;
 function allocateHalfTurnFlights(budget, tits, tits2, isHalfLanding) {
   const w1 = parseInt(tits, 10) || 0;
   const w2 = parseInt(tits2, 10) || 0;
-  const available = budget - w1 - w2;
+  // A landing IS a tread structurally -- a landing board rather than a tread
+  // board, but it occupies a tread's place and needs its riser -- so each turn
+  // rightly takes its treads out of the budget.
+  //
+  // A HALF LANDING is the exception: it is two landings at the SAME height
+  // joined into one, so it occupies ONE tread, not two. A double quarter
+  // landing is two landings one riser apart and correctly consumes both. Both
+  // arrive here as tits = 1, tits2 = 1 after the remap in grabFormValues(),
+  // which is precisely why they cannot be told apart from those values alone
+  // and this flag has to say which is which.
+  //
+  // The remap itself is left as it is: tits/tits2 are also handed to the
+  // renderer as turn1TreadsAmount / turn2TreadsAmount, so changing them there
+  // would redraw the turns. Only the budget arithmetic is corrected.
+  //
+  // ONE figure for both paths below. allocateFlightTreads() recomputes its own
+  // available from the winders array it is given, so the first-load
+  // distribution and the re-allocation will silently disagree unless they are
+  // handed the same number -- which is exactly what went wrong first time.
+  const turnTreads = isHalfLanding ? Math.max(0, w1 + w2 - 1) : (w1 + w2);
+  const available = budget - turnTreads;
 
   const invalidMsg =
     'This staircase has too few risers for the selected turns — increase the floor height or reduce the turns.';
@@ -30,7 +50,7 @@ function allocateHalfTurnFlights(budget, tits, tits2, isHalfLanding) {
       return { beforeturn: f1, afterturn1: 0, afterturn2: f3 };
     }
     const res = BuilderUtils.allocateFlightTreads(
-      budget, [w1, w2], [jQuery('#treadbt').val()],
+      budget, [turnTreads], [jQuery('#treadbt').val()],
       [BuilderUtils.MIN_FLIGHT_FIRST, BuilderUtils.MIN_FLIGHT_LAST]
     );
     if (!res.valid) {

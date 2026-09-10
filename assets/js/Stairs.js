@@ -71,6 +71,9 @@ StairConstants.PROPORTION_HALFTURN_MIN_WIDTH_TO_CANVAS_WIDTH = 1;
 StairConstants.BOTTOM_MEASURE_TAG_HEIGHT = 60;
 StairConstants.TOP_MEASURE_TAG_START_Y = 0;
 StairConstants.DOUBLETURN_TOP_MEASURE_HEIGHT = 20;
+// Quarter/half-turn draw the (b) run measure ABOVE the turn/landing, so their
+// bounding boxes reserve this much headroom for the line, ticks and label.
+StairConstants.TURN_TOP_MEASURE_HEIGHT = 25;
 StairConstants.SIDE_MEASURE_TAG_WIDTH = 60;
 
 Stairs = {}
@@ -151,11 +154,13 @@ Stairs.computeFitZoom = function () {
             stairWidth  = Stairs.options.treads.width;
             break;
         case Stairs.StairTypeEnum.QUARTERTURN:
-            stairHeight = Stairs.maxHeight;
+            // Top allowance for the (b) run measure drawn above the turn.
+            stairHeight = Stairs.maxHeight + StairConstants.TURN_TOP_MEASURE_HEIGHT;
             stairWidth  = Stairs.widthPx;
             break;
         case Stairs.StairTypeEnum.HALFTURN:
-            stairHeight = Stairs.maxHeight1;
+            // Top allowance for the (b) run measure drawn above the landing.
+            stairHeight = Stairs.maxHeight1 + StairConstants.TURN_TOP_MEASURE_HEIGHT;
             stairWidth  = Stairs.widthPx;
             break;
         case Stairs.StairTypeEnum.DOUBLETURN:
@@ -171,7 +176,17 @@ Stairs.computeFitZoom = function () {
 
     var fitByHeight = (Stairs.canvas.height * TARGET_FILL_HEIGHT) / stairHeight;
     var fitByWidth  = (Stairs.canvas.width  * TARGET_FILL_WIDTH)  / stairWidth;
-    return Math.min(fitByHeight, fitByWidth);
+    var fit = Math.min(fitByHeight, fitByWidth);
+
+    // Quarter/half-turn draw the (b) run measure ABOVE the staircase, so their
+    // initial view must not overflow the canvas vertically the way the other
+    // types are allowed to — a clipped measure is worse than a smaller diagram.
+    // Width still binds on most canvases; this cap only trims the tight ones.
+    if (Stairs.options.type === Stairs.StairTypeEnum.QUARTERTURN ||
+        Stairs.options.type === Stairs.StairTypeEnum.HALFTURN) {
+        fit = Math.min(fit, Stairs.canvas.height / stairHeight);
+    }
+    return fit;
 };
 
 // Applies pan/zoom transform to the canvas context. Centres the staircase's
@@ -207,19 +222,23 @@ Stairs.applyViewportTransform = function (context) {
             // leftward. The bounding-box origin has to match where the
             // staircase actually lives or the centering will drift.
             stairWidth   = Stairs.widthPx;
-            stairHeight  = Stairs.maxHeight;
+            // The (b) run measure sits above the turn — reserve its headroom
+            // (keep in sync with computeFitZoom's QUARTERTURN case).
+            stairHeight  = Stairs.maxHeight + StairConstants.TURN_TOP_MEASURE_HEIGHT;
             stairOriginX = (Stairs.options.direction === 'left')
                 ? Stairs.canvas.width - Stairs.widthPx
                 : 0;
-            stairOriginY = 0;
+            stairOriginY = -StairConstants.TURN_TOP_MEASURE_HEIGHT;
             break;
         case Stairs.StairTypeEnum.HALFTURN:
             stairWidth   = Stairs.widthPx;
-            stairHeight  = Stairs.maxHeight1;
+            // The (b) run measure sits above the landing — reserve its headroom
+            // (keep in sync with computeFitZoom's HALFTURN case).
+            stairHeight  = Stairs.maxHeight1 + StairConstants.TURN_TOP_MEASURE_HEIGHT;
             stairOriginX = (Stairs.options.direction === 'left')
                 ? Stairs.canvas.width - Stairs.widthPx
                 : 0;
-            stairOriginY = 0;
+            stairOriginY = -StairConstants.TURN_TOP_MEASURE_HEIGHT;
             break;
         case Stairs.StairTypeEnum.DOUBLETURN:
             // Double-turn has a top-measure label above the staircase that
@@ -242,9 +261,17 @@ Stairs.applyViewportTransform = function (context) {
     var canvasCentreX = Stairs.canvas.width / 2;
     var canvasCentreY = (isWideCanvas
         ? Stairs.canvas.height / 2
-        : Stairs.canvas.height * 0.42) - 50;
+        : Stairs.canvas.height * 0.42);
     var stairCentreX  = stairOriginX + stairWidth / 2;
     var stairCentreY  = stairOriginY + stairHeight / 2;
+
+    // Back the 50px up-shift off (down to zero) when it would push the top of
+    // the drawing's bounding box above the canvas — the turn types draw the
+    // (b) run measure up there, and a clipped measure is worse than the
+    // aesthetic bias. Unchanged whenever the drawing has 50px+ of headroom.
+    var bdTopAtNoShift = canvasCentreY - stairCentreY * Stairs.viewport.zoom
+        + stairOriginY * Stairs.viewport.zoom;
+    canvasCentreY -= Math.min(50, Math.max(0, bdTopAtNoShift));
 
     // Net translate = (canvas centre) - (stair centre × zoom) + user pan.
     var tx = canvasCentreX - stairCentreX * Stairs.viewport.zoom + Stairs.viewport.panX;
@@ -1076,15 +1103,27 @@ Stairs.drawTreads = function(context, y, treads){
                         positionX -= flight3Treads.width + Stairs.landingSpacerPx;
                         Stairs.insideTurnX2 = positionX + flight3Treads.width;
                         Stairs.outsideTurnX2 = positionX;
-                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, positionX, y, flight1Treads.width + flight3Treads.width + Stairs.landingSpacerPx, flight2Treads.width, t, true);
+                        if (Stairs.options.isDoubleQuarterLanding){
+                            Stairs.drawSplitLandingTread(flight2Treads, context, positionX, y, flight1Treads.width + flight3Treads.width + Stairs.landingSpacerPx, flight2Treads.width, t);
+                            t++;
+                        }
+                        else{
+                            Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, positionX, y, flight1Treads.width + flight3Treads.width + Stairs.landingSpacerPx, flight2Treads.width, t, true);
+                        }
                         break;
                     case 'right':
                         var t = s;
                         var positionX = flight1LeftX + flight1Treads.width + Stairs.landingSpacerPx;
                         Stairs.insideTurnX2 = positionX;
                         Stairs.outsideTurnX2 = positionX + flight3Treads.width;
-                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, flight1LeftX, y, flight1Treads.width + flight3Treads.width + Stairs.landingSpacerPx, flight2Treads.width, t, true);
-                        t += Stairs.options.turn2TreadsAmount -1;
+                        if (Stairs.options.isDoubleQuarterLanding){
+                            Stairs.drawSplitLandingTread(flight2Treads, context, flight1LeftX, y, flight1Treads.width + flight3Treads.width + Stairs.landingSpacerPx, flight2Treads.width, t);
+                            t++;
+                        }
+                        else{
+                            Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, flight1LeftX, y, flight1Treads.width + flight3Treads.width + Stairs.landingSpacerPx, flight2Treads.width, t, true);
+                            t += Stairs.options.turn2TreadsAmount -1;
+                        }
                         break;
                 }
                 Stairs.drawLandingDivider(context, y);
@@ -1616,6 +1655,50 @@ Stairs.drawTurnTread = function (treads, context, amount, x, y, width, height, t
     context.restore();
 }
 
+/**
+ * The spanning tread rect for a DOUBLE QUARTER landing: two separate landing
+ * boards, one a riser above the other, so each half gets its OWN number --
+ * split at the divider line, in walk order (the flight-1 side is reached
+ * first). A half landing is one surface and keeps its single centred number
+ * via drawTurnTread. Both landings are already in the tread budget
+ * (allocateHalfTurnFlights charges w1 + w2 = 2), so numbering them both is
+ * what makes the downstream flight-3 numbers line up with the budget.
+ */
+Stairs.drawSplitLandingTread = function (treads, context, x, y, width, height, tag){
+    context.save();
+    context.fillStyle = treads.fillColor;
+    context.strokeStyle = treads.strokeColor;
+    context.lineWidth = 1;
+    context.clearRect(x, y, width, height);
+    context.strokeRect(x, y, width, height);
+    context.fillRect(x, y, width, height);
+
+    // Same split point as drawLandingDivider: the middle of the landing spacer.
+    var dividerX = (Stairs.options.direction === 'left')
+        ? Stairs.startX1 - Stairs.landingSpacerPx / 2
+        : Stairs.startX2 + Stairs.landingSpacerPx / 2;
+    // First (lower) landing sits against flight 1: right half when the stair
+    // turns left (flight 1 draws on the right), left half when it turns right.
+    var firstCx, secondCx;
+    if (Stairs.options.direction === 'left'){
+        firstCx  = (dividerX + x + width) / 2;
+        secondCx = (x + dividerX) / 2;
+    }
+    else{
+        firstCx  = (x + dividerX) / 2;
+        secondCx = (dividerX + x + width) / 2;
+    }
+
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    // Inverse-scale tread numbers — see drawFeatureTread for the rationale.
+    context.font = (13 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
+    context.fillStyle = treads.textColor;
+    context.fillText(tag, firstCx, y + height/2 + 1);
+    context.fillText(tag + 1, secondCx, y + height/2 + 1);
+    context.restore();
+}
+
 //* Posts functions *//
 Stairs.drawPosts = function(context,treads,posts){
     context.save();
@@ -1967,6 +2050,55 @@ Stairs.drawBallustradeHalfturn = function(context){
     context.lineTo(startX2 - StairConstants.BALUSTRADE_WIDTH/2, startY2 + StairConstants.BALUSTRADE_WIDTH/2);
     context.stroke();
     context.fill();
+
+    // Empty middle flight: the two inner stringers straddle flight edges that
+    // are only a landing spacer apart, so their strips overlap into one grey
+    // bar. Repaint them as two rects that MEET at the divider line — each flight
+    // keeps its own stringer, separated by a stroked boundary — capped with a
+    // horizontal joint under the newel boxes, where a stringer physically butts
+    // into its post. The newel boxes themselves are not moved.
+    if (Stairs.landingSpacerPx > 0){
+        var bdBw = StairConstants.BALUSTRADE_WIDTH;
+        // Same x as drawLandingDivider: the middle of the spacer. Use the
+        // UNSWAPPED Stairs.* values — locals were pivoted for isRight above.
+        var bdDividerX = (Stairs.options.direction === 'left')
+            ? Stairs.startX1 - Stairs.landingSpacerPx / 2
+            : Stairs.startX2 + Stairs.landingSpacerPx / 2;
+        var bdJointTop = Stairs.insideTurnY + StairConstants.POSTS_SIZE / 2;
+        // Flight 1's inner stringer centreline and floor end, per direction.
+        var bdF1Edge   = isRight ? Stairs.startX2 : Stairs.startX1;
+        var bdF1Bottom = (isRight ? Stairs.startY2 : Stairs.startY1) + bdBw/2;
+        // Flight 3's inner stringer centreline is insideEndX; floor end endY.
+        var bdF3Edge   = Stairs.insideEndX;
+        var bdF3Bottom = Stairs.endY + bdBw/2;
+        // Each rect runs from the stringer's outer face to the divider.
+        var bdF1Left  = Math.min(bdF1Edge - bdBw/2, bdF1Edge + bdBw/2, bdDividerX);
+        var bdF1Right = Math.max(bdF1Edge - bdBw/2, bdF1Edge + bdBw/2, bdDividerX);
+        var bdF3Left  = Math.min(bdF3Edge - bdBw/2, bdF3Edge + bdBw/2, bdDividerX);
+        var bdF3Right = Math.max(bdF3Edge - bdBw/2, bdF3Edge + bdBw/2, bdDividerX);
+        // Trim each rect at the divider so they abut without crossing it.
+        if (bdF1Left < bdDividerX && bdF1Right > bdDividerX){
+            if (bdF1Edge > bdDividerX){ bdF1Left = bdDividerX; } else { bdF1Right = bdDividerX; }
+        }
+        if (bdF3Left < bdDividerX && bdF3Right > bdDividerX){
+            if (bdF3Edge > bdDividerX){ bdF3Left = bdDividerX; } else { bdF3Right = bdDividerX; }
+        }
+        context.clearRect(bdF1Left, bdJointTop, bdF1Right - bdF1Left, bdF1Bottom - bdJointTop);
+        context.clearRect(bdF3Left, bdJointTop, bdF3Right - bdF3Left, bdF3Bottom - bdJointTop);
+        context.fillRect(bdF1Left, bdJointTop, bdF1Right - bdF1Left, bdF1Bottom - bdJointTop);
+        context.strokeRect(bdF1Left, bdJointTop, bdF1Right - bdF1Left, bdF1Bottom - bdJointTop);
+        context.fillRect(bdF3Left, bdJointTop, bdF3Right - bdF3Left, bdF3Bottom - bdJointTop);
+        context.strokeRect(bdF3Left, bdJointTop, bdF3Right - bdF3Left, bdF3Bottom - bdJointTop);
+        // Double quarter landing: continue the divider line down through the
+        // stringer band so the boundary between the two platforms reads as one
+        // line between the (still adjacent) newel boxes.
+        if (Stairs.options.isDoubleQuarterLanding){
+            context.beginPath();
+            context.moveTo(bdDividerX, Stairs.insideTurnY - bdBw/2);
+            context.lineTo(bdDividerX, bdJointTop);
+            context.stroke();
+        }
+    }
 
     if(flight1Inside){
         Stairs.drawBallustradeQuarterturnOrnaments(context, startX1 - StairConstants.BALUSTRADE_WIDTH/2, startX1 + StairConstants.BALUSTRADE_WIDTH/2, 
@@ -2526,15 +2658,6 @@ Stairs.drawQuarterturnMeasures = function(context){
     var flight1Treads = Stairs.options.flight1Treads;
     var flight2Treads = Stairs.options.flight2Treads;
 
-    // Hug the staircase bottom (+30px breathing room) rather than the canvas
-    // bottom, so the width measure stays visually attached to the lowest
-    // tread regardless of how small the staircase is inside the canvas.
-    // Clamped to the canvas-bottom margin as a safety floor.
-    var bottom_measure_y_position = Math.min(
-        Stairs.maxHeight + 30,
-        Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT
-    );
-
     var startX1 = Stairs.startX1;
     var startX2 = Stairs.startX2;
     var endX = Stairs.endX;
@@ -2596,22 +2719,26 @@ Stairs.drawQuarterturnMeasures = function(context){
     var bBSign = (bdLipEndX >= startX1) ? 1 : -1;
     var bStart = startX1 - bBSign * bdStrOff;
     var bEnd   = bdLipEndX + bBSign * bdStrOff;
+    // Drawn ABOVE the turn rather than under the staircase — the (b) run reads
+    // with the landing at the head of the flight. Headroom for line + label is
+    // reserved via TURN_TOP_MEASURE_HEIGHT in the viewport bounding box.
+    var bLineY = endY1 - bdStrOff - 15;
     context.setLineDash([5, flight2Treads.amount + 1]);
     context.beginPath();
-    context.moveTo(bStart, bottom_measure_y_position + 0.5);
-    context.lineTo(bEnd, bottom_measure_y_position + 0.5);
+    context.moveTo(bStart, bLineY + 0.5);
+    context.lineTo(bEnd, bLineY + 0.5);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
 
     context.beginPath();
-    context.moveTo(bStart + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(bStart, bottom_measure_y_position + 10);
+    context.moveTo(bStart + 0.5, bLineY - 10);
+    context.lineTo(bStart, bLineY + 10);
     strokeXTimes(context,5);
 
     context.beginPath();
-    context.moveTo(bEnd + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(bEnd + 0.5, bottom_measure_y_position + 10);
+    context.moveTo(bEnd + 0.5, bLineY - 10);
+    context.lineTo(bEnd + 0.5, bLineY + 10);
     strokeXTimes(context,5);
 
     //Measures text
@@ -2620,7 +2747,7 @@ Stairs.drawQuarterturnMeasures = function(context){
     // ~12px on screen regardless of fitZoom / user zoom.
     context.font = (16 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.textAlign = 'center';
-    context.fillText("(b) " + Stairs.printMMWidth + "mm", (bStart + bEnd)/2, bottom_measure_y_position + 20);
+    context.fillText("(b) " + Stairs.printMMWidth + "mm", (bStart + bEnd)/2, bLineY - 14);
     
     context.textAlign = 'left';
     context.translate(heightMeasureX + 10, Stairs.maxHeight/2);
@@ -2666,15 +2793,6 @@ Stairs.drawHalfturnMeasures = function(context){
     var flight1Treads = Stairs.options.flight1Treads;
     var flight2Treads = Stairs.options.flight2Treads;
     var flight3Treads = Stairs.options.flight3Treads;
-
-    // Hug the staircase bottom (+30px breathing room) rather than the canvas
-    // bottom, so the width measure stays visually attached to the lowest
-    // tread regardless of how small the staircase is inside the canvas.
-    // Clamped to the canvas-bottom margin as a safety floor.
-    var bottom_measure_y_position = Math.min(
-        Stairs.maxHeight + 30,
-        Stairs.canvas.height - StairConstants.BOTTOM_MEASURE_TAG_HEIGHT
-    );
 
     var startX1 = Stairs.startX1;
     var startX2 = Stairs.startX2;
@@ -2756,22 +2874,26 @@ Stairs.drawHalfturnMeasures = function(context){
     var bBSign = (endX >= startX1) ? 1 : -1;
     var bStart = startX1 - bBSign * bdStrOff;
     var bEnd   = endX + bBSign * bdStrOff;
+    // Drawn ABOVE the landing rather than under the staircase — the (b) run
+    // reads with the middle landing it spans. Headroom for line + label is
+    // reserved via TURN_TOP_MEASURE_HEIGHT in the viewport bounding box.
+    var bLineY = heightMeasureEndY - bdStrOff - 15;
     context.setLineDash([5, 10]);
     context.beginPath();
-    context.moveTo(bStart, bottom_measure_y_position + 0.5);
-    context.lineTo(bEnd, bottom_measure_y_position + 0.5);
+    context.moveTo(bStart, bLineY + 0.5);
+    context.lineTo(bEnd, bLineY + 0.5);
     strokeXTimes(context,5);
 
     context.setLineDash([4, 4]);
 
     context.beginPath();
-    context.moveTo(bStart + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(bStart, bottom_measure_y_position + 10);
+    context.moveTo(bStart + 0.5, bLineY - 10);
+    context.lineTo(bStart, bLineY + 10);
     strokeXTimes(context,5);
 
     context.beginPath();
-    context.moveTo(bEnd + 0.5, bottom_measure_y_position - 10);
-    context.lineTo(bEnd + 0.5, bottom_measure_y_position + 10);
+    context.moveTo(bEnd + 0.5, bLineY - 10);
+    context.lineTo(bEnd + 0.5, bLineY + 10);
     strokeXTimes(context,5);
 
     //Measures text
@@ -2780,7 +2902,7 @@ Stairs.drawHalfturnMeasures = function(context){
     // ~12px on screen regardless of fitZoom / user zoom.
     context.font = (16 / Stairs.viewport.zoom) + "px " + Stairs.options.font;
     context.textAlign = 'center';
-    context.fillText("(b) " + Stairs.printMMWidth + "mm", (bStart + bEnd)/2, bottom_measure_y_position + 20);
+    context.fillText("(b) " + Stairs.printMMWidth + "mm", (bStart + bEnd)/2, bLineY - 14);
     
     context.textAlign = 'left';
     context.save();

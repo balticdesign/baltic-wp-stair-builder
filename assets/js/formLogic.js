@@ -73,6 +73,9 @@ function updateNewelPosts(newelType, capType, hrType, spindleType) {
       bdSetMaterialOptions('hdr_material', response.handrail_options.join(''));
       // Spindle material/style is now Material-first and resolved client-side
       // (see the bdSpindle* helpers) — no longer injected from this AJAX.
+      // Freshly populated options: re-derive the hidden newel material from
+      // the stringer before pricing (no-op while the rows are visible).
+      bdSyncHiddenNewelSpec();
       calculateTotalPrice();
     },
     error(jqXHR, textStatus, errorThrown) {
@@ -495,6 +498,7 @@ jQuery('#posts :input').change(function () {
   }).val(customValue);
   getNewelIds();
   bdUpdateNewelVisibility();
+  bdSyncHiddenNewelSpec();
   bdUpdateMidFlightPosts();
   bdUpdateLandingDepth();
   let newelType = jQuery('#newel_type').val();
@@ -514,20 +518,51 @@ jQuery('#posts :input').change(function () {
   }
 });
 
-// Newel spec (material / style / caps / cap material) is only meaningful when a
-// newel post is actually priced. "None Required" on a straight flight prices
-// none, so the four rows are hidden and the balustrade question closes up.
+// Newel spec (material / style / caps / cap material) shows only when the
+// customer has actually selected newel posts — the SAME rule on every builder
+// (SPD, 10 September 2026; supersedes the turned-staircase carve-out that
+// kept the rows visible for the mandatory box-corner posts).
 //
-// A turned staircase is different: priceCalc.js adds one mandatory box-corner
-// post per turn (quarter 1, half 2) whatever the dropdown says, and those are
-// priced off these selects — so they stay visible there, or the customer would
-// be charged for posts in a material they were never shown.
+// The mandatory posts (quarter 1, half 2) are still priced whatever the
+// dropdown says; while these rows are hidden they follow the STRINGER
+// material instead of an unseen selection — see bdSyncHiddenNewelSpec below.
 function bdUpdateNewelVisibility() {
-  const stairType = jQuery('input[name="stair_type"]').val() || 'straight';
-  const mandatory = stairType === 'half' ? 2 : (stairType === 'quarter' ? 1 : 0);
   const optional = BuilderUtils.getNumber('newel-posts') || 0;
-  jQuery('.bd-newel-fields').toggleClass('is-hidden', (optional + mandatory) === 0);
+  jQuery('.bd-newel-fields').toggleClass('is-hidden', optional === 0);
 }
+
+// While the newel spec rows are hidden (no optional newel selected), a turn's
+// mandatory box-corner posts must not be priced off selects the customer was
+// never shown (the exact hazard the old always-visible carve-out existed to
+// avoid). Instead the hidden #newel_material is DERIVED from the stringer
+// material — one material choice, and the post matches it — and the hidden
+// caps reset to None, so nothing invisible is ever charged. Writing the
+// derived key into the select keeps the price, the POSTed lead and the PDF
+// quote reading one consistent value. The moment the customer selects newel
+// posts, the rows reveal and their own choices override for ALL newels
+// (mandatory included); nothing here runs again until they deselect.
+function bdSyncHiddenNewelSpec() {
+  const optional = BuilderUtils.getNumber('newel-posts') || 0;
+  if (optional > 0) return;
+  const stringerKey = BuilderUtils.getString('stringer_material').toLowerCase();
+  if (stringerKey) {
+    const $sel = jQuery('#newel_material');
+    const $match = $sel.find('option').filter(function () {
+      return bdMaterialKey(this.value).toLowerCase() === stringerKey;
+    }).first();
+    // No match (e.g. options not yet populated by the fetch_sp_prices AJAX)
+    // leaves the select alone; the AJAX success re-runs this.
+    if ($match.length && $sel.val() !== $match.val()) { $sel.val($match.val()); }
+  }
+  if (BuilderUtils.getString('newel_cap') !== 'none') {
+    jQuery('#newel_cap').val('none:0');
+  }
+}
+// Direct (non-delegated) binding, at load: it must run BEFORE priceCalc.js's
+// own #stairbuild :input recalc handler, which is also bound at load — and
+// priceCalc loads after this file — so a stringer change re-derives first and
+// the recalc prices the derived material in the same event.
+jQuery('#stringer_material').on('change', bdSyncHiddenNewelSpec);
 
 // The two MID-FLIGHT post checkboxes (#bo-post, #to-post2) sit at the ends of the
 // middle flight, so they exist only while that flight does. SPD amend 10 was a

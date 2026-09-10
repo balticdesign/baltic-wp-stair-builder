@@ -3184,6 +3184,26 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'default' => 1,
 								'description' => 'On: hitting Reply on a notification email replies to the customer. Off: it replies to the site.',
 							],
+							[
+								// BRIEF-04 (v2.36.0). Both default inert: blank prefix +
+								// start 0 keep the reference equal to the lead id, the
+								// long-standing behaviour. The reference is STORED on the
+								// lead at capture — changing these later affects new leads
+								// only; historic references never rewrite (their PDFs are
+								// already with customers).
+								'id' => 'reference_prefix',
+								'label' => 'Customer reference — Prefix',
+								'type' => 'text',
+								'placeholder' => 'e.g. SPD-',
+								'description' => 'Prepended to every new customer reference on the PDF, emails and admin screens. Leave blank for none. Applies to new enquiries only.',
+							],
+							[
+								'id' => 'reference_start',
+								'label' => 'Customer reference — Start number',
+								'type' => 'number',
+								'placeholder' => '0',
+								'description' => 'First number of the reference sequence (e.g. 35000 to continue an old system\'s numbering). 0 or blank: the reference uses the enquiry id, as before. Once enquiries have been captured the counter keeps its own sequence; raising this later only takes effect if it is higher than the counter.',
+							],
 						],
 					],
 					'strings' => [

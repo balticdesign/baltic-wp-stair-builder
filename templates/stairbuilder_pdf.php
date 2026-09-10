@@ -45,7 +45,12 @@ if ( $logo_id ) {
 }
 
 $company    = get_bloginfo( 'name' );
-$ref        = (int) ( $content['lead_id'] ?? 0 );
+// The stored customer reference (BRIEF-04, e.g. SPD-35000); a lead predating
+// the reference column falls back to the id it originally went out under.
+$ref        = trim( (string) ( $content['reference'] ?? '' ) );
+if ( '' === $ref ) {
+	$ref = (string) (int) ( $content['lead_id'] ?? 0 );
+}
 $quote_date = current_time( 'j F Y' );
 $cust_name  = (string) ( $content['name'] ?? '' );
 
@@ -212,7 +217,7 @@ $bd_sectlabel = function ( $text ) {
   </td>
   <td style="text-align: right;">
     <div style="font-size: 22px; font-weight: 500; letter-spacing: 2.5px; text-transform: uppercase;">Staircase Quote</div>
-    <div style="font-size: 13px; color: #C9BC93; margin-top: 5px; letter-spacing: 1px;">Reference <?php echo $ref; ?> &nbsp;&middot;&nbsp; <?php echo esc_html( $quote_date ); ?></div>
+    <div style="font-size: 13px; color: #C9BC93; margin-top: 5px; letter-spacing: 1px;">Reference <?php echo esc_html( $ref ); ?> &nbsp;&middot;&nbsp; <?php echo esc_html( $quote_date ); ?></div>
   </td>
 </tr></table>
 
@@ -260,8 +265,16 @@ $bd_row( 'Tread Material', $bd_code_label( 'tread_types', $content['tread_materi
 $bd_row( 'Riser Material', $bd_code_label( 'riser_types', $content['riser_material'] ?? '', 'riser_code', 'riser_name' ) );
 $bd_row( 'Turn 1', $bd_turn1 );
 $bd_row_count( 'Treads before Turn', $content['treadbt'] ?? '' );
-$bd_row_count( 'Treads after Turn', $content['treadat'] ?? '' );
-$bd_row( 'Turn 2', $bd_turn2 );
+// half:landing hides "Treads after Turn" and "Turn 2" (BRIEF-04 amend #9):
+// the middle flight is collapsed to zero there — it IS the landing — so both
+// rows state values the customer never chose. Winder and double quarter keep
+// them (real values), and leads predating the stair_type/stair_config inputs
+// fail bd_is_half_landing() and keep the output they went out under. The
+// values stay in form_data; this is display only.
+if ( ! $bd_hl ) {
+	$bd_row_count( 'Treads after Turn', $content['treadat'] ?? '' );
+	$bd_row( 'Turn 2', $bd_turn2 );
+}
 $bd_row_count( 'Treads after Turn 2', $content['treadat2'] ?? '' );
 // T&G landing selection (half:landing only). The customer has to see what they
 // are or are not paying for. bd_tandg_landing_label() returns '' for an absent
@@ -295,7 +308,9 @@ if ( $bd_show_bal ) {
     $bd_row( 'Baserail Material', $content['bsr_material'] ?? '' );
     $bd_row( 'Spindles', $bd_code_label( 'spindle_types', $content['spindle_type'] ?? '' ) );
     $bd_row( 'Spindle Material', $content['bal_material'] ?? '' );
-    if ( $bd_spindle_count > 0 ) { $bd_row( 'Spindle Number', (string) $bd_spindle_count ); }
+    // Spindle Number removed from the CUSTOMER PDF (BRIEF-04 amend #8). The
+    // count still feeds pricing, still POSTs in form_data, and still shows in
+    // the admin Enquiry view — it is only this quote that no longer states it.
     $bd_sections[] = array( 'Balustrading', ob_get_clean() );
 }
 
@@ -429,6 +444,6 @@ foreach ( $bd_sections as $bd_sec ) {
 </table>
 
 <table class="band footer"><tr>
-  <td><?php echo esc_html( $ftr_l !== '' ? $ftr_l : $company ); ?> &mdash; Quote Ref <?php echo $ref; ?></td>
+  <td><?php echo esc_html( $ftr_l !== '' ? $ftr_l : $company ); ?> &mdash; Quote Ref <?php echo esc_html( $ref ); ?></td>
   <td style="text-align: right;"><?php echo esc_html( $ftr_r ); ?></td>
 </tr></table>

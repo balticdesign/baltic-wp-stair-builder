@@ -54,6 +54,71 @@ function baltic_stair_construction_is_poa( $code ) {
 }
 
 /**
+ * Allocate the customer reference for a freshly created lead (BRIEF-04).
+ *
+ * reference = prefix + number. With reference_start unset/0 the number is the
+ * lead id — the long-standing behaviour, so a clean install is unchanged.
+ * With a start configured, a dedicated counter option is claimed atomically:
+ * one UPDATE increments it and hands this request the claimed value via
+ * MySQL's per-connection LAST_INSERT_ID(expr), so two simultaneous captures
+ * cannot take the same number. The result is STORED on the lead and never
+ * recomputed — changing the settings later affects new leads only.
+ *
+ * @param int $lead_id The just-inserted lead id (the no-offset fallback).
+ * @return string
+ */
+function baltic_stair_allocate_reference( $lead_id ) {
+	$prefix = (string) stairbuilder_get_option( 'reference_prefix', '' );
+	$start  = (int) stairbuilder_get_option( 'reference_start', 0 );
+	$number = (int) $lead_id;
+
+	if ( $start > 0 ) {
+		global $wpdb;
+		$option = 'baltic_stair_reference_next';
+		$next   = get_option( $option, false );
+		if ( false === $next ) {
+			// First use: seed the counter from the setting. autoload off — it
+			// is only read at capture time.
+			add_option( $option, $start, '', false );
+		} elseif ( (int) $next < $start ) {
+			// The admin raised the start above the counter — jump forward.
+			// (A start BELOW the counter is ignored: the sequence never
+			// reuses or revisits numbers.)
+			update_option( $option, $start, false );
+		}
+		$claimed = 0;
+		$updated = $wpdb->query( $wpdb->prepare(
+			"UPDATE {$wpdb->options} SET option_value = LAST_INSERT_ID( CAST(option_value AS UNSIGNED) + 1 ) WHERE option_name = %s",
+			$option
+		) );
+		if ( $updated ) {
+			// LAST_INSERT_ID() returns the post-increment value for THIS
+			// connection; the claimed number is one less.
+			$claimed = (int) $wpdb->get_var( 'SELECT LAST_INSERT_ID()' ) - 1;
+			wp_cache_delete( $option, 'options' );
+		}
+		if ( $claimed > 0 ) {
+			$number = $claimed;
+		}
+	}
+
+	return $prefix . $number;
+}
+
+/**
+ * The reference a lead should display: the stored one, falling back to the id
+ * for leads that predate the column — they keep exactly what they went out
+ * under.
+ *
+ * @param array $lead Lead row (needs 'reference' and/or 'id').
+ * @return string
+ */
+function baltic_stair_lead_reference( $lead ) {
+	$stored = isset( $lead['reference'] ) ? trim( (string) $lead['reference'] ) : '';
+	return '' !== $stored ? $stored : (string) (int) ( $lead['id'] ?? $lead['lead_id'] ?? 0 );
+}
+
+/**
  * POA limit reasons for a submitted configuration (BRIEF-02, v2.34.0).
  *
  * Mirrors the front-end checks in formLogic.js (bdComputePoaReasons) but reads
@@ -323,6 +388,11 @@ function baltic_stair_submit_lead() {
 		wp_send_json_error( array( 'message' => $lead->get_error_message() ), 500 );
 	}
 
+	// Customer reference (BRIEF-04): allocated once the id exists, stored on
+	// the row, and used by the PDF, both emails and the admin screens.
+	$bd_reference = baltic_stair_allocate_reference( (int) $lead['id'] );
+	BD_Stair_Builder_Leads::set_reference( $lead['id'], $bd_reference );
+
 	// Canvas write moved to AFTER lead creation (v2.24.1): both files now live
 	// under the lead's own token directory, and the token does not exist until
 	// create() has generated it. The alternative — minting the token in this
@@ -337,8 +407,9 @@ function baltic_stair_submit_lead() {
 	}
 
 	$lead_data = array(
-		'lead_id'  => $lead['id'],
-		'token'    => $lead['token'],
+		'lead_id'   => $lead['id'],
+		'reference' => $bd_reference,
+		'token'     => $lead['token'],
 		'name'     => $name,
 		'email'    => $email,
 		'phone'    => $phone,
@@ -491,9 +562,12 @@ function baltic_stair_generate_pdf( array $lead_data ) {
 		'margin_bottom' => 0,
 	) );
 
-	$title   = 'Staircase Quote – Ref ' . $lead_data['lead_id'];
+	$title   = 'Staircase Quote – Ref ' . baltic_stair_lead_reference( $lead_data );
 	$content = is_array( $lead_data['form'] ) ? $lead_data['form'] : array();
 	$content['lead_id']  = $lead_data['lead_id'];
+	// The stored customer reference (BRIEF-04); absent on regenerated PDFs for
+	// pre-column leads, where the template falls back to the id.
+	$content['reference'] = isset( $lead_data['reference'] ) ? $lead_data['reference'] : '';
 	$content['name']     = $lead_data['name'];
 	$content['email']    = $lead_data['email'];
 	$content['phone']    = $lead_data['phone'];
@@ -572,7 +646,7 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 		"%s" .
 		"%s" .
 		"Indicative subtotal: £%s\nVAT: £%s\nTotal: £%s\n\n" .
-		"Lead ref: %d\nView: %s\n",
+		"Ref: %s (lead id %d)\nView: %s\n",
 		$urgency_line,
 		$lead_data['name'],
 		$lead_data['email'],
@@ -585,11 +659,34 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 		number_format( (float) $lead_data['price'], 2 ),
 		number_format( (float) $lead_data['vat'], 2 ),
 		number_format( (float) $lead_data['total'], 2 ),
+		baltic_stair_lead_reference( $lead_data ),
 		$lead_data['lead_id'],
 		$download_url
 	);
 
+	// BRIEF-04 amend #10: the notification's From NAME is the customer, so it
+	// reads in the inbox the way the old Gravity Forms leads did — but the
+	// From ADDRESS stays whatever the site/SMTP plugin is configured to send
+	// as, because forging the customer's address fails SPF/DMARC alignment on
+	// any modern receiver. "via {site name}" so staff can tell a configurator
+	// lead from a direct customer email at a glance. Hitting Reply still goes
+	// to the customer via the Reply-To header above. Scoped to THIS wp_mail
+	// only — the customer confirmation above keeps the site's own From name.
+	$bd_from_name_cb = null;
+	$bd_cust_name    = trim( str_replace( array( "\r", "\n", '"' ), '', sanitize_text_field( (string) $lead_data['name'] ) ) );
+	if ( '' !== $bd_cust_name ) {
+		$bd_display      = $bd_cust_name . ' via ' . get_bloginfo( 'name' );
+		$bd_from_name_cb = function () use ( $bd_display ) {
+			return $bd_display;
+		};
+		add_filter( 'wp_mail_from_name', $bd_from_name_cb, 99 );
+	}
+
 	wp_mail( $admin_to, $admin_subject, $admin_body, baltic_stair_admin_email_headers( $lead_data ), $attachments );
+
+	if ( $bd_from_name_cb ) {
+		remove_filter( 'wp_mail_from_name', $bd_from_name_cb, 99 );
+	}
 }
 
 /**
@@ -845,7 +942,7 @@ function baltic_stair_quote_view_shortcode() {
 		<p>
 			<a class="button button-primary" href="<?php echo esc_url( $download_url ); ?>">Download your PDF quote</a>
 		</p>
-		<p><small>Quote reference: <?php echo esc_html( $lead['id'] ); ?></small></p>
+		<p><small>Quote reference: <?php echo esc_html( baltic_stair_lead_reference( $lead ) ); ?></small></p>
 	</div>
 	<?php
 	return ob_get_clean();

@@ -139,11 +139,11 @@ class BD_Stair_Builder_Enquiries_List_Table extends WP_List_Table {
 		$name = ( '' !== trim( (string) $item['name'] ) ) ? $item['name'] : __( '(no name)', 'stairbuilder' );
 
 		return sprintf(
-			'<strong><a href="%s">%s</a></strong><div class="row-actions"><span>%s %d</span></div>',
+			'<strong><a href="%s">%s</a></strong><div class="row-actions"><span>%s %s</span></div>',
 			esc_url( $url ),
 			esc_html( $name ),
 			esc_html__( 'Ref', 'stairbuilder' ),
-			(int) $item['id']
+			esc_html( function_exists( 'baltic_stair_lead_reference' ) ? baltic_stair_lead_reference( $item ) : (int) $item['id'] )
 		);
 	}
 

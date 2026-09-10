@@ -13,7 +13,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 class BD_Stair_Builder_Leads {
 
 	const TABLE_SUFFIX = 'baltic_stair_leads';
-	const DB_VERSION   = '1.0';
+	// 1.1: customer reference column (BRIEF-04, v2.36.0) — stored at capture,
+	// never recomputed, so historic references can never rewrite themselves.
+	const DB_VERSION   = '1.1';
 
 	public static function table_name() {
 		global $wpdb;
@@ -38,6 +40,7 @@ class BD_Stair_Builder_Leads {
 			total DECIMAL(10,2) NOT NULL DEFAULT 0,
 			form_data LONGTEXT NOT NULL,
 			pdf_path TEXT NOT NULL,
+			reference VARCHAR(64) NOT NULL DEFAULT '',
 			PRIMARY KEY (id),
 			UNIQUE KEY token (token),
 			KEY email (email),
@@ -99,6 +102,22 @@ class BD_Stair_Builder_Leads {
 		return array(
 			'id'    => (int) $wpdb->insert_id,
 			'token' => $row['token'],
+		);
+	}
+
+	/**
+	 * Store the allocated customer reference (BRIEF-04). Written once at
+	 * capture; an empty stored reference means the lead predates the column
+	 * and every reader falls back to the id it originally went out under.
+	 */
+	public static function set_reference( $lead_id, $reference ) {
+		global $wpdb;
+		$wpdb->update(
+			self::table_name(),
+			array( 'reference' => (string) $reference ),
+			array( 'id' => (int) $lead_id ),
+			array( '%s' ),
+			array( '%d' )
 		);
 	}
 
@@ -254,7 +273,7 @@ class BD_Stair_Builder_Leads {
 		$orderby = in_array( $args['orderby'], self::sortable_columns(), true ) ? $args['orderby'] : 'created_at';
 		$order   = ( strtoupper( (string) $args['order'] ) === 'ASC' ) ? 'ASC' : 'DESC';
 
-		$columns = 'id, token, created_at, name, email, phone, postcode, price, vat, total, pdf_path';
+		$columns = 'id, token, created_at, name, email, phone, postcode, price, vat, total, pdf_path, reference';
 		if ( ! empty( $args['with_form_data'] ) ) {
 			$columns .= ', form_data';
 		}

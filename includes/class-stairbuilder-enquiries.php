@@ -229,7 +229,7 @@ class BD_Stair_Builder_Enquiries {
 					</td></tr>
 					<tr><th><?php esc_html_e( 'Postcode', 'stairbuilder' ); ?></th><td><?php echo esc_html( $lead['postcode'] ); ?></td></tr>
 					<tr><th><?php esc_html_e( 'Received', 'stairbuilder' ); ?></th><td><?php echo esc_html( $ts ? date_i18n( 'j F Y, H:i', $ts ) : $lead['created_at'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Reference', 'stairbuilder' ); ?></th><td><?php echo (int) $lead['id']; ?></td></tr>
+					<tr><th><?php esc_html_e( 'Reference', 'stairbuilder' ); ?></th><td><?php echo esc_html( baltic_stair_lead_reference( $lead ) ); ?></td></tr>
 				</table>
 			</div>
 
@@ -481,7 +481,7 @@ class BD_Stair_Builder_Enquiries {
 				array_map(
 					array( $this, 'csv_cell' ),
 					array(
-						(int) $row['id'],
+						baltic_stair_lead_reference( $row ),
 						$ts ? date_i18n( 'Y-m-d H:i', $ts ) : $row['created_at'],
 						$row['name'],
 						$row['email'],

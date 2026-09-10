@@ -239,6 +239,10 @@ class BD_Stair_Builder_Enquiries {
 					<p class="bd-enq-poa-note">
 						<strong><?php esc_html_e( 'Price on application.', 'stairbuilder' ); ?></strong>
 						<?php esc_html_e( 'The customer was shown no figures — not on the quote page, not in the PDF, not in their email. The figures below are the configurator\'s internal calculation, for whoever prices this by hand.', 'stairbuilder' ); ?>
+						<?php if ( ! empty( $fd['poa_reasons'] ) ) : ?>
+							<br><strong><?php esc_html_e( 'Reason(s):', 'stairbuilder' ); ?></strong>
+							<?php echo esc_html( str_replace( array( 'min_flight_width', 'floor_height_range' ), array( 'flight width below the configured minimum', 'floor-to-floor height outside the configured range' ), (string) $fd['poa_reasons'] ) ); ?>
+						<?php endif; ?>
 					</p>
 				<?php endif; ?>
 				<table>
@@ -254,7 +258,10 @@ class BD_Stair_Builder_Enquiries {
 					<?php
 					// additional_notes has its own card below, so keep it out of
 					// the generic unresolved-keys dump — otherwise it appears twice.
-					$consumed = array( '_poa', 'additional_notes' );
+					// poa_reasons renders in the Pricing card's POA note; the
+					// wide-flight-surcharge stays in the dump deliberately, so
+					// admin can see why a quote jumped.
+					$consumed = array( '_poa', 'poa_reasons', 'additional_notes' );
 
 					$type_label = bd_staircase_type_label( $fd );
 					if ( '' !== $type_label ) {

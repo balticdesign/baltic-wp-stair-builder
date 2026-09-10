@@ -124,6 +124,11 @@ $sb_hide = function ( $on, $extra_class = '' ) {
     // shows exactly the priced figures (see assets/js/priceCalc.js). ?>
     <input type="hidden" id="newel-count" name="newel-count" value="">
     <input type="hidden" id="spindle-count" name="spindle-count" value="">
+    <?php // Applied wide-flight surcharge (0 when it didn't fire) and any POA
+          // limit reasons — informational copies for the lead record; the
+          // server re-resolves both independently at capture. ?>
+    <input type="hidden" id="wide-flight-surcharge" name="wide-flight-surcharge" value="0">
+    <input type="hidden" id="poa_reasons" name="poa_reasons" value="">
 
     <header class="bd-panel-head">
       <h2 class="bd-panel-title">Configure</h2>

@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.33.0
+Version:		2.34.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.33.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.34.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -192,6 +192,22 @@ function custom_enqueue_files() {
 			'going_max_message'     => stairbuilder_get_option( 'going_max_message', '' ),
 			'width_max'             => stairbuilder_get_option( 'width_max', '' ),
 			'width_max_message'     => stairbuilder_get_option( 'width_max_message', '' ),
+			// Width price jumps (v2.34.0, BRIEF-02 amend #3). The multiplier
+			// threshold defaults to the long-standing hardcoded 1000 so an
+			// unconfigured install behaves exactly as before; the surcharge pair
+			// defaults inert (empty/0 = rule disabled — SaaS safety, nothing
+			// SPD-specific baked in).
+			'extra_wide_multiplier_threshold_mm' => ( '' === ( $bd_ewt = stairbuilder_get_option( 'extra_wide_multiplier_threshold_mm', '' ) ) ) ? 1000 : (float) $bd_ewt,
+			'wide_flight_surcharge_threshold_mm' => stairbuilder_get_option( 'wide_flight_surcharge_threshold_mm', '' ),
+			'wide_flight_surcharge_amount'       => stairbuilder_get_option( 'wide_flight_surcharge_amount', '' ),
+			// POA limit rules (v2.34.0, BRIEF-02 amends #4/#5). Inert unless the
+			// threshold AND its message are both set. The server re-resolves these
+			// independently at lead capture — see baltic_stair_limit_poa_reasons().
+			'min_flight_width_mm'        => stairbuilder_get_option( 'min_flight_width_mm', '' ),
+			'min_flight_width_message'   => stairbuilder_get_option( 'min_flight_width_message', '' ),
+			'min_floor_height_mm'        => stairbuilder_get_option( 'min_floor_height_mm', '' ),
+			'max_floor_height_mm'        => stairbuilder_get_option( 'max_floor_height_mm', '' ),
+			'floor_height_range_message' => stairbuilder_get_option( 'floor_height_range_message', '' ),
 		),
 		// Regime constraints keyed by building_reg_value (Phase 1). The active
 		// regime is the current #building_regs selection.

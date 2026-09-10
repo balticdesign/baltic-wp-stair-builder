@@ -54,6 +54,67 @@ function baltic_stair_construction_is_poa( $code ) {
 }
 
 /**
+ * POA limit reasons for a submitted configuration (BRIEF-02, v2.34.0).
+ *
+ * Mirrors the front-end checks in formLogic.js (bdComputePoaReasons) but reads
+ * the SETTINGS and the SUBMITTED form data directly — the client's own
+ * `poa_reasons` field is stored as information, never trusted for the verdict.
+ * Each rule is inert unless its threshold AND its customer message are both
+ * configured, exactly like the front end, so the two can't disagree about
+ * whether a rule is on.
+ *
+ * Width set mirrors BuilderUtils.bdGenuineFlightWidths: `stair-width` always;
+ * `stair-width2` only while a middle flight exists (on a half turn with
+ * treadat 0 it is the LANDING DEPTH, not a flight width); `stair-width3` on
+ * half turns only.
+ *
+ * @param array $form_data Submitted form data (already colon-stripped).
+ * @return string[] Zero or more of 'min_flight_width', 'floor_height_range'.
+ */
+function baltic_stair_limit_poa_reasons( $form_data ) {
+	$reasons = array();
+	if ( ! is_array( $form_data ) ) {
+		return $reasons;
+	}
+	$type = isset( $form_data['stair_type'] ) ? (string) $form_data['stair_type'] : 'straight';
+
+	$min_w     = (float) stairbuilder_get_option( 'min_flight_width_mm', 0 );
+	$min_w_msg = trim( (string) stairbuilder_get_option( 'min_flight_width_message', '' ) );
+	if ( $min_w > 0 && '' !== $min_w_msg ) {
+		$widths = array();
+		if ( isset( $form_data['stair-width'] ) && is_numeric( $form_data['stair-width'] ) ) {
+			$widths[] = (float) $form_data['stair-width'];
+		}
+		$mid_treads = isset( $form_data['treadat'] ) ? (int) $form_data['treadat'] : 0;
+		$w2_counts  = ( 'quarter' === $type ) || ( 'half' === $type && $mid_treads > 0 );
+		if ( $w2_counts && isset( $form_data['stair-width2'] ) && is_numeric( $form_data['stair-width2'] ) ) {
+			$widths[] = (float) $form_data['stair-width2'];
+		}
+		if ( 'half' === $type && isset( $form_data['stair-width3'] ) && is_numeric( $form_data['stair-width3'] ) ) {
+			$widths[] = (float) $form_data['stair-width3'];
+		}
+		foreach ( $widths as $w ) {
+			if ( $w < $min_w ) {
+				$reasons[] = 'min_flight_width';
+				break;
+			}
+		}
+	}
+
+	$min_h   = (float) stairbuilder_get_option( 'min_floor_height_mm', 0 );
+	$max_h   = (float) stairbuilder_get_option( 'max_floor_height_mm', 0 );
+	$h_msg   = trim( (string) stairbuilder_get_option( 'floor_height_range_message', '' ) );
+	if ( '' !== $h_msg && ( $min_h > 0 || $max_h > 0 ) && isset( $form_data['floor-height'] ) ) {
+		$h = (float) str_replace( ',', '', (string) $form_data['floor-height'] );
+		if ( $h > 0 && ( ( $min_h > 0 && $h < $min_h ) || ( $max_h > 0 && $h > $max_h ) ) ) {
+			$reasons[] = 'floor_height_range';
+		}
+	}
+
+	return $reasons;
+}
+
+/**
  * AJAX: configurator submit. Captures lead → generates PDF → emails →
  * fires action hook → returns redirect URL to thank-you page.
  */
@@ -202,16 +263,27 @@ function baltic_stair_submit_lead() {
 	$vat   = isset( $_POST['vat'] ) ? (float) $_POST['vat'] : 0;
 	$total = isset( $_POST['total'] ) ? (float) $_POST['total'] : 0;
 
-	// Price on application, resolved from the admin setting rather than trusted
+	// Price on application, resolved from the admin settings rather than trusted
 	// from the request — the client can't talk us into hiding (or revealing) a
 	// price. The figures above are still stored: the customer's PDF withholds
 	// them, but the lead keeps an internal baseline for whoever prices it.
+	// Two sources: a POA construction type, and the configured limit rules
+	// (minimum flight width / floor-to-floor range — BRIEF-02, v2.34.0).
+	$bd_limit_reasons = baltic_stair_limit_poa_reasons( $form_data );
 	$poa = baltic_stair_construction_is_poa(
 		isset( $form_data['construction_type'] ) ? (string) $form_data['construction_type'] : ''
-	);
+	) || ! empty( $bd_limit_reasons );
 	// Persisted with the lead so the quote-view page stays faithful to what the
-	// customer was actually shown, even if the type is later un-flagged.
+	// customer was actually shown, even if the type is later un-flagged. The
+	// reasons say WHY it went POA (and stop a planned HubSpot deal value being
+	// sent as 0 without explanation); the client-posted poa_reasons field is
+	// overwritten with the server's own verdict.
 	$form_data['_poa'] = $poa ? 1 : 0;
+	if ( ! empty( $bd_limit_reasons ) ) {
+		$form_data['poa_reasons'] = implode( ',', $bd_limit_reasons );
+	} else {
+		unset( $form_data['poa_reasons'] );
+	}
 
 	// Additional notes (v2.25.0). The only genuinely free-form customer text in
 	// the plugin, and it reaches an admin screen, an email and a PDF — sanitise
@@ -507,7 +579,9 @@ function baltic_stair_send_lead_emails( array $lead_data, $pdf_path ) {
 		$lead_data['phone'],
 		$lead_data['postcode'],
 		$notes_line,
-		empty( $lead_data['poa'] ) ? '' : "PRICE ON APPLICATION — the customer was shown no figures. Those below are the configurator's internal calculation only.\n\n",
+		empty( $lead_data['poa'] ) ? '' : "PRICE ON APPLICATION — the customer was shown no figures. Those below are the configurator's internal calculation only."
+			. ( empty( $lead_data['form']['poa_reasons'] ) ? '' : "\nReason(s): " . $lead_data['form']['poa_reasons'] )
+			. "\n\n",
 		number_format( (float) $lead_data['price'], 2 ),
 		number_format( (float) $lead_data['vat'], 2 ),
 		number_format( (float) $lead_data['total'], 2 ),

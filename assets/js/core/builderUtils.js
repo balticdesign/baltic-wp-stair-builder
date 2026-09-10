@@ -209,6 +209,39 @@ function bdFeaturedStepLabel(fl, fr) {
 }
 
 /**
+ * The GENUINE flight width inputs for the current staircase, as numbers.
+ * One source of truth for every width-based rule (the wide-flight surcharge
+ * and the minimum-flight-width POA check both read this, and the server
+ * mirrors it in baltic_stair_limit_poa_reasons()).
+ *
+ * #stair-width is always flight 1. #stair-width2 is flight 2's width WHILE A
+ * MIDDLE FLIGHT EXISTS — on a half turn with Treads After Turn at 0 (half
+ * landing, double quarter, double winder emptied by the customer) it is the
+ * LANDING DEPTH and is excluded, keyed on the live #treadat exactly like the
+ * landing-spacer code, not on the shortcode config. #stair-width3 is flight 3
+ * and exists on half turns only.
+ */
+function bdGenuineFlightWidths($ = window.jQuery) {
+  const type = $('input[name="stair_type"]').val() || 'straight';
+  const widths = [];
+  const w1 = parseFloat($('#stair-width').val());
+  if (isFinite(w1)) widths.push(w1);
+  if (type === 'quarter' || type === 'half') {
+    const midTreads = parseInt($('#treadat').val(), 10) || 0;
+    const isLandingDepth = (type === 'half' && midTreads === 0);
+    if (!isLandingDepth) {
+      const w2 = parseFloat($('#stair-width2').val());
+      if (isFinite(w2)) widths.push(w2);
+    }
+  }
+  if (type === 'half') {
+    const w3 = parseFloat($('#stair-width3').val());
+    if (isFinite(w3)) widths.push(w3);
+  }
+  return widths;
+}
+
+/**
  * Calculates the rake (diagonal length) of a staircase
  * @param {number} height - Total height of the staircase
  * @param {number} totalRun - Total horizontal run of the staircase
@@ -745,6 +778,7 @@ if (typeof module !== 'undefined' && module.exports) {
     bdDisplayTotalRun,
     bdFeaturedStepPair,
     bdFeaturedStepLabel,
+    bdGenuineFlightWidths,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,
@@ -782,6 +816,7 @@ if (typeof window !== 'undefined') {
     bdDisplayTotalRun,
     bdFeaturedStepPair,
     bdFeaturedStepLabel,
+    bdGenuineFlightWidths,
     MIN_FLIGHT_FIRST,
     MIN_FLIGHT_MID,
     MIN_FLIGHT_LAST,

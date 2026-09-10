@@ -32,7 +32,30 @@ function bdIsPoaSelected() {
   if (jQuery('#construction_type option:selected').attr('data-poa') === '1') return true;
   // §5.6 — a selected featured step whose price field is empty or zero can't be
   // quoted either. Same route, same wording, set by the pricing endpoint.
-  return jQuery('#featStepPoa').val() === '1';
+  if (jQuery('#featStepPoa').val() === '1') return true;
+  // BRIEF-02 (v2.34.0): configured construction limits (minimum flight width,
+  // floor-to-floor range) also route into POA. Recomputed fresh here rather
+  // than read from state, so the POA verdict can never trail the inputs by an
+  // event regardless of handler binding order. Owned by formLogic.js, which
+  // also renders the customer-facing messages off the same function.
+  if (typeof window.bdComputePoaReasons === 'function' && window.bdComputePoaReasons().length) return true;
+  return false;
+}
+
+// Wide-flight surcharge (BRIEF-02 amend #3): a fixed amount added ONCE when
+// any genuine flight width strictly exceeds the configured threshold. Inert
+// (returns 0) until both threshold and amount are set — nothing SPD-specific
+// is baked in. Kept as one named function so the per-staircase / landing-depth
+// exclusion logic is readable in one place; the width set itself comes from
+// BuilderUtils.bdGenuineFlightWidths, shared with the min-width POA check and
+// mirrored server-side.
+function bdWideFlightSurcharge() {
+  const cfg = (window.stairBuilderVars && stairBuilderVars.construction) || {};
+  const th = parseFloat(cfg.wide_flight_surcharge_threshold_mm);
+  const amt = parseFloat(cfg.wide_flight_surcharge_amount);
+  if (!isFinite(th) || th <= 0 || !isFinite(amt) || amt <= 0) return 0;
+  const anyWide = BuilderUtils.bdGenuineFlightWidths(jQuery).some(function (w) { return w > th; });
+  return anyWide ? amt : 0;
 }
 
 // `is-poa` on the footer hides the cost + VAT rows and the total's label, so
@@ -164,8 +187,22 @@ function calculateTotalPrice() {
   if (jQuery('#asspkg').is(':checked')) $asspkg = parseFloat(jQuery('#asspkg').val());
   if (jQuery('#xtrap').is(':checked')) $xtrap = parseFloat(jQuery('#xtrap').val());
 
+  // === Width price jumps (both admin-configured; they STACK — they price
+  // different things). Strictly-greater-than on both, deliberately the same
+  // comparison. ===
+  const $bdCons = (window.stairBuilderVars && stairBuilderVars.construction) || {};
+  // Jump 1: the long-standing Extra Wide Multiplier on the per-riser material
+  // cost. Threshold configurable since v2.34.0; falls back to the historic
+  // hardcoded 1000. NOTE (long-standing behaviour, deliberately unchanged
+  // here): this tests FLIGHT 1's width only.
+  const $wmThreshold = parseFloat($bdCons.extra_wide_multiplier_threshold_mm) || 1000;
   let $width_price = 0;
-  if ($width > 1000) $width_price = parseFloat($str_price) * $wmp;
+  if ($width > $wmThreshold) $width_price = parseFloat($str_price) * $wmp;
+  // Jump 2: fixed surcharge when ANY genuine flight is wider than its own
+  // threshold — once per staircase however many flights qualify (a tread that
+  // wide is joined from two boards). The landing depth on a half turn with no
+  // middle flight is excluded — bdGenuineFlightWidths owns that rule.
+  const $wide_surcharge = bdWideFlightSurcharge();
 
   if ($risers < 7) $setup_fee = parseFloat(jQuery('#setupfee').val());
 
@@ -349,6 +386,7 @@ function calculateTotalPrice() {
     $str_price +
     $ctype +
     $width_price +
+    $wide_surcharge +
     $newels_price +
     $caps_price +
     $spindle_price +
@@ -392,6 +430,10 @@ function calculateTotalPrice() {
   // (both are plain integers, so the submit-time colon strip leaves them intact).
   jQuery('#newel-count').val($newel_amt);
   jQuery('#spindle-count').val($spindleCount);
+  // Applied wide-flight surcharge (0 when it didn't fire), POSTed with the
+  // lead so admin can see why a quote jumped. Like the multiplier, it is
+  // folded into the total on every customer surface, not itemised.
+  jQuery('#wide-flight-surcharge').val($wide_surcharge);
 }
 
 // Auto-recalculate on form input change

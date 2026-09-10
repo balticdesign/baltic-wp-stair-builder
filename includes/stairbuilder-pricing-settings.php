@@ -3576,6 +3576,41 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'placeholder' => 'Maximum width is {max}mm.',
 								'description' => 'Red message shown when someone exceeds the width maximum. Use {max} for the maximum value. Leave empty for a default message.',
 							],
+							[
+								'id' => 'min_flight_width_mm',
+								'label' => 'Minimum Flight Width (mm)',
+								'type' => 'number',
+								'placeholder' => 'Disabled',
+								'description' => 'A flight width below this switches the quote to Price on Application — the enquiry still submits, the customer just sees no figure. The landing depth on a half turn with no middle flight is not checked. Empty or 0 disables the rule. The message below must also be set for the rule to run.',
+							],
+							[
+								'id' => 'min_flight_width_message',
+								'label' => 'Minimum Flight Width — Message',
+								'type' => 'textarea',
+								'placeholder' => 'e.g. Widths under {min}mm are quoted individually — submit your enquiry and we will price it for you.',
+								'description' => 'Shown to the customer at the width field and in the price panel when a flight width is below the minimum. Use {min} for the minimum value. Empty disables the rule.',
+							],
+							[
+								'id' => 'min_floor_height_mm',
+								'label' => 'Floor to Floor — Minimum (mm)',
+								'type' => 'number',
+								'placeholder' => 'Disabled',
+								'description' => 'A floor-to-floor height below this switches the quote to Price on Application (enquiry still submits). Empty or 0 disables the lower bound. The range message below must also be set.',
+							],
+							[
+								'id' => 'max_floor_height_mm',
+								'label' => 'Floor to Floor — Maximum (mm)',
+								'type' => 'number',
+								'placeholder' => 'Disabled',
+								'description' => 'A floor-to-floor height above this switches the quote to Price on Application (enquiry still submits). Empty or 0 disables the upper bound. The range message below must also be set.',
+							],
+							[
+								'id' => 'floor_height_range_message',
+								'label' => 'Floor to Floor Range — Message',
+								'type' => 'textarea',
+								'placeholder' => 'e.g. Heights outside {min}–{max}mm are quoted individually — submit your enquiry and we will price it for you.',
+								'description' => 'Shown to the customer at the floor height field and in the price panel when the height is outside the range. Use {min} and {max} for the bounds. Empty disables both bounds.',
+							],
 						],
 					],
 					'geometry_defaults' => [
@@ -3630,7 +3665,32 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'id' => 'width_mp',
 								'label' => 'Extra Wide Multiplier',
 								'type' => 'number',
-								'description' => 'Fires if staircase is greater than 1000mm wide',
+								'description' => 'Decimal multiplier applied to the per-riser material cost when the first flight is wider than the threshold below.',
+							],
+							[
+								// No 'default' key: render_number() does not honour one — the
+								// 1000 fallback is applied where the value is read (the
+								// stairBuilderVars export), so an empty field keeps the
+								// pre-v2.34 hardcoded behaviour exactly.
+								'id' => 'extra_wide_multiplier_threshold_mm',
+								'label' => 'Extra Wide Multiplier — Threshold (mm)',
+								'type' => 'number',
+								'placeholder' => '1000',
+								'description' => 'Width above which (strictly greater than) the Extra Wide Multiplier fires. Leave empty for the long-standing 1000mm.',
+							],
+							[
+								'id' => 'wide_flight_surcharge_threshold_mm',
+								'label' => 'Wide Flight Surcharge — Threshold (mm)',
+								'type' => 'number',
+								'placeholder' => 'Disabled',
+								'description' => 'Second width price jump: any flight strictly wider than this adds the fixed surcharge below, once per staircase. Stacks with the Extra Wide Multiplier — they price different things (e.g. treads joined from two boards). The landing depth on a half turn with no middle flight is NOT counted. Empty or 0 disables the rule.',
+							],
+							[
+								'id' => 'wide_flight_surcharge_amount',
+								'label' => 'Wide Flight Surcharge — Amount',
+								'type' => 'price',
+								'placeholder' => '0',
+								'description' => 'Fixed currency amount added once when any flight exceeds the surcharge threshold. Empty or 0 disables the rule.',
 							],
 							[
 								'id' => 'cut_string_price',

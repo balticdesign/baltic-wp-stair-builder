@@ -683,6 +683,57 @@ jQuery("input[name='delivery']").change(function () {
   const goingMsg = buildMsg(cfg.going_max_message, 'Maximum going is {max}mm.', goingMax);
   const widthMsg = buildMsg(cfg.width_max_message, 'Maximum width is {max}mm.', widthMax);
 
+  // ---- POA limit rules (BRIEF-02, v2.34.0) --------------------------------
+  // Minimum flight width and floor-to-floor range. Breaching one does NOT
+  // block the enquiry: the quote switches to Price on Application (the same
+  // POA path the construction types use), the configured message shows at the
+  // field and once in the price panel, and the lead still submits carrying
+  // the reasons. Each rule is INERT unless its threshold AND its message are
+  // both configured (SaaS safety — 0/empty disables). The value is never
+  // clamped: the customer typed it, so they are told, not corrected.
+  const minFlightW    = parseFloat(cfg.min_flight_width_mm);
+  const minFlightMsgR = String(cfg.min_flight_width_message || '').trim();
+  const minFloorH     = parseFloat(cfg.min_floor_height_mm);
+  const maxFloorH     = parseFloat(cfg.max_floor_height_mm);
+  const floorMsgR     = String(cfg.floor_height_range_message || '').trim();
+
+  const minWidthActive = isFinite(minFlightW) && minFlightW > 0 && minFlightMsgR !== '';
+  const floorMinOn     = isFinite(minFloorH) && minFloorH > 0;
+  const floorMaxOn     = isFinite(maxFloorH) && maxFloorH > 0;
+  const floorActive    = floorMsgR !== '' && (floorMinOn || floorMaxOn);
+
+  function subMinMax(text, minVal, maxVal) {
+    return String(text)
+      .replace(/\{min\}/g, isFinite(minVal) ? minVal : '')
+      .replace(/\{max\}/g, isFinite(maxVal) ? maxVal : '');
+  }
+  const minWidthMsg = subMinMax(minFlightMsgR, minFlightW, NaN);
+  const floorMsg    = subMinMax(floorMsgR, minFloorH, maxFloorH);
+
+  function bdFloorHeightVal() {
+    return parseFloat(String(jQuery('#floor-height').val() || '').replace(/,/g, ''));
+  }
+
+  // The POA verdict, recomputed fresh from the DOM on every call — priceCalc's
+  // bdIsPoaSelected() calls this at the top of each calculation, so the
+  // verdict can never trail the inputs by an event whatever the handler
+  // binding order. The server re-resolves the same rules independently at
+  // lead capture (baltic_stair_limit_poa_reasons) — this is display, not trust.
+  window.bdComputePoaReasons = function () {
+    const reasons = [];
+    if (minWidthActive &&
+        BuilderUtils.bdGenuineFlightWidths(jQuery).some(function (w) { return w < minFlightW; })) {
+      reasons.push('min_flight_width');
+    }
+    if (floorActive) {
+      const h = bdFloorHeightVal();
+      if (!isNaN(h) && ((floorMinOn && h < minFloorH) || (floorMaxOn && h > maxFloorH))) {
+        reasons.push('floor_height_range');
+      }
+    }
+    return reasons;
+  };
+
   // Create a hidden red message element immediately after the given input.
   function makeMsgEl(afterInput) {
     const el = document.createElement('p');
@@ -706,6 +757,76 @@ jQuery("input[name='delivery']").change(function () {
       if (el) lastWidthEl = el;
     });
     const $widthMsg = lastWidthEl ? makeMsgEl(lastWidthEl) : jQuery();
+
+    // ---- POA limit messages (BRIEF-02) ----
+    // Per-field: one element under each width input (only the offending,
+    // genuine fields show it) and one under floor height. Plus one line in
+    // the price panel — a field message is easy to miss on mobile.
+    const bdMinWidthMsgEls = {};
+    if (minWidthActive) {
+      WIDTH_IDS.forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) bdMinWidthMsgEls[id] = makeMsgEl(el);
+      });
+    }
+    const bdFloorEl = document.getElementById('floor-height');
+    const $bdFloorMsg = (floorActive && bdFloorEl) ? makeMsgEl(bdFloorEl) : jQuery();
+    let $bdPanelNote = jQuery();
+    if (minWidthActive || floorActive) {
+      const panelFoot = document.querySelector('.bd-panel-foot');
+      if (panelFoot) {
+        const note = document.createElement('p');
+        note.className = 'sb-limit-msg';
+        note.id = 'bd-poa-note';
+        note.style.cssText = 'display:none;color:#d63638;margin:6px 0 0;font-size:13px;font-weight:600;';
+        panelFoot.insertAdjacentElement('afterbegin', note);
+        $bdPanelNote = jQuery(note);
+      }
+    }
+
+    // Whether this width input counts as a flight width right now — mirrors
+    // BuilderUtils.bdGenuineFlightWidths so the message can't disagree with
+    // the check (#stair-width2 is the landing depth on a half turn with no
+    // middle flight, and the landing depth is not a flight width).
+    function bdIsGenuineWidthId(id) {
+      const type = jQuery('input[name="stair_type"]').val() || 'straight';
+      if (id === 'stair-width') return true;
+      if (id === 'stair-width2') {
+        return type === 'quarter' ||
+          (type === 'half' && ((parseInt(jQuery('#treadat').val(), 10) || 0) > 0));
+      }
+      if (id === 'stair-width3') return type === 'half';
+      return false;
+    }
+
+    function applyLimitMessages() {
+      const reasons = window.bdComputePoaReasons();
+      window.bdPoaReasons = reasons;
+      jQuery('#poa_reasons').val(reasons.join(','));
+      const panelParts = [];
+      if (minWidthActive) {
+        let any = false;
+        WIDTH_IDS.forEach(function (id) {
+          const $el = bdMinWidthMsgEls[id];
+          if (!$el) return;
+          const v = parseFloat(jQuery('#' + id).val());
+          const below = bdIsGenuineWidthId(id) && isFinite(v) && v < minFlightW;
+          if (below) { any = true; $el.text(minWidthMsg).show(); } else { $el.hide(); }
+        });
+        if (any) panelParts.push(minWidthMsg);
+      }
+      if (floorActive) {
+        if (reasons.indexOf('floor_height_range') !== -1) {
+          $bdFloorMsg.text(floorMsg).show();
+          panelParts.push(floorMsg);
+        } else {
+          $bdFloorMsg.hide();
+        }
+      }
+      if (panelParts.length) { $bdPanelNote.text(panelParts.join(' ')).show(); }
+      else { $bdPanelNote.hide(); }
+    }
+    window.bdApplyLimitMessages = applyLimitMessages;
 
     // v2.16.0 Phase 1: resolve the EFFECTIVE limits from the active regime,
     // falling back to the global Construction Settings. Recomputed each call so
@@ -811,6 +932,19 @@ jQuery("input[name='delivery']").change(function () {
       });
       applyRegimeDesc();
     });
+
+    // POA limit messages track every input that can change the verdict: the
+    // width fields, floor height, and #treadat (which flips whether
+    // #stair-width2 is a flight width or the landing depth). Delegated as a
+    // display refresh only — the POA verdict itself is recomputed inside the
+    // price calculation, so ordering doesn't matter here.
+    if (minWidthActive || floorActive) {
+      WIDTH_IDS.concat(['floor-height', 'treadat']).forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) jQuery(el).on('input change', applyLimitMessages);
+      });
+      applyLimitMessages();
+    }
 
     // Initial pass (after the flight script has seeded default values).
     applyRegimeGoingDefault();

@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.34.0
+Version:		2.35.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.34.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.35.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -230,6 +230,18 @@ function custom_enqueue_files() {
 			// customer's newel selection.
 			'newel_overhang_mm' => bd_newel_overhang_map(),
 			'newel_overhang_default' => 27,
+		),
+		// T&G landing boards, half:landing only (BRIEF-03, v2.35.0): two set
+		// prices keyed on the selected tread material CODE. oak_codes lists the
+		// codes that take the Oak price — 'oak' from the fixed material
+		// vocabulary (material_code_choices) — and EVERYTHING ELSE takes the
+		// MDF/Pine price, so a material added later gets the standard price
+		// rather than silently nothing. priceCalc.js resolves this live from
+		// the tread selection; empty/0 prices are additive zeros, never POA.
+		'landing_tg' => array(
+			'standard'  => stairbuilder_get_option( 'landing_tg_price_mdf_pine', '' ),
+			'oak'       => stairbuilder_get_option( 'landing_tg_price_oak', '' ),
+			'oak_codes' => array( 'oak' ),
 		),
 		'availability' => $bd_availability,
 	) );

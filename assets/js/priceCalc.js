@@ -58,6 +58,19 @@ function bdWideFlightSurcharge() {
   return anyWide ? amt : 0;
 }
 
+// T&G landing board price for the current selections (BRIEF-03, v2.35.0).
+// Returns 0 unless the #tandg_landing select exists (half:landing only) AND
+// the customer chose "T&G landing included". Two set prices from settings,
+// keyed on the tread material code — see the call site comment.
+function bdTandgLandingPrice() {
+  if (jQuery('#tandg_landing').val() !== 'included') return 0;
+  const tg = (window.stairBuilderVars && stairBuilderVars.landing_tg) || {};
+  const treadCode = String(BuilderUtils.getString('tread_material') || '').toLowerCase();
+  const oakCodes = (tg.oak_codes || ['oak']).map(function (c) { return String(c).toLowerCase(); });
+  const price = parseFloat(oakCodes.indexOf(treadCode) !== -1 ? tg.oak : tg.standard);
+  return (isFinite(price) && price > 0) ? price : 0;
+}
+
 // `is-poa` on the footer hides the cost + VAT rows and the total's label, so
 // "Submit for Quote" stands on its own where the total normally sits.
 function bdApplyPoaDisplay() {
@@ -233,14 +246,17 @@ function calculateTotalPrice() {
   // both-sides uplift (§5.1) is applied in exactly one place. The per-side
   // figures stay available for the works order and diagnostics.
   const $featStepTotal = parseFloat(jQuery('#featStepTotal').val()) || 0;
-  // T&G landing boards — half:landing only, additive. The charge rides on the
-  // selected option's data-price (the #construction_type pattern), and "Landing
-  // not included" carries 0. Every other config renders no such select, so the
-  // lookup misses and this contributes nothing. Additive means the landing is
-  // still inside the base price: "not included" therefore quotes the SAME total
-  // as before this field existed, and "included" quotes that plus the charge.
-  // Whether SPD reduce the base to compensate is their commercial decision.
-  const $tandgLanding = parseFloat(jQuery('#tandg_landing option:selected').attr('data-price')) || 0;
+  // T&G landing boards — half:landing only, additive. Since BRIEF-03
+  // (v2.35.0) the charge is TWO set prices keyed on the selected tread
+  // material CODE: an oak_codes match takes the Oak price, EVERYTHING ELSE
+  // takes the MDF/Pine price — so a material added later gets the standard
+  // price rather than silently nothing. Gated on the customer's "T&G landing
+  // included" selection; every other config renders no #tandg_landing select,
+  // so this contributes nothing there. Additive means the landing is still
+  // inside the base price: "not included" quotes the SAME total as before the
+  // select existed, and "included" quotes that plus the charge. Whether SPD
+  // reduce the base to compensate is their commercial decision.
+  const $tandgLanding = bdTandgLandingPrice();
 
   const $newels_price = $newel_cost * $newel_amt;
   const $caps_price = $cap_cost * $newel_amt;
@@ -434,6 +450,10 @@ function calculateTotalPrice() {
   // lead so admin can see why a quote jumped. Like the multiplier, it is
   // folded into the total on every customer surface, not itemised.
   jQuery('#wide-flight-surcharge').val($wide_surcharge);
+  // Applied T&G landing charge, same idea (0 off half:landing or when the
+  // customer chose "Landing not included"). The PDF states WHAT is included
+  // via the tandg_landing enum; this records what it cost.
+  jQuery('#tandg-landing-price').val($tandgLanding);
 }
 
 // Auto-recalculate on form input change

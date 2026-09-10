@@ -97,13 +97,11 @@ if ( $sb_is_landing && ! $sb_is_half_landing ) {
 	$sb_landing_note = trim( (string) $sb_landing_note );
 }
 
-// T&G landing boards charge, half:landing only. Blank/unset reads as 0, which is
-// a legitimate value and not a missing price -- the charge is ADDITIVE, so 0
-// means no extra charge and the quote still completes. Never routed through the
-// price-on-application path, which is for prices whose absence breaks a quote.
-$sb_tandg_price = $sb_is_half_landing
-	? (float) stairbuilder_get_option( 'tandg_landing_boards_price', 0 )
-	: 0.0;
+// T&G landing boards charge, half:landing only. Since BRIEF-03 (v2.35.0) the
+// price is TWO set figures keyed on the live tread material selection, so it
+// is resolved in priceCalc.js from stairBuilderVars.landing_tg rather than
+// rendered onto the option here. Blank/unset prices read as 0 — the charge is
+// ADDITIVE and never routes through price-on-application.
 
 $sb_hide = function ( $on, $extra_class = '' ) {
 	$cls = trim( $extra_class . ( $on ? ' bd-hidden-row' : '' ) );
@@ -128,6 +126,7 @@ $sb_hide = function ( $on, $extra_class = '' ) {
           // limit reasons — informational copies for the lead record; the
           // server re-resolves both independently at capture. ?>
     <input type="hidden" id="wide-flight-surcharge" name="wide-flight-surcharge" value="0">
+    <input type="hidden" id="tandg-landing-price" name="tandg-landing-price" value="0">
     <input type="hidden" id="poa_reasons" name="poa_reasons" value="">
 
     <header class="bd-panel-head">
@@ -282,9 +281,11 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         <div class="form-row">
         <label for="tandg_landing">Half landing</label>
         <select id="tandg_landing" name="tandg_landing">
+        <?php // No data-price since v2.35.0: the charge depends on the live
+              // tread material selection, so priceCalc.js resolves it from
+              // stairBuilderVars.landing_tg (bdTandgLandingPrice). ?>
         <?php foreach ( bd_tandg_landing_labels() as $tl_value => $tl_label ) : ?>
           <option value="<?php echo esc_attr( $tl_value ); ?>"
-            data-price="<?php echo esc_attr( 'included' === $tl_value ? $sb_tandg_price : 0 ); ?>"
             <?php selected( 'included', $tl_value ); ?>><?php echo esc_html( $tl_label ); ?></option>
         <?php endforeach; ?>
         </select>

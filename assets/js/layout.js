@@ -72,6 +72,18 @@
       const other = panel === 'form' ? 'measurements' : 'form';
       setPanelState(layout, other, 'collapsed');
     }
+    // Dismissing the Configure panel while a section is open counts as
+    // closing that section for the tick-on-close rule — the customer has
+    // seen it (BRIEF-01 §3.2, recommended option, both desktop pull-tab and
+    // mobile sheet). The section keeps its is-open state for when the panel
+    // reopens; only the tick bookkeeping records the close.
+    if (!willOpen && panel === 'form') {
+      layout.querySelectorAll('.form-tab.is-open').forEach(function (t) {
+        const key = sectionKey(t);
+        if (key) closedAfterOpen.add(key);
+      });
+      refreshSummaries(layout);
+    }
   }
 
   /**
@@ -149,12 +161,31 @@
    * persisted — a fresh page load starts unticked again. */
   const visitedSections = new Set();
 
+  /* Sections that have been opened AND subsequently closed, by section key.
+   * Feeds the opt-in data-bd-tick-on-close="1" completion rule (SPD decision,
+   * confirmed Sept 2026 — do not re-open): Posts & Balustrades must not tick
+   * on visit like the other sections, because "no posts / no balustrading" is
+   * a deliberate choice and a visit-tick would imply a selection was made when
+   * the customer may only have glanced in. It ticks once they have opened and
+   * then CLOSED the section, whatever they selected inside — including
+   * nothing. Closing means the section collapsing: via its own head, via
+   * another section opening (the accordion is exclusive), or via the whole
+   * Configure panel being dismissed while it is open — in every case they
+   * have seen the section. Like visitedSections, not persisted. */
+  const closedAfterOpen = new Set();
+
   function markVisited(tab) {
     const key = sectionKey(tab);
     if (key) visitedSections.add(key);
   }
 
   function setSectionOpen(tab, open) {
+    // An actual open -> closed transition records the close for the
+    // tick-on-close rule; is-open implies the section was visited.
+    if (!open && tab.classList.contains('is-open')) {
+      const key = sectionKey(tab);
+      if (key) closedAfterOpen.add(key);
+    }
     tab.classList.toggle('is-open', open);
     const head = tab.querySelector('.sec-head');
     if (head) head.setAttribute('aria-expanded', String(open));
@@ -323,8 +354,14 @@
       const cfg = SECTION_CONFIG[key];
       let done = false, summary = '';
       // Visited gate first: an untouched section stays unticked even when its
-      // defaults already satisfy done().
-      try { done = visitedSections.has(key) && !!cfg.done(); } catch (_) {}
+      // defaults already satisfy done(). A data-bd-tick-on-close="1" section
+      // ignores done() entirely — its tick means "opened and closed again",
+      // regardless of what was selected inside (see closedAfterOpen above).
+      try {
+        done = (tab.dataset && tab.dataset.bdTickOnClose === '1')
+          ? closedAfterOpen.has(key)
+          : (visitedSections.has(key) && !!cfg.done());
+      } catch (_) {}
       try { summary = cfg.summary() || ''; } catch (_) {}
       tab.classList.toggle('is-done', done);
       const sub = tab.querySelector('.sec-sub');

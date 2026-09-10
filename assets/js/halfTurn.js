@@ -166,8 +166,9 @@ function grabFormValues() {
   // Read from the live input, not the shortcode config -- it changes as they type.
   const middleFlightEmpty = (parseInt(jQuery('#treadat').val(), 10) || 0) === 0;
 
+  // #custom visibility is owned by formLogic.js (bdUpdatePostsBalUI) — the
+  // shared P&B implementation. This function only READS the boxes.
   if (nposts === "custom") {
-    jQuery('#custom').show();
     if (jQuery("#tl-post").is(":checked")) {
       if (direction === 'left') tl = true; else tr = true;
     }
@@ -239,8 +240,6 @@ function grabFormValues() {
         turn2side = jQuery("#bo-post2").is(":checked");
       }
     }
-  } else {
-    jQuery('#custom').hide();
   }
 
   return {
@@ -393,7 +392,6 @@ jQuery(document).ready(function () {
   jQuery('#stair-width').val(800);
   jQuery('#stair-width2').val(800);
   jQuery('#stair-width3').val(800);
-  jQuery('#custom').hide();
 
   // First draw: grabFormValues (via onLoad) seeds the derived flight defaults.
   onLoad();

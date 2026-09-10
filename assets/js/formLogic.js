@@ -387,8 +387,9 @@ function bdInitSpindle() {
 // ==============================
 jQuery(document).ready(function () {
   bdInitSpindle();
-  jQuery('#ball').hide();
-  jQuery('#ball :input').prop('disabled', true);
+  // Initial P&B option visibility (default: no custom posts, no balustrades).
+  // Owned here rather than in each flight script — see bdUpdatePostsBalUI.
+  bdUpdatePostsBalUI();
 
   // Additional notes character counter. maxlength already stops typing at the
   // limit; this only tells the customer where they are. Enforcement is
@@ -455,16 +456,37 @@ jQuery(document).ready(function () {
 // figure in the total after switching material.
 jQuery('#left-featured-step, #right-featured-step, #tread_material').on('change', getFeaturedStepCosts);
 
-// Newel posts, ballustrade, custom UI/logic
-jQuery('#posts :input').change(function () {
-  let newelValue = BuilderUtils.getString('newel-posts');
-  if (newelValue === 'custom') {
+// Posts & Balustrades option visibility — THE shared implementation for every
+// builder (SPD amend #1, Sept 2026): #custom shows only while "Custom" is the
+// newel selection, #ball only while balustrades = Yes. The flight scripts must
+// not toggle these themselves — one behaviour everywhere means one function.
+//
+// Hidden inputs are DISABLED, not cleared: a disabled input neither POSTs nor
+// affects the price (pricing keys off the SELECTED #newel-posts option value
+// and the balustrade radio, never off a hidden box directly), and re-showing
+// restores the customer's previous ticks. The mid-flight boxes are the one
+// exception — bdUpdateMidFlightPosts UNCHECKS those on hide, because their
+// tally feeds the custom newel count.
+function bdUpdatePostsBalUI() {
+  if (BuilderUtils.getString('newel-posts') === 'custom') {
     jQuery('#custom').show();
     jQuery('#custom :input').prop('disabled', false);
   } else {
     jQuery('#custom').hide();
     jQuery('#custom :input').prop('disabled', true);
   }
+  if (jQuery('#ballustrades-yes').is(':checked')) {
+    jQuery('#ball').show();
+    jQuery('#ball :input').prop('disabled', false);
+  } else {
+    jQuery('#ball').hide();
+    jQuery('#ball :input').prop('disabled', true);
+  }
+}
+
+// Newel posts, ballustrade, custom UI/logic
+jQuery('#posts :input').change(function () {
+  bdUpdatePostsBalUI();
   // Recalculate number of checked custom posts and update
   let numChecked = jQuery('#custom :checkbox:checked').length;
   let customValue = 'custom:' + Math.min(numChecked, 7);
@@ -479,15 +501,6 @@ jQuery('#posts :input').change(function () {
   let spindleType = jQuery('#spindle_type').val();
   let hrType = jQuery('#handrail_type').val();
   let capType = BuilderUtils.getString('newel_cap');
-
-  // Ballustrade show/hide
-  if (jQuery("#ballustrades-yes").is(":checked")) {
-    jQuery('#ball').show();
-    jQuery('#ball :input').prop('disabled', false);
-  } else {
-    jQuery('#ball').hide();
-    jQuery('#ball :input').prop('disabled', true);
-  }
 
   // Only the component *type* selects change what the material lists contain,
   // so only they justify the refetch. This handler is bound to `#posts :input`,

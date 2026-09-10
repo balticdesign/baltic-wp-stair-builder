@@ -481,7 +481,12 @@ $sb_hide = function ( $on, $extra_class = '' ) {
 <?php echo $bonuslogic; ?>
 </div>
 </div>
-    <div class="form-tab"><!--- Posts & Balustrades -->
+    <?php // data-bd-tick-on-close: this section's completion tick means
+    // "opened and then closed", not "has a selection" — "no posts / no
+    // balustrading" is a valid deliberate choice (SPD decision, Sept 2026,
+    // settled — do not re-open). Handled in layout.js; opt-in so any future
+    // section can reuse the rule without being special-cased by id. ?>
+    <div class="form-tab" data-bd-tick-on-close="1"><!--- Posts & Balustrades -->
   <button type="button" class="sec-head" aria-expanded="false">
     <span class="sec-status" aria-hidden="true"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.2 5.7L8 1" stroke="currentColor" stroke-width="1.6"/></svg></span>
     <span class="sec-title">Posts &amp; Balustrades<span class="sec-sub"></span></span>

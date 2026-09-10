@@ -87,8 +87,9 @@ function grabFormValues() {
   let spin_style = (jQuery("#spindle_type").val() || '').toUpperCase();
   let newel_cap = (BuilderUtils.getString("newel_cap") || '').toUpperCase();
 
+  // #custom visibility is owned by formLogic.js (bdUpdatePostsBalUI) — the
+  // shared P&B implementation. This function only READS the boxes.
   if (nposts === "custom") {
-    jQuery('#custom').show();
     if (jQuery("#tl-post").is(":checked")) {
       if (direction === 'left') tl = true; else tr = true;
     }
@@ -119,8 +120,6 @@ function grabFormValues() {
           break;
       }
     }
-  } else {
-    jQuery('#custom').hide();
   }
 
   return {
@@ -240,7 +239,6 @@ jQuery(document).ready(function () {
   jQuery('#going').val(parseFloat(jQuery('#going').val()) || 240);
   jQuery('#stair-width').val(800);
   jQuery('#stair-width2').val(800);
-  jQuery('#custom').hide();
 
   // First draw: grabFormValues (via onLoad) seeds the derived flight defaults.
   onLoad();

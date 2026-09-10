@@ -32,14 +32,13 @@ function grabFormValues() {
   if (nposts === "left")      { tl = true; bl = true; }
   if (nposts === "right")     { tr = true; br = true; }
   if (nposts === "both")      { tl = true; bl = true; tr = true; br = true; }
+  // #custom visibility is owned by formLogic.js (bdUpdatePostsBalUI) — the
+  // shared P&B implementation. This function only READS the boxes.
   if (nposts === "custom") {
-    jQuery('#custom').show();
     if (jQuery("#tl-post").is(":checked")) tl = true;
     if (jQuery("#tr-post").is(":checked")) tr = true;
     if (jQuery("#bl-post").is(":checked")) bl = true;
     if (jQuery("#br-post").is(":checked")) br = true;
-  } else {
-    jQuery('#custom').hide();
   }
 
   // Feature tread config — read per side (v2.23.0). Values unchanged:
@@ -134,7 +133,6 @@ jQuery(document).ready(function () {
   jQuery('#floor-height').val(2600);
   jQuery('#going').val(parseFloat(jQuery('#going').val()) || 240);
   jQuery('#stair-width').val(800);
-  jQuery('#custom').hide();
 
   onLoad();
 

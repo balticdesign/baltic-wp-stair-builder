@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.31.1
+Version:		2.32.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 License:		GPL-2.0+
@@ -27,7 +27,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.30.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.32.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -209,10 +209,11 @@ function custom_enqueue_files() {
 			// Newel overhang per style, code => mm. On a staircase whose middle
 			// flight is empty the two flights are separated by TWO overhangs --
 			// each flight's stringer meets the middle of its own post -- which is
-			// the 58mm gap at the shipped 29mm. Drawing only; never priced.
-			// Keyed by newel code so it follows the customer's newel selection.
+			// the 54mm gap at the shipped 27mm (SPD, 10 September 2026). Drawing
+			// only; never priced. Keyed by newel code so it follows the
+			// customer's newel selection.
 			'newel_overhang_mm' => bd_newel_overhang_map(),
-			'newel_overhang_default' => 29,
+			'newel_overhang_default' => 27,
 		),
 		'availability' => $bd_availability,
 	) );

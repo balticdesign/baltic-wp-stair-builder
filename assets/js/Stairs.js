@@ -574,7 +574,7 @@ Stairs.setHalfturnStairsOptions = function(config){
     // The landing spacer counts toward the drawn (b) dimension: the staircase is
     // physically that much wider. It is only non-zero when the middle flight has
     // no treads. Note this is the OVERALL WIDTH -- the landing's RAIL is measured
-    // as flight 1 + flight 3, because the 58mm cancels against the newel post at
+    // as flight 1 + flight 3, because the 54mm cancels against the newel post at
     // each end of the run (SPD, 8 September 2026). The two figures differ on
     // purpose; do not reconcile them.
     var bdLandingSpacerMm = ( parseInt(config.flight2Treads.amount) === 0 )
@@ -646,18 +646,22 @@ Stairs.setHalfturnStairsOptions = function(config){
     // renderer with turn amounts of 1, so only the caller knows which this is.
     Stairs.options.isDoubleQuarterLanding = ( config.isDoubleQuarterLanding === true );
 
-    // Landing spacer, mm -> px. When the middle flight has NO treads the two
-    // flights previously abutted, so their inner stringers overlapped. The gap
-    // is two newel overhangs (see halfTurn.js landingSpacerMm). Scaled off the
-    // going, the same way Stairs.lipPx above is: this sits on the going axis,
-    // which is what the middle flight's treads are measured along.
+    // Landing spacer, in DRAWN pixels. When the middle flight has NO treads,
+    // each flight's inner stringer emerges from the CENTRE of its own newel
+    // post, and the two posts butt together at the divider — so the flight
+    // edges (the stringer centrelines) sit exactly one drawn post width apart
+    // (SPD, 10 September 2026). Deliberately NOT the mm figure scaled: posts
+    // are drawn at a fixed stylised size, so the stringers only line up with
+    // their centres if the separation matches that same size. The REAL gap in
+    // millimetres (two newel overhangs, see halfTurn.js landingSpacerMm) still
+    // feeds the printed (b) width via printMMWidth above.
     //
     // Zero whenever a middle flight exists -- its treads already separate them.
     Stairs.landingSpacerPx = 0;
-    if (Stairs.options.flight2Treads.amount === 0 && bdHalfGoingMm > 0) {
+    if (Stairs.options.flight2Treads.amount === 0) {
         var bdSpacerMm = parseFloat(config.landingSpacerMm);
         if (isFinite(bdSpacerMm) && bdSpacerMm > 0) {
-            Stairs.landingSpacerPx = bdSpacerMm * Stairs.options.treadHeight / bdHalfGoingMm;
+            Stairs.landingSpacerPx = StairConstants.POSTS_SIZE;
         }
     }
 
@@ -2073,56 +2077,12 @@ Stairs.drawBallustradeHalfturn = function(context){
     context.stroke();
     context.fill();
 
-    // Empty middle flight: the two inner stringers straddle flight edges that
-    // are only a landing spacer apart, so their strips overlap into one grey
-    // bar. Repaint them as two rects that MEET at the divider line — each flight
-    // keeps its own stringer, separated by a stroked boundary — capped with a
-    // horizontal joint under the newel boxes, where a stringer physically butts
-    // into its post. The newel boxes themselves are not moved.
-    if (Stairs.landingSpacerPx > 0){
-        var bdBw = StairConstants.BALUSTRADE_WIDTH;
-        // Same x as drawLandingDivider: the middle of the spacer. Use the
-        // UNSWAPPED Stairs.* values — locals were pivoted for isRight above.
-        var bdDividerX = (Stairs.options.direction === 'left')
-            ? Stairs.startX1 - Stairs.landingSpacerPx / 2
-            : Stairs.startX2 + Stairs.landingSpacerPx / 2;
-        var bdJointTop = Stairs.insideTurnY + StairConstants.POSTS_SIZE / 2;
-        // Flight 1's inner stringer centreline and floor end, per direction.
-        var bdF1Edge   = isRight ? Stairs.startX2 : Stairs.startX1;
-        var bdF1Bottom = (isRight ? Stairs.startY2 : Stairs.startY1) + bdBw/2;
-        // Flight 3's inner stringer centreline is insideEndX; its head end
-        // finishes flush with the lip band, same as the polygon strips above.
-        var bdF3Edge   = Stairs.insideEndX;
-        var bdF3Bottom = f3HeadY;
-        // Each rect runs from the stringer's outer face to the divider.
-        var bdF1Left  = Math.min(bdF1Edge - bdBw/2, bdF1Edge + bdBw/2, bdDividerX);
-        var bdF1Right = Math.max(bdF1Edge - bdBw/2, bdF1Edge + bdBw/2, bdDividerX);
-        var bdF3Left  = Math.min(bdF3Edge - bdBw/2, bdF3Edge + bdBw/2, bdDividerX);
-        var bdF3Right = Math.max(bdF3Edge - bdBw/2, bdF3Edge + bdBw/2, bdDividerX);
-        // Trim each rect at the divider so they abut without crossing it.
-        if (bdF1Left < bdDividerX && bdF1Right > bdDividerX){
-            if (bdF1Edge > bdDividerX){ bdF1Left = bdDividerX; } else { bdF1Right = bdDividerX; }
-        }
-        if (bdF3Left < bdDividerX && bdF3Right > bdDividerX){
-            if (bdF3Edge > bdDividerX){ bdF3Left = bdDividerX; } else { bdF3Right = bdDividerX; }
-        }
-        // One clear across the whole joint column, both flights' full depth:
-        // the polygon strips straddle the flight edges, so each one leaves a
-        // sliver PAST the divider that outlives the other flight's rect when
-        // the flights are different lengths. The two rects repaint everything
-        // that should stay — including the lip corner, which they now finish
-        // flush with — so whatever the clear removes beyond them is gap.
-        context.clearRect(Math.min(bdF1Left, bdF3Left), bdJointTop,
-            Math.max(bdF1Right, bdF3Right) - Math.min(bdF1Left, bdF3Left),
-            Math.max(bdF1Bottom, bdF3Bottom) - bdJointTop);
-        context.fillRect(bdF1Left, bdJointTop, bdF1Right - bdF1Left, bdF1Bottom - bdJointTop);
-        context.strokeRect(bdF1Left, bdJointTop, bdF1Right - bdF1Left, bdF1Bottom - bdJointTop);
-        context.fillRect(bdF3Left, bdJointTop, bdF3Right - bdF3Left, bdF3Bottom - bdJointTop);
-        context.strokeRect(bdF3Left, bdJointTop, bdF3Right - bdF3Left, bdF3Bottom - bdJointTop);
-        // No divider bridge is needed through the band above bdJointTop: the
-        // two newel boxes butt together over the divider (drawPostsHalfturn)
-        // and their shared edge draws that segment of the boundary.
-    }
+    // Empty middle flight: no repaint of the inner stringers is needed here.
+    // landingSpacerPx is one drawn post width, so each polygon strip straddles
+    // its own flight edge — the centre of its own newel box — leaving a natural
+    // POSTS_SIZE - BALUSTRADE_WIDTH white gap between the two stringers. The
+    // connector band the polygons draw across the gap at insideTurnY hides
+    // behind the butted newel boxes.
 
     if(flight1Inside){
         Stairs.drawBallustradeQuarterturnOrnaments(context, startX1 - StairConstants.BALUSTRADE_WIDTH/2, startX1 + StairConstants.BALUSTRADE_WIDTH/2, 

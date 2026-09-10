@@ -441,12 +441,13 @@ function bd_featured_step_label( $left, $right ) {
  * How far a newel stands proud of the stringer it sits on. Two of them set the
  * gap between the flights on a staircase whose middle flight is empty: each
  * flight's stringer connects to the middle of its own post, so the flights are
- * pushed apart by one overhang each. 29 + 29 = the 58mm the drawing needs.
+ * pushed apart by one overhang each. 27 + 27 = the 54mm the (b) width carries
+ * (SPD, 10 September 2026 -- was 29/58 originally).
  *
  * Drawing geometry only -- this is never priced, and the gap consumes no extra
  * stringer or handrail (SPD, 8 September 2026).
  *
- * Rows with no value fall back to 29 rather than 0: a zero would put the two
+ * Rows with no value fall back to 27 rather than 0: a zero would put the two
  * flights back on top of each other, which is the defect this exists to fix.
  */
 function bd_newel_overhang_map() {
@@ -459,7 +460,7 @@ function bd_newel_overhang_map() {
       }
       $mm = isset( $row['overhang_mm'] ) && is_numeric( $row['overhang_mm'] )
         ? (float) $row['overhang_mm']
-        : 29.0;
+        : 27.0;
       $map[ (string) $row['code'] ] = $mm;
     }
   }

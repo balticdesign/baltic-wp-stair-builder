@@ -316,7 +316,7 @@ function onLoad(changedElement = null) {
       var code = (jQuery('#newel_type').val() || '').split(':')[0];
       var per  = parseFloat(map[code]);
       if (!isFinite(per)) per = parseFloat(geo.newel_overhang_default);
-      if (!isFinite(per)) per = 29;
+      if (!isFinite(per)) per = 27;
       return per * 2;
     })(),
     // Two quarter landings meeting with no flight between them -- separate

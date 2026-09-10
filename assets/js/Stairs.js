@@ -160,7 +160,12 @@ Stairs.computeFitZoom = function () {
             break;
         case Stairs.StairTypeEnum.HALFTURN:
             // Top allowance for the (b) run measure drawn above the landing.
-            stairHeight = Stairs.maxHeight1 + StairConstants.TURN_TOP_MEASURE_HEIGHT;
+            // Height is whichever flight reaches lower — flight 3 regularly
+            // outruns flight 1, and its top-tread number and lip band hang
+            // roughly a tread height below maxHeight2.
+            stairHeight = Math.max(Stairs.maxHeight1,
+                    Stairs.maxHeight2 + Stairs.options.treadHeight * StairConstants.FEATURE_TREAD_HEIGHT)
+                + StairConstants.TURN_TOP_MEASURE_HEIGHT;
             stairWidth  = Stairs.widthPx;
             break;
         case Stairs.StairTypeEnum.DOUBLETURN:
@@ -233,8 +238,11 @@ Stairs.applyViewportTransform = function (context) {
         case Stairs.StairTypeEnum.HALFTURN:
             stairWidth   = Stairs.widthPx;
             // The (b) run measure sits above the landing — reserve its headroom
+            // — and flight 3's number cell/lip may reach lower than flight 1
             // (keep in sync with computeFitZoom's HALFTURN case).
-            stairHeight  = Stairs.maxHeight1 + StairConstants.TURN_TOP_MEASURE_HEIGHT;
+            stairHeight  = Math.max(Stairs.maxHeight1,
+                    Stairs.maxHeight2 + Stairs.options.treadHeight * StairConstants.FEATURE_TREAD_HEIGHT)
+                + StairConstants.TURN_TOP_MEASURE_HEIGHT;
             stairOriginX = (Stairs.options.direction === 'left')
                 ? Stairs.canvas.width - Stairs.widthPx
                 : 0;
@@ -1867,16 +1875,24 @@ Stairs.drawBallustradeQuarterturn = function(context){
         rightSign = -1;
     }
 
+    // Flight 2's head: the strings straddle endX by half a string width, but the
+    // lip band extends past endX by lipPx in the run direction. Finish the head
+    // face flush with the lip's outer edge when one is drawn; the face toward
+    // the flight keeps the normal half-string overhang.
+    var bdHeadOv  = (Stairs.lipPx > 0) ? Stairs.lipPx : StairConstants.BALUSTRADE_WIDTH/2;
+    var endXPlus  = endX + (isRight ? bdHeadOv : StairConstants.BALUSTRADE_WIDTH/2);
+    var endXMinus = endX - (isRight ? StairConstants.BALUSTRADE_WIDTH/2 : bdHeadOv);
+
     //inside balustrade
     context.beginPath();
     context.moveTo(startX1 - StairConstants.BALUSTRADE_WIDTH/2, startY1 + StairConstants.BALUSTRADE_WIDTH/2);
     context.lineTo(startX1 + StairConstants.BALUSTRADE_WIDTH/2, startY1 + StairConstants.BALUSTRADE_WIDTH/2);
     context.lineTo(startX1 + StairConstants.BALUSTRADE_WIDTH/2, endY2 - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
-    context.lineTo(endX + StairConstants.BALUSTRADE_WIDTH/2, endY2 - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
-    context.lineTo(endX + StairConstants.BALUSTRADE_WIDTH/2, endY2 - StairConstants.BALUSTRADE_WIDTH/2);
-    context.lineTo(endX - StairConstants.BALUSTRADE_WIDTH/2, endY2 - StairConstants.BALUSTRADE_WIDTH/2);
-    context.lineTo(endX - StairConstants.BALUSTRADE_WIDTH/2, endY2 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
-    context.lineTo(endX - StairConstants.BALUSTRADE_WIDTH/2, endY2 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
+    context.lineTo(endXPlus, endY2 - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
+    context.lineTo(endXPlus, endY2 - StairConstants.BALUSTRADE_WIDTH/2);
+    context.lineTo(endXMinus, endY2 - StairConstants.BALUSTRADE_WIDTH/2);
+    context.lineTo(endXMinus, endY2 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
+    context.lineTo(endXMinus, endY2 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
     context.lineTo(startX1 - StairConstants.BALUSTRADE_WIDTH/2, endY2 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
     context.lineTo(startX1 - StairConstants.BALUSTRADE_WIDTH/2, startY1 + StairConstants.BALUSTRADE_WIDTH/2);
     context.stroke();
@@ -1887,11 +1903,11 @@ Stairs.drawBallustradeQuarterturn = function(context){
     context.moveTo(startX2 - StairConstants.BALUSTRADE_WIDTH/2, startY2 + StairConstants.BALUSTRADE_WIDTH/2);
     context.lineTo(startX2 + StairConstants.BALUSTRADE_WIDTH/2, startY2 + StairConstants.BALUSTRADE_WIDTH/2);
     context.lineTo(startX2 + StairConstants.BALUSTRADE_WIDTH/2, endY1 - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
-    context.lineTo(endX + StairConstants.BALUSTRADE_WIDTH/2, endY1 - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
-    context.lineTo(endX + StairConstants.BALUSTRADE_WIDTH/2, endY1 - StairConstants.BALUSTRADE_WIDTH/2);
-    context.lineTo(endX - StairConstants.BALUSTRADE_WIDTH/2, endY1 - StairConstants.BALUSTRADE_WIDTH/2);
-    context.lineTo(endX - StairConstants.BALUSTRADE_WIDTH/2, endY1 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
-    context.lineTo(endX - StairConstants.BALUSTRADE_WIDTH/2, endY1 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
+    context.lineTo(endXPlus, endY1 - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
+    context.lineTo(endXPlus, endY1 - StairConstants.BALUSTRADE_WIDTH/2);
+    context.lineTo(endXMinus, endY1 - StairConstants.BALUSTRADE_WIDTH/2);
+    context.lineTo(endXMinus, endY1 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
+    context.lineTo(endXMinus, endY1 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
     context.lineTo(startX2 - StairConstants.BALUSTRADE_WIDTH/2, endY1 + (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
     context.lineTo(startX2 - StairConstants.BALUSTRADE_WIDTH/2, startY2 + StairConstants.BALUSTRADE_WIDTH/2);
     context.stroke();
@@ -2022,14 +2038,20 @@ Stairs.drawBallustradeHalfturn = function(context){
         rightSign = -1;
     }
 
+    // Flight 3's head: when the top lip band is drawn, the stringers finish
+    // flush with its bottom edge instead of the fixed half-string overhang --
+    // otherwise they poke past (or stop short of) the thinnest tread by the
+    // difference between the lip and half a string width.
+    var f3HeadY = endY + ((Stairs.lipPx > 0) ? Stairs.lipPx : StairConstants.BALUSTRADE_WIDTH/2);
+
     //inside balustrade
     context.beginPath();
     context.moveTo(startX1 - StairConstants.BALUSTRADE_WIDTH/2, startY1 + StairConstants.BALUSTRADE_WIDTH/2);
     context.lineTo(startX1 + StairConstants.BALUSTRADE_WIDTH/2, startY1 + StairConstants.BALUSTRADE_WIDTH/2);
     context.lineTo(startX1 + StairConstants.BALUSTRADE_WIDTH/2, insideTurnY - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
     context.lineTo(insideTurnX2 - StairConstants.BALUSTRADE_WIDTH/2, insideTurnY - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
-    context.lineTo(insideEndX - StairConstants.BALUSTRADE_WIDTH/2, endY + StairConstants.BALUSTRADE_WIDTH/2);
-    context.lineTo(insideEndX + StairConstants.BALUSTRADE_WIDTH/2, endY + StairConstants.BALUSTRADE_WIDTH/2);
+    context.lineTo(insideEndX - StairConstants.BALUSTRADE_WIDTH/2, f3HeadY);
+    context.lineTo(insideEndX + StairConstants.BALUSTRADE_WIDTH/2, f3HeadY);
     context.lineTo(insideEndX + StairConstants.BALUSTRADE_WIDTH/2, endY - (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
     context.lineTo(insideEndX + StairConstants.BALUSTRADE_WIDTH/2, endY - (StairConstants.BALUSTRADE_WIDTH/2) * rightSign);
     context.lineTo(insideTurnX2 + StairConstants.BALUSTRADE_WIDTH/2, insideTurnY + (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
@@ -2043,8 +2065,8 @@ Stairs.drawBallustradeHalfturn = function(context){
     context.lineTo(startX2 + StairConstants.BALUSTRADE_WIDTH/2, startY2 + StairConstants.BALUSTRADE_WIDTH/2);
     context.lineTo(startX2 + StairConstants.BALUSTRADE_WIDTH/2, outsideTurnY - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
     context.lineTo(outsideTurnX2 - StairConstants.BALUSTRADE_WIDTH/2, outsideTurnY - (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
-    context.lineTo(outsideEndX - StairConstants.BALUSTRADE_WIDTH/2, endY + StairConstants.BALUSTRADE_WIDTH/2);
-    context.lineTo(outsideEndX + StairConstants.BALUSTRADE_WIDTH/2, endY + StairConstants.BALUSTRADE_WIDTH/2);
+    context.lineTo(outsideEndX - StairConstants.BALUSTRADE_WIDTH/2, f3HeadY);
+    context.lineTo(outsideEndX + StairConstants.BALUSTRADE_WIDTH/2, f3HeadY);
     context.lineTo(outsideTurnX2 + StairConstants.BALUSTRADE_WIDTH/2, outsideTurnY + (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
     context.lineTo(startX2 - StairConstants.BALUSTRADE_WIDTH/2, outsideTurnY + (StairConstants.BALUSTRADE_WIDTH/2 * rightSign));
     context.lineTo(startX2 - StairConstants.BALUSTRADE_WIDTH/2, startY2 + StairConstants.BALUSTRADE_WIDTH/2);
@@ -2068,9 +2090,10 @@ Stairs.drawBallustradeHalfturn = function(context){
         // Flight 1's inner stringer centreline and floor end, per direction.
         var bdF1Edge   = isRight ? Stairs.startX2 : Stairs.startX1;
         var bdF1Bottom = (isRight ? Stairs.startY2 : Stairs.startY1) + bdBw/2;
-        // Flight 3's inner stringer centreline is insideEndX; floor end endY.
+        // Flight 3's inner stringer centreline is insideEndX; its head end
+        // finishes flush with the lip band, same as the polygon strips above.
         var bdF3Edge   = Stairs.insideEndX;
-        var bdF3Bottom = Stairs.endY + bdBw/2;
+        var bdF3Bottom = f3HeadY;
         // Each rect runs from the stringer's outer face to the divider.
         var bdF1Left  = Math.min(bdF1Edge - bdBw/2, bdF1Edge + bdBw/2, bdDividerX);
         var bdF1Right = Math.max(bdF1Edge - bdBw/2, bdF1Edge + bdBw/2, bdDividerX);
@@ -2083,21 +2106,22 @@ Stairs.drawBallustradeHalfturn = function(context){
         if (bdF3Left < bdDividerX && bdF3Right > bdDividerX){
             if (bdF3Edge > bdDividerX){ bdF3Left = bdDividerX; } else { bdF3Right = bdDividerX; }
         }
-        context.clearRect(bdF1Left, bdJointTop, bdF1Right - bdF1Left, bdF1Bottom - bdJointTop);
-        context.clearRect(bdF3Left, bdJointTop, bdF3Right - bdF3Left, bdF3Bottom - bdJointTop);
+        // One clear across the whole joint column, both flights' full depth:
+        // the polygon strips straddle the flight edges, so each one leaves a
+        // sliver PAST the divider that outlives the other flight's rect when
+        // the flights are different lengths. The two rects repaint everything
+        // that should stay — including the lip corner, which they now finish
+        // flush with — so whatever the clear removes beyond them is gap.
+        context.clearRect(Math.min(bdF1Left, bdF3Left), bdJointTop,
+            Math.max(bdF1Right, bdF3Right) - Math.min(bdF1Left, bdF3Left),
+            Math.max(bdF1Bottom, bdF3Bottom) - bdJointTop);
         context.fillRect(bdF1Left, bdJointTop, bdF1Right - bdF1Left, bdF1Bottom - bdJointTop);
         context.strokeRect(bdF1Left, bdJointTop, bdF1Right - bdF1Left, bdF1Bottom - bdJointTop);
         context.fillRect(bdF3Left, bdJointTop, bdF3Right - bdF3Left, bdF3Bottom - bdJointTop);
         context.strokeRect(bdF3Left, bdJointTop, bdF3Right - bdF3Left, bdF3Bottom - bdJointTop);
-        // Double quarter landing: continue the divider line down through the
-        // stringer band so the boundary between the two platforms reads as one
-        // line between the (still adjacent) newel boxes.
-        if (Stairs.options.isDoubleQuarterLanding){
-            context.beginPath();
-            context.moveTo(bdDividerX, Stairs.insideTurnY - bdBw/2);
-            context.lineTo(bdDividerX, bdJointTop);
-            context.stroke();
-        }
+        // No divider bridge is needed through the band above bdJointTop: the
+        // two newel boxes butt together over the divider (drawPostsHalfturn)
+        // and their shared edge draws that segment of the boundary.
     }
 
     if(flight1Inside){
@@ -2549,9 +2573,17 @@ Stairs.drawPostsHalfturn = function(context){
     }
 
     if(Stairs.options.flight2Treads.amount == 0){
-        Stairs.drawPost(tag, insideEndX - StairConstants.POSTS_SIZE, insideTurnY - StairConstants.POSTS_SIZE/2, context);
+        // The two landing newels butt together over the divider -- no daylight
+        // between the boxes (SPD, 10 September 2026). Each box stays on its own
+        // flight's side of the join, so the shared edge sits on the divider.
+        var bdMidX = isRight
+            ? Stairs.startX2 + Stairs.landingSpacerPx / 2
+            : Stairs.startX1 - Stairs.landingSpacerPx / 2;
+        var bdFlight3PostX = isRight ? bdMidX : bdMidX - StairConstants.POSTS_SIZE;
+        var bdFlight1PostX = isRight ? bdMidX - StairConstants.POSTS_SIZE : bdMidX;
+        Stairs.drawPost(tag, bdFlight3PostX, insideTurnY - StairConstants.POSTS_SIZE/2, context);
         tag++;
-        Stairs.drawPost(tag, pivotStartX1, insideTurnY - StairConstants.POSTS_SIZE/2, context);
+        Stairs.drawPost(tag, bdFlight1PostX, insideTurnY - StairConstants.POSTS_SIZE/2, context);
         tag++;
     }
     else{

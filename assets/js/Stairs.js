@@ -1147,7 +1147,20 @@ Stairs.drawTreads = function(context, y, treads){
                 Stairs.drawLandingDivider(context, y);
             }
             else{
-                Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, flight1LeftX, y, flight1Treads.width, flight2Treads.width, s);
+                // When the flights are spacer-separated (empty middle flight), each
+                // turn's tread block extends past its flight's inner stringer to the
+                // CENTRE DIVIDER — the middle of the two butting newel posts — the
+                // same way the fused landing platform spans the join. Winder fans
+                // then converge on the divider (their corner point is the block's
+                // inner edge) and a landing half in a mixed turn reaches it too, so
+                // the turns meet with no white strip in the turn region. The
+                // stringers (insideTurnX/outsideTurnX) stay on the flight edges:
+                // the dual-stringer anatomy and its gap are deliberate (SPD,
+                // 8–10 September 2026). landingSpacerPx is 0 whenever a middle
+                // flight exists, so all of this is a no-op there.
+                var bdTurnExt = Stairs.landingSpacerPx / 2;
+                var bdTurn1X = (Stairs.options.direction == 'left') ? flight1LeftX - bdTurnExt : flight1LeftX;
+                Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn1TreadsAmount, bdTurn1X, y, flight1Treads.width + bdTurnExt, flight2Treads.width, s);
                 s += Stairs.options.turn1TreadsAmount;
                 Stairs.startX1 = flight1LeftX;
                 Stairs.startX2 = flight1LeftX + flight1Treads.width;
@@ -1173,7 +1186,9 @@ Stairs.drawTreads = function(context, y, treads){
                         positionX -= flight3Treads.width + Stairs.landingSpacerPx;
                         Stairs.insideTurnX2 = positionX + flight3Treads.width;
                         Stairs.outsideTurnX2 = positionX;
-                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn2TreadsAmount, positionX, y, flight3Treads.width, flight2Treads.width, t, true);
+                        // Left stair: turn 2's inner edge is its RIGHT edge — grow
+                        // the width so the block reaches the centre divider.
+                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn2TreadsAmount, positionX, y, flight3Treads.width + bdTurnExt, flight2Treads.width, t, true);
                         break;
                     case 'right':
                         var positionX = flight1LeftX + flight1Treads.width + Stairs.landingSpacerPx;
@@ -1183,7 +1198,9 @@ Stairs.drawTreads = function(context, y, treads){
                         }
                         Stairs.insideTurnX2 = positionX;
                         Stairs.outsideTurnX2 = positionX + flight3Treads.width;
-                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn2TreadsAmount, positionX, y, flight3Treads.width, flight2Treads.width, t, true);
+                        // Right stair: turn 2's inner edge is its LEFT edge — shift
+                        // x back so the block reaches the centre divider.
+                        Stairs.drawTurnTread(flight2Treads, context, Stairs.options.turn2TreadsAmount, positionX - bdTurnExt, y, flight3Treads.width + bdTurnExt, flight2Treads.width, t, true);
                         break;
                 }
             }

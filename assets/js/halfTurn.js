@@ -309,19 +309,14 @@ function onLoad(changedElement = null) {
     // it is never priced, and consumes no extra stringer or handrail.
     // Zero when a middle flight exists; its treads already separate the flights.
     //
-    // LANDINGS ONLY (BRIEF-07): two winder turns share the central newel, so
-    // winder N's outer edge IS winder N+1's outer edge at the centre line --
-    // no spacer, and the staircase is no wider for it (the mm figure also
-    // feeds the printed (b) width). A landing against anything keeps the
-    // spacer: platforms a riser apart need the drawn boundary. The half
-    // landing arrives as treadit = 4 and keeps its spacer -- its one platform
-    // spans both flights plus the join, posts butting in the middle.
+    // The spacer applies to WINDER turns as well as landings: the dual-stringer
+    // anatomy (each flight's inner stringer meeting the middle of its own newel
+    // post, two overhangs apart) is deliberate, signed-off geometry (SPD,
+    // 8–10 September 2026) and holds for every empty-middle-flight half-turn.
+    // The turn TREAD BLOCKS span the gap instead — the renderer extends each
+    // turn to the centre divider (Stairs.js, drawTreads halfturn) so winder
+    // fans and landing halves meet at the butting posts with no white strip.
     landingSpacerMm: (function () {
-      var t1 = parseFloat(jQuery('#treadit').val());
-      var t2 = parseFloat(jQuery('#treadit2').val());
-      var midEmpty = (parseInt(jQuery('#treadat').val(), 10) || 0) === 0;
-      var bothWinders = t1 >= 2 && t1 !== 4 && t2 >= 2 && t2 !== 4;
-      if (midEmpty && bothWinders) return 0;
       var vars = window.stairBuilderVars || {};
       var geo  = vars.geometry || {};
       var map  = geo.newel_overhang_mm || {};

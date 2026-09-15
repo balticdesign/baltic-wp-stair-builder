@@ -55,11 +55,38 @@
   function setPanelState(layout, panel, state) {
     layout.classList.toggle('is-' + panel + '-collapsed', state === 'collapsed');
     writeStoredState(panel, state);
+    syncSheetOpenState(layout);
     resizeCanvas();
   }
 
   function isMobile() {
     return window.matchMedia('(max-width: 767px)').matches;
+  }
+
+  /* body.bd-sb-sheet-open — set while a sheet is expanded on mobile, cleared
+   * when both are collapsed (or the viewport crosses to desktop). Drives the
+   * page scroll lock in layout.css and is the documented hook for host themes
+   * to hide their own header while a sheet is open. The lock is
+   * `overflow: hidden`, not `position: fixed` (iOS jumps to top on the
+   * latter); scroll position is captured anyway and restored on close in
+   * case the theme's own handling moves the page. */
+  let sheetScrollY = null;
+  function syncSheetOpenState(layout) {
+    const open = isMobile() && (
+      !layout.classList.contains('is-form-collapsed') ||
+      !layout.classList.contains('is-measurements-collapsed')
+    );
+    const body = document.body;
+    if (open && !body.classList.contains('bd-sb-sheet-open')) {
+      sheetScrollY = window.scrollY || 0;
+      body.classList.add('bd-sb-sheet-open');
+    } else if (!open && body.classList.contains('bd-sb-sheet-open')) {
+      body.classList.remove('bd-sb-sheet-open');
+      if (sheetScrollY !== null) {
+        window.scrollTo(0, sheetScrollY);
+        sheetScrollY = null;
+      }
+    }
   }
 
   function togglePanel(layout, panel) {
@@ -460,6 +487,10 @@
       setPanelState(layout, 'form', 'open');
     }
     initCanvasResize();
+    // Crossing the 768px boundary (rotation, split-screen) must re-evaluate
+    // the sheet-open body class: desktop shows both panels "open" without
+    // them being sheets, so the mobile scroll lock has to release.
+    window.addEventListener('resize', function () { syncSheetOpenState(layout); });
 
     // Every section loads closed and unticked. Measurements used to open on
     // load, which pre-visited it and pre-ticked it; the customer now opens the

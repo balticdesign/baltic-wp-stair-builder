@@ -27,6 +27,7 @@ The plugin is pivoting from "full productisation → buy staircase" to "configur
 - **AJAX**: endpoints registered in `/ajax/` via `wp_ajax_*` / `wp_ajax_nopriv_*` hooks. Nonce verification on every handler.
 - **Naming**: prefix everything with `bd_` or `baltic_wp_stair_builder_` to avoid collisions. Class names `BD_Stair_Builder_*`.
 - **Versioning**: iterate version in main plugin header on every substantive change — patch (1.0.1), minor (1.1.0), or major (2.0.0) depending on scope. Per user preference.
+- **Theme hook — `body.bd-sb-sheet-open`**: set by `layout.js` on mobile (<768px) while a Configure/Measurements sheet is expanded; cleared when both collapse. The plugin uses it to lock page scroll; host themes can use it to hide their own sticky header while a sheet is open (e.g. `body.bd-sb-sheet-open .site-header { display: none; }`). Theme-specific selectors live in the child theme or custom-CSS setting, never in the plugin. Plugin UI stacks at `--bd-z-panel: 99980` (below the WP admin bar, above theme chrome).
 
 ## Housekeeping targets (do before refactor work starts)
 

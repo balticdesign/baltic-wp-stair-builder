@@ -27,6 +27,13 @@
    * picker now themes the action. Olive-gold fallback when unset. */
   --bd-cta-bg: var(--bd-quote-bg, #8F7A34);
   --bd-cta-text: var(--bd-quote-text, #FFF9E9);
+  /* Stacking tier for the whole plugin UI (panels, launcher bars, handles).
+   * Host themes run sticky/fixed headers well above our old 100–120 range —
+   * SPD's `handmade` theme paints its mobile header at 997 (child theme
+   * sticky override 999 !important, slide-out nav 9999), which buried the
+   * sheet's close control. One tier above any plausible theme chrome but
+   * below the WP admin bar (99999), which the panels already offset for. */
+  --bd-z-panel: 99980;
   --bd-line: #E3DCCB;            /* hairline on the light panel */
   --bd-line-dark: rgba(239, 232, 216, 0.14);
   --bd-muted: #7A7062;           /* secondary text on light */
@@ -59,7 +66,7 @@
 .bd-stairbuilder-layout #stairbuild,
 .bd-stairbuilder-layout .mm_breakout {
   position: fixed;
-  z-index: 100;
+  z-index: var(--bd-z-panel);
   top: var(--wp-admin-bar-height, 0px);
   bottom: 0;
   display: flex;
@@ -450,7 +457,7 @@
 /* ============ DESKTOP PULL TABS (handles) ============ */
 .bd-stairbuilder-layout .bd-handle {
   position: fixed;
-  z-index: 110;
+  z-index: calc(var(--bd-z-panel) + 10);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -508,7 +515,7 @@
   text-align: center;
   cursor: pointer;
   box-shadow: var(--bd-panel-shadow);
-  z-index: 110;
+  z-index: calc(var(--bd-z-panel) + 10);
 }
 .bd-stairbuilder-layout .bd-fab--form         { left: 16px;  bottom: 16px; }
 .bd-stairbuilder-layout .bd-fab--measurements { right: 16px; bottom: 16px; }
@@ -689,6 +696,21 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   .bd-stairbuilder-layout { overflow: hidden; }
   .bd-stairbuilder-layout .bd-handle { display: none; }
 
+  /* layout.js sets this on <body> while a sheet is expanded (mobile only).
+   * Locks the page beneath — auto-hiding theme headers re-appear on scroll,
+   * which is how they end up over the sheet mid-interaction. Also the public
+   * hook for a host theme to hide its own chrome while a sheet is open, e.g.
+   *   body.bd-sb-sheet-open .site-header { display: none; }
+   * Theme-specific selectors belong in the child theme, not here. */
+  body.bd-sb-sheet-open { overflow: hidden; }
+
+  /* Notch/dynamic-island clearance for the sheet head (holds the ×). Only
+   * bites when the page is viewport-fit=cover — inert otherwise, which is
+   * fine: the head keeps its normal padding. */
+  .bd-stairbuilder-layout .bd-panel-head {
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  }
+
   /* --- Bottom launcher bars (52px tall) --- */
   .bd-stairbuilder-layout .bd-fab {
     display: none;                 /* shown per-panel below, only when collapsed */
@@ -707,7 +729,7 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
     line-height: 52px;
     cursor: pointer;
     box-shadow: 0 -6px 20px rgba(43, 37, 34, 0.18);
-    z-index: 120;
+    z-index: calc(var(--bd-z-panel) + 10);
   }
   .bd-stairbuilder-layout .bd-fab::after {
     content: "\2303";              /* up chevron — hints the bar expands upward */

@@ -704,21 +704,87 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
    * Theme-specific selectors belong in the child theme, not here. */
   body.bd-sb-sheet-open { overflow: hidden; }
 
-  /* Notch/dynamic-island clearance for the sheet head (holds the ×). Only
-   * bites when the page is viewport-fit=cover — inert otherwise, which is
-   * fine: the head keeps its normal padding. */
+  /* --- Compact sheet chrome (BRIEF-06 P2) — every fixed band around the
+   * accordion is trimmed so the scroll region gets the pixels back. Numbers
+   * are mobile-only; desktop keeps the roomier shared anatomy. --- */
+
+  /* Panel head: 14px → 10px pad. The safe-area term is notch/dynamic-island
+   * clearance for the × — only bites when the page is viewport-fit=cover,
+   * inert otherwise. */
   .bd-stairbuilder-layout .bd-panel-head {
-    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    padding: 10px var(--bd-pad);
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
   }
 
-  /* --- Bottom launcher bars (52px tall) --- */
+  /* Help band stays (deliberately prominent "talk to a human" line) but
+   * tighter; overrides the admin size var on this breakpoint only. Two-line
+   * wrap is acceptable. */
+  .bd-stairbuilder-layout .bd-panel-help {
+    padding: 8px var(--bd-pad);
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  /* Section heads: shallower, and summaries clamp to one line — doesn't grow
+   * the scroll region but fits ~2 more section heads inside it. */
+  .bd-stairbuilder-layout .sec-head { padding: 12px var(--bd-pad); }
+  .bd-stairbuilder-layout .sec-sub {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  /* Slimmer bottom fade so it stops reading as a dead zone above the price. */
+  .bd-stairbuilder-layout .bd-scrollwrap::after { height: 12px; }
+
+  /* Footer breakdown: three rows fold into total-first + one 12px component
+   * sub-line ("£581.47 + £116.29 VAT"). DOM unchanged — the two component
+   * <li>s reflow under the total via flex order; their labels hide and the
+   * joining text comes from pseudo-elements. POA keeps working: the shared
+   * .is-poa rules outrank these and still remove the component rows. */
+  .bd-stairbuilder-layout .bd-panel-foot .price-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    margin: 0 0 8px;
+  }
+  .bd-stairbuilder-layout .price-breakdown .price-total-row {
+    order: 1;
+    flex: 0 0 100%;
+    margin-top: 0;
+    padding: 0;
+    border-top: none;
+  }
+  .bd-stairbuilder-layout .price-breakdown li:not(.price-total-row) {
+    order: 2;
+    display: inline-flex;
+    gap: 0;                        /* shared li gap would split the "+ … VAT"
+                                      pseudo-element joiners apart */
+    padding: 0;
+    font-size: 12px;
+  }
+  .bd-stairbuilder-layout .price-breakdown li:not(.price-total-row) .price-label { display: none; }
+  .bd-stairbuilder-layout .price-breakdown li:nth-child(2)::before { content: "\00A0+\00A0"; }
+  .bd-stairbuilder-layout .price-breakdown li:nth-child(2)::after  { content: "\00A0VAT"; }
+
+  /* Footer button + note + padding trims. */
+  .bd-stairbuilder-layout .bd-panel-foot { padding: 10px var(--bd-pad) 12px; }
+  .bd-stairbuilder-layout .sb-buynow { height: 44px; }
+  .bd-stairbuilder-layout .bd-foot-note {
+    margin-top: 8px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  /* --- Bottom launcher bars (44px tall — trimmed from 52px, BRIEF-06 P2;
+   * the bar stays pinned under the open sheet by decision, so it pays rent
+   * in as few pixels as it can) --- */
   .bd-stairbuilder-layout .bd-fab {
     display: none;                 /* shown per-panel below, only when collapsed */
     position: fixed;
     left: 0;
     right: 0;
     width: 100%;
-    height: 52px;
+    height: 44px;
     padding: 0 20px;
     border: none;
     border-radius: 0;
@@ -726,7 +792,7 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
     font-size: 15px;
     font-weight: 600;
     letter-spacing: 0.02em;
-    line-height: 52px;
+    line-height: 44px;
     cursor: pointer;
     box-shadow: 0 -6px 20px rgba(43, 37, 34, 0.18);
     z-index: calc(var(--bd-z-panel) + 10);
@@ -735,7 +801,7 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
     content: "\2303";              /* up chevron — hints the bar expands upward */
     float: right;
     font-size: 20px;
-    line-height: 52px;
+    line-height: 44px;
   }
   /* Configure bar — primary (gold), bottom-most. */
   .bd-stairbuilder-layout .bd-fab--form {
@@ -752,7 +818,7 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   }
   .bd-stairbuilder-layout.is-measurements-collapsed .bd-fab--measurements { display: block; }
   .bd-stairbuilder-layout.is-form-collapsed.is-measurements-collapsed .bd-fab--measurements {
-    bottom: 52px;                  /* stack above the Configure bar */
+    bottom: 44px;                  /* stack above the Configure bar */
   }
 
   /* --- Panels expand upward as sheets above the single visible bar --- */
@@ -761,7 +827,7 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
     top: var(--wp-admin-bar-height, 0px);
     left: 0;
     right: 0;
-    bottom: 52px;                  /* clear the one bar left at the bottom */
+    bottom: 44px;                  /* clear the one bar left at the bottom */
     width: 100%;
     border-radius: 16px 16px 0 0;
     transform: translateY(0);

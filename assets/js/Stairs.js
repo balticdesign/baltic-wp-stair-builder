@@ -585,7 +585,10 @@ Stairs.setHalfturnStairsOptions = function(config){
     // v2.16.0 Phase 4b: the top lip is at the head of the LAST flight (flight 3),
     // so it extends the (c) run dimension (printMMHeight2). Flight 1 (printMMHeight1)
     // is untouched. Display/drawing only; never priced. 0 = pre-v2.16 geometry.
-    var bdHalfBaseRun2 = parseInt(config.treadHeight) * parseInt(config.flight3Treads.amount) + parseInt(config.flight2Treads.width);
+    // flight3.amount − 1 boards: the last allocated position is the top floor
+    // (number-only), same convention as the straight flight's amount − 1 and the
+    // quarter turn's flight2Treads.amount − 1 above.
+    var bdHalfBaseRun2 = parseInt(config.treadHeight) * Math.max(parseInt(config.flight3Treads.amount) - 1, 0) + parseInt(config.flight2Treads.width);
     Stairs.printMMHeight2 = parseInt(
         (window.BuilderUtils && BuilderUtils.bdDisplayTotalRun)
             ? BuilderUtils.bdDisplayTotalRun(bdHalfBaseRun2, true)
@@ -706,7 +709,10 @@ Stairs.setHalfturnStairsOptions = function(config){
     //Canvas height should fit number of treads. Feature tread is StairConstants.FEATURE_TREAD_HEIGHT bigger than regular tread
     Stairs.maxHeight = Stairs.options.treadHeight * Math.max(Stairs.options.flight1Treads.amount,Stairs.options.flight3Treads.amount) + Stairs.options.treadHeight * StairConstants.FEATURE_TREAD_HEIGHT + Stairs.options.flight2Treads.width;
     Stairs.maxHeight1 = Stairs.options.treadHeight * (Stairs.options.flight1Treads.amount) + Stairs.options.treadHeight * StairConstants.FEATURE_TREAD_HEIGHT + Stairs.options.flight2Treads.width;
-    Stairs.maxHeight2 = Stairs.options.treadHeight * (Stairs.options.flight3Treads.amount + 1) + Stairs.options.flight2Treads.width;
+    // flight3.amount boards became amount − 1 (last position = top floor), so
+    // the flight-3 floor end — this is also the (c) measure line's bottom Y —
+    // moves up one tread with it.
+    Stairs.maxHeight2 = Stairs.options.treadHeight * (Stairs.options.flight3Treads.amount) + Stairs.options.flight2Treads.width;
     // canvas.height is owned by layout.js (568:506 container); do not overwrite here.
 
     if(Stairs.options.flight2Treads.amount == 0 ){
@@ -1184,7 +1190,12 @@ Stairs.drawTreads = function(context, y, treads){
             Stairs.flight2Y = y;
             y += flight2Treads.width;
 
-            for (var f = t + Stairs.options.turn2TreadsAmount; f < t + Stairs.options.turn2TreadsAmount + flight3Treads.amount; f++){
+            // Flight 3's LAST allocated position is the top floor, exactly as on
+            // the straight and quarter-turn flights: amount − 1 tread boards, then
+            // the number-only top tread takes the final number. Drawing all
+            // `amount` as boards and appending a numbered top tread put
+            // risers + 1 numbered positions on the canvas (BRIEF-07 H1).
+            for (var f = t + Stairs.options.turn2TreadsAmount; f < t + Stairs.options.turn2TreadsAmount + flight3Treads.amount - 1; f++){
                 Stairs.drawRegularTread(flight3Treads, context, positionX, y, flight3Treads.width, flight3Treads.height, f);
                 y += flight3Treads.height;
             }

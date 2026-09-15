@@ -80,6 +80,7 @@
 /* Panel header — fixed top bar */
 .bd-stairbuilder-layout .bd-panel-head {
   flex: none;
+  margin: 0;                     /* <header> — keep theme element rules off it */
   display: flex;
   align-items: center;
   gap: 12px;
@@ -321,6 +322,10 @@
 /* ------------ Footer — the money bar ------------ */
 .bd-stairbuilder-layout .bd-panel-foot {
   flex: none;
+  /* The element is a <footer>, so theme element rules land on it — SPD's
+   * handmade theme ships `footer { margin-top: 60px }`, which pushed white
+   * space under the sheet footer. Claim the margin explicitly. */
+  margin: 0;
   border-top: 1px solid var(--bd-line);
   padding: 14px var(--bd-pad) var(--bd-pad);
   background: var(--bd-form-bg, #FBF9F4);

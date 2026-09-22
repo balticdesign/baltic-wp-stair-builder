@@ -353,10 +353,12 @@ foreach ( $bd_sections as $bd_sec ) {
  * — since BRIEF-08 the plan image's pixel size varies per staircase, which
  * made the column split and (via shrink_tables_to_fit) the text scale drift
  * per staircase. Fixed mm widths + autosize="1" on the table pin both: A4 is
- * 210mm with zero page margins, split 120mm plan / 90mm sidebar. Paddings in
+ * 210mm with zero page margins, split 134mm plan / 76mm sidebar (SPD field
+ * feedback, 22 Sep 2026: the sidebar read too wide — the target is the
+ * ~58mm price box of the shrunk staging PDFs plus a whisker). Paddings in
  * mm so the plan box width is a known number (40px ≈ 10.6mm, 14px ≈ 3.7mm).
  */
-$plan_box_w_mm = 120 - 10.6 - 3.7; // left column content width = 105.7mm
+$plan_box_w_mm = 134 - 10.6 - 3.7; // left column content width = 119.7mm
 $plan_box_h_mm = 95;
 
 // Plan box backdrop: the canvas background the drawing was made on, so the
@@ -374,7 +376,7 @@ $bd_plan_dims = ! empty( $content['canvas_image_path'] )
 <table autosize="1" style="width: 100%; border-collapse: collapse;">
 <tr>
   <!-- LEFT: staircase plan only -->
-  <td style="width: 120mm; vertical-align: top; padding: 30px 3.7mm 10px 10.6mm;">
+  <td style="width: 134mm; vertical-align: top; padding: 30px 3.7mm 10px 10.6mm;">
     <?php echo $bd_sectlabel( 'Staircase Plan' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML fragment; esc_html() runs inside $bd_sectlabel. ?>
     <div class="block" style="margin-top: 8px;">
       <?php // Fixed-size plan box: a flat single-cell table (mPDF drops cells in
@@ -395,7 +397,7 @@ $bd_plan_dims = ! empty( $content['canvas_image_path'] )
   </td>
 
   <!-- RIGHT: price + customer -->
-  <td style="width: 90mm; vertical-align: top; padding: 30px 10.6mm 26px 3.7mm;">
+  <td style="width: 76mm; vertical-align: top; padding: 30px 10.6mm 26px 3.7mm;">
 
     <?php
     // Flat 2-column table (not a nested one) so mPDF renders every cell — deeply

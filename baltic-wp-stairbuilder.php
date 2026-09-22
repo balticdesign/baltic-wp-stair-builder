@@ -44,6 +44,8 @@ if ( is_admin() ) {
 	}
 	require plugin_dir_path( __FILE__ ) . 'includes/class-stairbuilder-enquiries.php';
 	new BD_Stair_Builder_Enquiries();
+	require plugin_dir_path( __FILE__ ) . 'includes/class-stairbuilder-import-export.php';
+	new BD_Stair_Builder_Import_Export();
 }
 
 // Leads table schema catch-up. install() runs on activation only, so without

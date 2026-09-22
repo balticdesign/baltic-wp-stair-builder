@@ -127,8 +127,14 @@ Stairs.treadMaxHeightPx = function () {
 // Computes the zoom factor that scales the staircase's bounding box to
 // occupy TARGET_FILL of the limiting viewport dimension. Called from
 // Stairs.init() after per-type setup has populated maxHeight / widthPx.
-Stairs.computeFitZoom = function () {
+//
+// mode 'export' (BRIEF-08): no-overflow fill targets on BOTH axes, used by
+// Stairs.exportForPdf() so the PDF snapshot never clips a tread or measure.
+// Everything else (per-type bounding boxes, turn caps) is shared — do not
+// fork the geometry.
+Stairs.computeFitZoom = function (mode) {
     var stairHeight, stairWidth;
+    var isExport = (mode === 'export');
     // Per-profile fill targets.
     //   Desktop (wide canvas): height target > 1.0 deliberately. The
     //   staircase overflows the canvas vertically at initial fit — pan
@@ -141,8 +147,8 @@ Stairs.computeFitZoom = function () {
     // — width is the binding constraint for quarter/half-turn on desktop
     // (their widthPx includes flight 1 + turn-flight tread + side tag),
     // so this scales turns up without changing straight (height-bound).
-    var TARGET_FILL_WIDTH  = isWideCanvas ? 0.45 : 0.85;
-    var TARGET_FILL_HEIGHT = isWideCanvas ? 1.40 : 0.95;
+    var TARGET_FILL_WIDTH  = isExport ? 0.92 : (isWideCanvas ? 0.45 : 0.85);
+    var TARGET_FILL_HEIGHT = isExport ? 0.92 : (isWideCanvas ? 1.40 : 0.95);
 
     switch (Stairs.options.type) {
         case Stairs.StairTypeEnum.REGULAR:
@@ -191,7 +197,112 @@ Stairs.computeFitZoom = function () {
         Stairs.options.type === Stairs.StairTypeEnum.HALFTURN) {
         fit = Math.min(fit, Stairs.canvas.height / stairHeight);
     }
+
+    // Straight flight (BRIEF-08 Task C): the deliberate 1.40 desktop overflow
+    // reads as over-zoomed in the field — its default view clips the top and
+    // bottom treads (seen on SPD-33000's PDF). Cap it at ~no overflow, same
+    // pattern as the turn cap above. No-op on mobile (0.95 target) and in
+    // export mode (0.92); DOUBLETURN deliberately keeps its overflow.
+    if (Stairs.options.type === Stairs.StairTypeEnum.REGULAR) {
+        fit = Math.min(fit, (Stairs.canvas.height * 0.98) / stairHeight);
+    }
     return fit;
+};
+
+// PDF plan snapshot (BRIEF-08 Task A). Draws the staircase at the export fit
+// (whole drawing in frame, customer pan/zoom ignored), autocrops to content,
+// and returns a PNG data URL. Synchronous by design: the browser cannot paint
+// between the export draw and the restore inside one task, so the customer
+// never sees a flicker — keep it free of await/requestAnimationFrame.
+Stairs.exportForPdf = function () {
+    var canvas = Stairs.canvas;
+    if (!canvas || !canvas.width || !canvas.height) return '';
+    var vp    = Stairs.viewport;
+    var saved = { zoom: vp.zoom, panX: vp.panX, panY: vp.panY };
+    try {
+        vp.panX = 0;
+        vp.panY = 0;
+        vp.zoom = Stairs.computeFitZoom('export');
+        Stairs.draw(canvas);
+
+        // Autocrop by pixel scan, not bounding-box maths: the per-type boxes
+        // in applyViewportTransform don't cover every annotation (e.g. the
+        // straight flight's "(a) NNNNmm" height measure sits right of
+        // treads.width), and a content scan stays correct for every type,
+        // direction and future annotation without maintenance.
+        var ctx  = canvas.getContext('2d');
+        var img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var data = img.data;
+
+        // Background reference: parse the hex the draw filled with; anything
+        // unparseable (notably canvas_bg "transparent", where fillRect paints
+        // nothing and the backdrop stays alpha-0) falls back to the top-left
+        // pixel. Alpha is compared as a fourth channel — on a transparent
+        // backdrop RGB alone cannot tell empty (0,0,0,0) from a black line
+        // (0,0,0,255).
+        var bgR, bgG, bgB, bgA;
+        var m = /^#?([0-9a-f]{6})$/i.exec(String(Stairs.options.backgroundColor || ''));
+        if (m) {
+            bgR = parseInt(m[1].slice(0, 2), 16);
+            bgG = parseInt(m[1].slice(2, 4), 16);
+            bgB = parseInt(m[1].slice(4, 6), 16);
+            bgA = 255;
+        } else {
+            bgR = data[0]; bgG = data[1]; bgB = data[2]; bgA = data[3];
+        }
+
+        // ±4 per channel absorbs anti-aliased background-adjacent pixels.
+        var TOL = 4;
+        var minX = canvas.width, minY = canvas.height, maxX = -1, maxY = -1;
+        for (var y = 0; y < canvas.height; y++) {
+            var row = y * canvas.width * 4;
+            for (var x = 0; x < canvas.width; x++) {
+                var i = row + x * 4;
+                if (Math.abs(data[i]     - bgR) > TOL ||
+                    Math.abs(data[i + 1] - bgG) > TOL ||
+                    Math.abs(data[i + 2] - bgB) > TOL ||
+                    Math.abs(data[i + 3] - bgA) > TOL) {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        if (maxX < 0) {
+            // Nothing but background — ship the frame as-is rather than a 0×0 crop.
+            return canvas.toDataURL('image/png');
+        }
+
+        var PAD = 16;
+        minX = Math.max(0, minX - PAD);
+        minY = Math.max(0, minY - PAD);
+        maxX = Math.min(canvas.width  - 1, maxX + PAD);
+        maxY = Math.min(canvas.height - 1, maxY + PAD);
+        var w = maxX - minX + 1;
+        var h = maxY - minY + 1;
+
+        var off = document.createElement('canvas');
+        off.width  = w;
+        off.height = h;
+        var octx = off.getContext('2d');
+        // Prefill with the background colour only when the backdrop is
+        // opaque. A transparent backdrop stays transparent — exactly what the
+        // uncropped toDataURL shipped before, so the PDF pipeline sees the
+        // same pixel semantics it always has.
+        if (bgA === 255) {
+            octx.fillStyle = m ? ('#' + m[1]) : ('rgb(' + bgR + ',' + bgG + ',' + bgB + ')');
+            octx.fillRect(0, 0, w, h);
+        }
+        octx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
+        return off.toDataURL('image/png');
+    } finally {
+        vp.zoom = saved.zoom;
+        vp.panX = saved.panX;
+        vp.panY = saved.panY;
+        Stairs.draw(canvas);
+    }
 };
 
 // Applies pan/zoom transform to the canvas context. Centres the staircase's

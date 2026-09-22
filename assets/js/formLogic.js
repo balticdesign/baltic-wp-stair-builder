@@ -225,7 +225,12 @@ function submitStairLead() {
   const formData = jQuery.param(formDataArray);
 
   const canvas = document.getElementById('canvas');
-  const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
+  // BRIEF-08: snapshot at export fit with autocrop — the PDF must show the
+  // whole staircase however the customer has panned/zoomed the live canvas.
+  // Fallback keeps the old raw capture if the flight script didn't load.
+  const dataUrl = (window.Stairs && typeof Stairs.exportForPdf === 'function')
+    ? Stairs.exportForPdf()
+    : (canvas ? canvas.toDataURL('image/png') : '');
 
   // Under price-on-application the panel shows no figures, so reading them back
   // off the DOM would post zeros. Take the computed values priceCalc.js stashed

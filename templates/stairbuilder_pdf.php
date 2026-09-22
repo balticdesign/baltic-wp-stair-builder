@@ -356,7 +356,11 @@ foreach ( $bd_sections as $bd_sec ) {
     <?php echo $bd_sectlabel( 'Staircase Plan' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML fragment; esc_html() runs inside $bd_sectlabel. ?>
     <div class="block" style="text-align: center; margin-top: 8px;">
       <?php if ( ! empty( $content['canvas_image_path'] ) && file_exists( $content['canvas_image_path'] ) ) : ?>
-        <img src="<?php echo esc_attr( $content['canvas_image_path'] ); ?>" alt="Staircase diagram" style="max-width: 100%; max-height: 280px; border: 1px solid <?php echo esc_attr( $c_panel ); ?>;">
+        <?php // 380px (BRIEF-08 Task B): autocropped plans follow the staircase's
+              // aspect, so a tall straight flight needs the vertical room the
+              // sidebar column already occupies. Page counts re-measured with
+              // mPDF for every staircase type at this value. ?>
+        <img src="<?php echo esc_attr( $content['canvas_image_path'] ); ?>" alt="Staircase diagram" style="max-width: 100%; max-height: 380px; border: 1px solid <?php echo esc_attr( $c_panel ); ?>;">
       <?php else : ?>
         <table style="width: 100%; border-collapse: collapse;"><tr><td class="plan" style="height: 180px; vertical-align: middle; text-align: center;">Staircase plan drawing not available</td></tr></table>
       <?php endif; ?>

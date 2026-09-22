@@ -555,9 +555,10 @@ function baltic_stair_save_canvas_image( $dataurl, $token ) {
 	}
 
 	// The endpoint is nopriv, so treat the payload as hostile until proven a
-	// PNG. The form's canvas is fixed at 558×556 and every drawing we have on
-	// file decodes to under 30KB; 100KB (~3×) absorbs a busier configuration
-	// while refusing anything that could only be abuse. On failure the lead
+	// PNG. The canvas follows its container (layout.js sizeCanvasToContainer,
+	// capped at CANVAS_MAX_WIDTH 1200), and since BRIEF-08 the upload is the
+	// autocropped export snapshot, so real payloads stay well under the cap;
+	// 100KB refuses anything that could only be abuse. On failure the lead
 	// still stands — the PDF just goes out without the drawing.
 	if ( 0 !== strpos( $dataurl, 'data:image/png;base64,' ) ) {
 		return null;

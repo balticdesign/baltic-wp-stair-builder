@@ -594,6 +594,36 @@ function baltic_stair_save_canvas_image( $dataurl, $token ) {
  * Decoupled from $order_id — takes the full lead_data array and renders
  * templates/stairbuilder_pdf.php.
  */
+/**
+ * Contain-fit a stored plan PNG into the PDF's fixed plan box (BRIEF-08b).
+ *
+ * Returns array( width_mm, height_mm ) — the largest size that fits inside
+ * the box without cropping — or null when the file is missing/unreadable.
+ * Computed server-side so mPDF never sizes anything from the image's pixel
+ * dimensions (that is what let the Table A column split and text scale drift
+ * per staircase), and so regenerated PDFs for older leads get the same fixed
+ * layout from their stored PNGs.
+ *
+ * @param string $path  Absolute path to the stored canvas PNG.
+ * @param float  $box_w Box width in mm.
+ * @param float  $box_h Box height in mm.
+ * @return array|null
+ */
+function baltic_stair_pdf_plan_dims( $path, $box_w, $box_h ) {
+	if ( ! is_string( $path ) || '' === $path || ! file_exists( $path ) ) {
+		return null;
+	}
+	$info = @getimagesize( $path );
+	if ( false === $info || empty( $info[0] ) || empty( $info[1] ) ) {
+		return null;
+	}
+	$scale = min( $box_w / $info[0], $box_h / $info[1] );
+	return array(
+		round( $info[0] * $scale, 2 ),
+		round( $info[1] * $scale, 2 ),
+	);
+}
+
 function baltic_stair_generate_pdf( array $lead_data ) {
 	if ( ! class_exists( 'Mpdf\Mpdf' ) ) {
 		require_once plugin_dir_path( __FILE__ ) . '../vendor/autoload.php';

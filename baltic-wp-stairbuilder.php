@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.38.0
+Version:		2.38.1
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 Text Domain:	baltic-wp-stair-builder
@@ -30,7 +30,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.38.0' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.38.1' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.

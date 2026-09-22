@@ -348,27 +348,54 @@ foreach ( $bd_sections as $bd_sec ) {
 }
 ?>
 
+<?php
+/* Table A layout constants (BRIEF-08b). mPDF auto-sizes columns from content
+ * — since BRIEF-08 the plan image's pixel size varies per staircase, which
+ * made the column split and (via shrink_tables_to_fit) the text scale drift
+ * per staircase. Fixed mm widths + autosize="1" on the table pin both: A4 is
+ * 210mm with zero page margins, split 120mm plan / 90mm sidebar. Paddings in
+ * mm so the plan box width is a known number (40px ≈ 10.6mm, 14px ≈ 3.7mm).
+ */
+$plan_box_w_mm = 120 - 10.6 - 3.7; // left column content width = 105.7mm
+$plan_box_h_mm = 95;
+
+// Plan box backdrop: the canvas background the drawing was made on, so the
+// box reads as the drawing's own paper. 'transparent', blank or invalid
+// falls back to the panel grey — never a black box.
+$bd_plan_bg = sanitize_hex_color( (string) $bd_opt( 'canvas_bg', '' ) );
+if ( ! $bd_plan_bg ) {
+    $bd_plan_bg = $c_panel;
+}
+$bd_plan_dims = ! empty( $content['canvas_image_path'] )
+    ? baltic_stair_pdf_plan_dims( $content['canvas_image_path'], $plan_box_w_mm, $plan_box_h_mm )
+    : null;
+?>
 <!-- Table A: plan (left) + price / customer sidebar (right) -->
-<table style="width: 100%; border-collapse: collapse;">
+<table autosize="1" style="width: 100%; border-collapse: collapse;">
 <tr>
   <!-- LEFT: staircase plan only -->
-  <td style="width: 57%; vertical-align: top; padding: 30px 14px 10px 40px;">
+  <td style="width: 120mm; vertical-align: top; padding: 30px 3.7mm 10px 10.6mm;">
     <?php echo $bd_sectlabel( 'Staircase Plan' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML fragment; esc_html() runs inside $bd_sectlabel. ?>
-    <div class="block" style="text-align: center; margin-top: 8px;">
-      <?php if ( ! empty( $content['canvas_image_path'] ) && file_exists( $content['canvas_image_path'] ) ) : ?>
-        <?php // 380px (BRIEF-08 Task B): autocropped plans follow the staircase's
-              // aspect, so a tall straight flight needs the vertical room the
-              // sidebar column already occupies. Page counts re-measured with
-              // mPDF for every staircase type at this value. ?>
-        <img src="<?php echo esc_attr( $content['canvas_image_path'] ); ?>" alt="Staircase diagram" style="max-width: 100%; max-height: 380px; border: 1px solid <?php echo esc_attr( $c_panel ); ?>;">
-      <?php else : ?>
-        <table style="width: 100%; border-collapse: collapse;"><tr><td class="plan" style="height: 180px; vertical-align: middle; text-align: center;">Staircase plan drawing not available</td></tr></table>
-      <?php endif; ?>
+    <div class="block" style="margin-top: 8px;">
+      <?php // Fixed-size plan box: a flat single-cell table (mPDF drops cells in
+            // deeply nested tables — see the pricebox note below), sized in mm so
+            // the layout is identical whatever the plan's aspect. The image is
+            // contain-fitted by baltic_stair_pdf_plan_dims(); mPDF never sees the
+            // image's pixel size. The box, not the image, is the frame. ?>
+      <table style="width: 100%; border-collapse: collapse;"><tr>
+        <td style="width: <?php echo esc_attr( $plan_box_w_mm ); ?>mm; height: <?php echo esc_attr( $plan_box_h_mm ); ?>mm; text-align: center; vertical-align: middle; background: <?php echo esc_attr( $bd_plan_bg ); ?>;">
+          <?php if ( $bd_plan_dims ) : ?>
+            <img src="<?php echo esc_attr( $content['canvas_image_path'] ); ?>" alt="Staircase diagram" style="width: <?php echo esc_attr( $bd_plan_dims[0] ); ?>mm; height: <?php echo esc_attr( $bd_plan_dims[1] ); ?>mm;">
+          <?php else : ?>
+            <span style="color: <?php echo esc_attr( $c_muted ); ?>; font-size: 13px;">Staircase plan drawing not available</span>
+          <?php endif; ?>
+        </td>
+      </tr></table>
     </div>
   </td>
 
   <!-- RIGHT: price + customer -->
-  <td style="width: 43%; vertical-align: top; padding: 30px 40px 26px 14px;">
+  <td style="width: 90mm; vertical-align: top; padding: 30px 10.6mm 26px 3.7mm;">
 
     <?php
     // Flat 2-column table (not a nested one) so mPDF renders every cell — deeply

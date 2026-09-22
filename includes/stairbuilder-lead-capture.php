@@ -834,7 +834,7 @@ function baltic_stair_migrate_pdf_paths() {
 
 	$stats = array( 'scanned' => 0, 'pdf_moved' => 0, 'canvas_moved' => 0, 'already' => 0, 'missing' => 0, 'failed' => 0 );
 
-	$rows = $wpdb->get_results( 'SELECT id, token, pdf_path, form_data FROM ' . BD_Stair_Builder_Leads::table_name(), ARRAY_A );
+	$rows = $wpdb->get_results( 'SELECT id, token, pdf_path, form_data FROM ' . BD_Stair_Builder_Leads::table_name(), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column list; table name from table_name() (wpdb prefix + literal); no request input anywhere in the statement.
 	if ( ! is_array( $rows ) ) {
 		return $stats;
 	}
@@ -905,12 +905,12 @@ function baltic_stair_migrate_pdf_paths() {
 		// Nothing recursive: this must never remove something it did not move.
 		$old_dir = trailingslashit( dirname( $old_pdf ) );
 		if ( '' !== $old_pdf && $old_dir !== $dir && strpos( $old_dir, baltic_stair_pdf_basedir() ) === 0 ) {
-			@rmdir( $old_dir );
+			@rmdir( $old_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- one-shot migration cleanup of an empty legacy directory; WP_Filesystem has no fit here and a failure is harmless (dir simply remains).
 		}
 	}
 
 	// The shared img/ directory goes only once it is genuinely empty.
-	@rmdir( baltic_stair_pdf_basedir() . 'img/' );
+	@rmdir( baltic_stair_pdf_basedir() . 'img/' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- rmdir refuses non-empty directories, which is exactly the guarantee wanted; migration cleanup only.
 
 	return $stats;
 }
@@ -930,7 +930,7 @@ function baltic_stair_move_quote_file( $from, $to ) {
 	if ( ! file_exists( $to ) || filesize( $to ) !== filesize( $from ) ) {
 		return false;
 	}
-	@unlink( $from );
+	wp_delete_file( $from );
 	return true;
 }
 
@@ -1054,7 +1054,7 @@ function baltic_stair_download_handler() {
 	if ( false !== $size ) {
 		header( 'Content-Length: ' . $size );
 	}
-	readfile( $realpath );
+	readfile( $realpath ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streaming a large PDF to the client; WP_Filesystem would buffer the whole file in memory.
 	exit;
 }
 add_action( 'admin_post_baltic_stair_download', 'baltic_stair_download_handler' );

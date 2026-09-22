@@ -1,4 +1,7 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 /**
  * PDF template for staircase quotes (lead-gen mode).
  *
@@ -27,10 +30,16 @@ $bd_opt = function ( $key, $default = '' ) {
     $v = function_exists( 'stairbuilder_get_option' ) ? stairbuilder_get_option( $key, '' ) : '';
     return ( $v !== '' && $v !== null ) ? $v : $default;
 };
-$c_accent = $bd_opt( 'pdf_accent', '#A6914E' ); // brand / rules / headings
-$c_dark   = $bd_opt( 'pdf_dark',   '#35332F' ); // header + footer + price box
-$c_muted  = $bd_opt( 'pdf_muted',  '#7A756A' ); // secondary text / spec keys
-$c_panel  = $bd_opt( 'pdf_panel',  '#EBE8E0' ); // hairlines / light panels
+// Colours are hex-validated on save (sanitize() 'color' case); re-validating
+// at read keeps a hand-edited option value out of the stylesheet.
+$bd_col = function ( $key, $default ) use ( $bd_opt ) {
+    $hex = sanitize_hex_color( (string) $bd_opt( $key, $default ) );
+    return $hex ? $hex : $default;
+};
+$c_accent = $bd_col( 'pdf_accent', '#A6914E' ); // brand / rules / headings
+$c_dark   = $bd_col( 'pdf_dark',   '#35332F' ); // header + footer + price box
+$c_muted  = $bd_col( 'pdf_muted',  '#7A756A' ); // secondary text / spec keys
+$c_panel  = $bd_col( 'pdf_panel',  '#EBE8E0' ); // hairlines / light panels
 
 $hdr_l = $bd_opt( 'pdf_header_left', '' );
 $hdr_r = $bd_opt( 'pdf_header_right', '' );
@@ -172,32 +181,32 @@ $bd_sectlabel = function ( $text ) {
      constructor (see baltic_stair_generate_pdf). An @page rule here is buggy in
      this mPDF build — `size` spawns extra blank pages and `margin:0` triggers a
      divide-by-zero with nested tables. */
-  body { margin: 0; font-family: 'Jost', 'DejaVu Sans', sans-serif; color: <?php echo $c_dark; ?>; }
+  body { margin: 0; font-family: 'Jost', 'DejaVu Sans', sans-serif; color: <?php echo esc_attr( $c_dark ); ?>; }
 
   .band { width: 100%; border-collapse: collapse; }
   .band td { vertical-align: middle; }
-  .topstrip td { background: <?php echo $c_accent; ?>; color: #ffffff; padding: 9px 40px; font-size: 12.5px; letter-spacing: 0.4px; }
-  .masthead td { background: <?php echo $c_dark; ?>; color: #ffffff; padding: 24px 40px; }
-  .status td { background: <?php echo $c_accent; ?>; color: #ffffff; padding: 10px 40px; font-size: 14px; letter-spacing: 1.2px; text-transform: uppercase; text-align: center; font-weight: 500; }
-  .footer td { background: <?php echo $c_dark; ?>; color: <?php echo $c_panel; ?>; padding: 14px 40px; font-size: 11.5px; letter-spacing: 0.5px; }
+  .topstrip td { background: <?php echo esc_attr( $c_accent ); ?>; color: #ffffff; padding: 9px 40px; font-size: 12.5px; letter-spacing: 0.4px; }
+  .masthead td { background: <?php echo esc_attr( $c_dark ); ?>; color: #ffffff; padding: 24px 40px; }
+  .status td { background: <?php echo esc_attr( $c_accent ); ?>; color: #ffffff; padding: 10px 40px; font-size: 14px; letter-spacing: 1.2px; text-transform: uppercase; text-align: center; font-weight: 500; }
+  .footer td { background: <?php echo esc_attr( $c_dark ); ?>; color: <?php echo esc_attr( $c_panel ); ?>; padding: 14px 40px; font-size: 11.5px; letter-spacing: 0.5px; }
 
   /* Section heading on a <td> (mPDF drops div margins in cells). The 18px top
      padding is the reliable inter-section spacer — do not depend on .block. */
-  .sectlabel-td { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: <?php echo $c_accent; ?>; border-bottom: 2px solid <?php echo $c_accent; ?>; padding: 18px 0 8px; }
+  .sectlabel-td { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: <?php echo esc_attr( $c_accent ); ?>; border-bottom: 2px solid <?php echo esc_attr( $c_accent ); ?>; padding: 18px 0 8px; }
   /* page-break-inside:avoid keeps a section whole if an extreme config spills to
      page 2 (mPDF honours it on tables) instead of splitting mid-table. */
   .spec { width: 100%; border-collapse: collapse; font-size: 13.5px; page-break-inside: avoid; }
-  .spec td { padding: 7px 0; border-bottom: 1px solid <?php echo $c_panel; ?>; }
+  .spec td { padding: 7px 0; border-bottom: 1px solid <?php echo esc_attr( $c_panel ); ?>; }
   .spec tr:last-child td { border-bottom: none; }
-  .spec .k { color: <?php echo $c_muted; ?>; }
+  .spec .k { color: <?php echo esc_attr( $c_muted ); ?>; }
   .spec .v { text-align: right; font-weight: 500; }
 
   .block { margin-bottom: 6px; }
   /* Coloured boxes below carry their fill/border inline on a wrapper <td> —
      mPDF fills td backgrounds behind nested content, but not div backgrounds. */
-  .plan { border: 1px solid <?php echo $c_panel; ?>; background: <?php echo $c_panel; ?>; color: <?php echo $c_muted; ?>; font-size: 13px; }
-  .notes .lbl { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: <?php echo $c_accent; ?>; margin-bottom: 6px; }
-  .notes p { margin: 0; font-size: 13px; line-height: 1.55; color: <?php echo $c_muted; ?>; }
+  .plan { border: 1px solid <?php echo esc_attr( $c_panel ); ?>; background: <?php echo esc_attr( $c_panel ); ?>; color: <?php echo esc_attr( $c_muted ); ?>; font-size: 13px; }
+  .notes .lbl { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: <?php echo esc_attr( $c_accent ); ?>; margin-bottom: 6px; }
+  .notes p { margin: 0; font-size: 13px; line-height: 1.55; color: <?php echo esc_attr( $c_muted ); ?>; }
 </style>
 
 <?php if ( $hdr_l !== '' || $hdr_r !== '' ) : ?>
@@ -344,10 +353,10 @@ foreach ( $bd_sections as $bd_sec ) {
 <tr>
   <!-- LEFT: staircase plan only -->
   <td style="width: 57%; vertical-align: top; padding: 30px 14px 10px 40px;">
-    <?php echo $bd_sectlabel( 'Staircase Plan' ); ?>
+    <?php echo $bd_sectlabel( 'Staircase Plan' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML fragment; esc_html() runs inside $bd_sectlabel. ?>
     <div class="block" style="text-align: center; margin-top: 8px;">
       <?php if ( ! empty( $content['canvas_image_path'] ) && file_exists( $content['canvas_image_path'] ) ) : ?>
-        <img src="<?php echo esc_attr( $content['canvas_image_path'] ); ?>" alt="Staircase diagram" style="max-width: 100%; max-height: 280px; border: 1px solid <?php echo $c_panel; ?>;">
+        <img src="<?php echo esc_attr( $content['canvas_image_path'] ); ?>" alt="Staircase diagram" style="max-width: 100%; max-height: 280px; border: 1px solid <?php echo esc_attr( $c_panel ); ?>;">
       <?php else : ?>
         <table style="width: 100%; border-collapse: collapse;"><tr><td class="plan" style="height: 180px; vertical-align: middle; text-align: center;">Staircase plan drawing not available</td></tr></table>
       <?php endif; ?>
@@ -365,17 +374,17 @@ foreach ( $bd_sections as $bd_sec ) {
     $pb_tot  = 'background: ' . $c_dark . '; padding: 14px 24px 22px; font-size: 14px; white-space: nowrap;';
     ?>
     <table class="block pricebox" style="width: 100%; border-collapse: collapse;">
-      <tr><td colspan="2" style="background: <?php echo $c_dark; ?>; color: #C9BC93; padding: 22px 24px 12px; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">Indicative Quote</td></tr>
+      <tr><td colspan="2" style="background: <?php echo esc_attr( $c_dark ); ?>; color: #C9BC93; padding: 22px 24px 12px; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">Indicative Quote</td></tr>
       <tr>
-        <td style="<?php echo $pb_cell; ?> width: 45%; color: <?php echo $c_panel; ?>;">Subtotal</td>
+        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: <?php echo esc_attr( $c_panel ); ?>;">Subtotal</td>
         <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_price, 2 ) ); ?></td>
       </tr>
       <tr>
-        <td style="<?php echo $pb_cell; ?> width: 45%; color: <?php echo $c_panel; ?>;">VAT<?php echo ( ! $bd_poa && $bd_vat_pct ) ? ' (' . (int) $bd_vat_pct . '%)' : ''; ?></td>
+        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: <?php echo esc_attr( $c_panel ); ?>;">VAT<?php echo ( ! $bd_poa && $bd_vat_pct ) ? ' (' . (int) $bd_vat_pct . '%)' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- integer-cast percentage. ?></td>
         <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_vat, 2 ) ); ?></td>
       </tr>
       <tr>
-        <td style="<?php echo $pb_tot; ?> width: 45%; color: #ffffff; font-weight: 500;">Total<?php echo $bd_poa ? '' : ' inc VAT'; ?></td>
+        <td style="<?php echo $pb_tot; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: #ffffff; font-weight: 500;">Total<?php echo $bd_poa ? '' : ' inc VAT'; ?></td>
         <?php // POA sets its own size: "Price on application" at the 22px used for
               // a currency figure would wrap out of the box. ?>
         <td style="<?php echo $pb_tot; ?> width: 55%; color: #D3B96A; font-size: <?php echo $bd_poa ? '13px' : '22px'; ?>; font-weight: 600; text-align: right;"><?php echo $bd_poa ? 'Price on application' : '&pound;' . esc_html( number_format( $bd_total, 2 ) ); ?></td>
@@ -384,19 +393,19 @@ foreach ( $bd_sections as $bd_sec ) {
 
     <?php if ( ! empty( $content['project_delivery_date'] ) ) : ?>
     <table class="block badge" style="width: 100%; border-collapse: collapse;"><tr>
-      <td style="border: 1px solid <?php echo $c_accent; ?>; padding: 12px 16px;">
+      <td style="border: 1px solid <?php echo esc_attr( $c_accent ); ?>; padding: 12px 16px;">
         <table style="width: 100%; border-collapse: collapse;"><tr>
-          <td style="width: 28px; font-size: 20px; color: <?php echo $c_accent; ?>; vertical-align: middle;">&#10003;</td>
+          <td style="width: 28px; font-size: 20px; color: <?php echo esc_attr( $c_accent ); ?>; vertical-align: middle;">&#10003;</td>
           <td style="vertical-align: middle;">
             <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.5px;">Project Delivery</div>
-            <div style="font-size: 13px; color: <?php echo $c_muted; ?>;"><?php echo esc_html( $content['project_delivery_date'] ); ?></div>
+            <div style="font-size: 13px; color: <?php echo esc_attr( $c_muted ); ?>;"><?php echo esc_html( $content['project_delivery_date'] ); ?></div>
           </td>
         </tr></table>
       </td>
     </tr></table>
     <?php endif; ?>
 
-    <?php echo $bd_sectlabel( 'Your Details' ); ?>
+    <?php echo $bd_sectlabel( 'Your Details' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML fragment; esc_html() runs inside $bd_sectlabel. ?>
     <div class="block">
       <table class="spec">
         <?php
@@ -417,7 +426,7 @@ foreach ( $bd_sections as $bd_sec ) {
     $bd_cust_notes = trim( (string) ( $content['additional_notes'] ?? '' ) );
     if ( $bd_cust_notes !== '' ) : ?>
     <table class="block notes" style="width: 100%; border-collapse: collapse;"><tr>
-      <td style="background: <?php echo $c_panel; ?>; border-left: 3px solid <?php echo $c_accent; ?>; padding: 14px 16px;">
+      <td style="background: <?php echo esc_attr( $c_panel ); ?>; border-left: 3px solid <?php echo esc_attr( $c_accent ); ?>; padding: 14px 16px;">
         <div class="lbl">Your Notes</div>
         <p><?php echo nl2br( esc_html( $bd_cust_notes ) ); ?></p>
       </td>
@@ -425,7 +434,7 @@ foreach ( $bd_sections as $bd_sec ) {
     <?php endif; ?>
 
     <table class="block notes" style="width: 100%; border-collapse: collapse;"><tr>
-      <td style="background: <?php echo $c_panel; ?>; border-left: 3px solid <?php echo $c_accent; ?>; padding: 14px 16px;">
+      <td style="background: <?php echo esc_attr( $c_panel ); ?>; border-left: 3px solid <?php echo esc_attr( $c_accent ); ?>; padding: 14px 16px;">
         <div class="lbl">Notes</div>
         <p>This is an indicative quote based on the configuration submitted. Final pricing is subject to a follow-up consultation.</p>
       </td>
@@ -438,8 +447,8 @@ foreach ( $bd_sections as $bd_sec ) {
 <!-- Table B: full-width, two balanced columns of spec sections -->
 <table style="width: 100%; border-collapse: collapse;">
 <tr>
-  <td style="width: 50%; vertical-align: top; padding: 12px 14px 26px 40px;"><?php echo $bd_colA; ?></td>
-  <td style="width: 50%; vertical-align: top; padding: 12px 40px 26px 14px;"><?php echo $bd_colB; ?></td>
+  <td style="width: 50%; vertical-align: top; padding: 12px 14px 26px 40px;"><?php echo $bd_colA; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- column of sections; every value passed through esc_html() in $bd_row/$bd_sectlabel where built. ?></td>
+  <td style="width: 50%; vertical-align: top; padding: 12px 40px 26px 14px;"><?php echo $bd_colB; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- column of sections; every value passed through esc_html() in $bd_row/$bd_sectlabel where built. ?></td>
 </tr>
 </table>
 

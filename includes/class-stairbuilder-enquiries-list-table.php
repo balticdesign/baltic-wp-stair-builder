@@ -44,14 +44,14 @@ class BD_Stair_Builder_Enquiries_List_Table extends WP_List_Table {
 
 	public function get_columns() {
 		return array(
-			'created_at' => __( 'Date', 'stairbuilder' ),
-			'name'       => __( 'Name', 'stairbuilder' ),
-			'email'      => __( 'Email', 'stairbuilder' ),
-			'phone'      => __( 'Phone', 'stairbuilder' ),
-			'postcode'   => __( 'Postcode', 'stairbuilder' ),
-			'total'      => __( 'Total', 'stairbuilder' ),
-			'type'       => __( 'Type', 'stairbuilder' ),
-			'quote'      => __( 'Quote', 'stairbuilder' ),
+			'created_at' => __( 'Date', 'baltic-wp-stair-builder' ),
+			'name'       => __( 'Name', 'baltic-wp-stair-builder' ),
+			'email'      => __( 'Email', 'baltic-wp-stair-builder' ),
+			'phone'      => __( 'Phone', 'baltic-wp-stair-builder' ),
+			'postcode'   => __( 'Postcode', 'baltic-wp-stair-builder' ),
+			'total'      => __( 'Total', 'baltic-wp-stair-builder' ),
+			'type'       => __( 'Type', 'baltic-wp-stair-builder' ),
+			'quote'      => __( 'Quote', 'baltic-wp-stair-builder' ),
 		);
 	}
 
@@ -110,7 +110,7 @@ class BD_Stair_Builder_Enquiries_List_Table extends WP_List_Table {
 	}
 
 	public function no_items() {
-		esc_html_e( 'No enquiries yet.', 'stairbuilder' );
+		esc_html_e( 'No enquiries yet.', 'baltic-wp-stair-builder' );
 	}
 
 	/* --------------------------------------------------------------------- */
@@ -136,13 +136,13 @@ class BD_Stair_Builder_Enquiries_List_Table extends WP_List_Table {
 			),
 			admin_url( 'admin.php' )
 		);
-		$name = ( '' !== trim( (string) $item['name'] ) ) ? $item['name'] : __( '(no name)', 'stairbuilder' );
+		$name = ( '' !== trim( (string) $item['name'] ) ) ? $item['name'] : __( '(no name)', 'baltic-wp-stair-builder' );
 
 		return sprintf(
 			'<strong><a href="%s">%s</a></strong><div class="row-actions"><span>%s %s</span></div>',
 			esc_url( $url ),
 			esc_html( $name ),
-			esc_html__( 'Ref', 'stairbuilder' ),
+			esc_html__( 'Ref', 'baltic-wp-stair-builder' ),
 			esc_html( function_exists( 'baltic_stair_lead_reference' ) ? baltic_stair_lead_reference( $item ) : (int) $item['id'] )
 		);
 	}
@@ -166,7 +166,7 @@ class BD_Stair_Builder_Enquiries_List_Table extends WP_List_Table {
 	public function column_total( $item ) {
 		if ( BD_Stair_Builder_Enquiries::is_poa( $item ) ) {
 			// No figure on the list, ever — see BD_Stair_Builder_Enquiries::is_poa().
-			return '<span class="bd-enq-poa">' . esc_html__( 'POA', 'stairbuilder' ) . '</span>';
+			return '<span class="bd-enq-poa">' . esc_html__( 'POA', 'baltic-wp-stair-builder' ) . '</span>';
 		}
 		return esc_html( '£' . number_format( (float) $item['total'], 2 ) );
 	}
@@ -188,18 +188,18 @@ class BD_Stair_Builder_Enquiries_List_Table extends WP_List_Table {
 				),
 				admin_url( 'admin-post.php' )
 			);
-			$links[] = sprintf( '<a href="%s">%s</a>', esc_url( $pdf ), esc_html__( 'PDF', 'stairbuilder' ) );
+			$links[] = sprintf( '<a href="%s">%s</a>', esc_url( $pdf ), esc_html__( 'PDF', 'baltic-wp-stair-builder' ) );
 		} else {
 			// PDF generation can fail after the lead row is written. That state
 			// is information, so say it rather than offering a broken link.
-			$links[] = '<span class="bd-enq-muted">' . esc_html__( 'no PDF', 'stairbuilder' ) . '</span>';
+			$links[] = '<span class="bd-enq-muted">' . esc_html__( 'no PDF', 'baltic-wp-stair-builder' ) . '</span>';
 		}
 
 		if ( function_exists( 'baltic_stair_get_quote_view_url' ) && ! empty( $item['token'] ) ) {
 			$links[] = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( baltic_stair_get_quote_view_url( $item['token'] ) ),
-				esc_html__( 'View', 'stairbuilder' )
+				esc_html__( 'View', 'baltic-wp-stair-builder' )
 			);
 		}
 
@@ -217,11 +217,11 @@ class BD_Stair_Builder_Enquiries_List_Table extends WP_List_Table {
 		$args = self::request_args();
 		?>
 		<div class="alignleft actions bd-enq-filters">
-			<label for="bd-enq-from" class="screen-reader-text"><?php esc_html_e( 'From date', 'stairbuilder' ); ?></label>
+			<label for="bd-enq-from" class="screen-reader-text"><?php esc_html_e( 'From date', 'baltic-wp-stair-builder' ); ?></label>
 			<input type="date" id="bd-enq-from" name="date_from" value="<?php echo esc_attr( $args['date_from'] ); ?>" />
-			<label for="bd-enq-to" class="screen-reader-text"><?php esc_html_e( 'To date', 'stairbuilder' ); ?></label>
+			<label for="bd-enq-to" class="screen-reader-text"><?php esc_html_e( 'To date', 'baltic-wp-stair-builder' ); ?></label>
 			<input type="date" id="bd-enq-to" name="date_to" value="<?php echo esc_attr( $args['date_to'] ); ?>" />
-			<?php submit_button( __( 'Filter', 'stairbuilder' ), '', 'filter_action', false ); ?>
+			<?php submit_button( __( 'Filter', 'baltic-wp-stair-builder' ), '', 'filter_action', false ); ?>
 		</div>
 		<?php
 	}

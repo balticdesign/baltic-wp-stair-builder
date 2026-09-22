@@ -389,22 +389,22 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		 */
 		private function material_code_choices() {
 			return array(
-				'mdf'  => __( 'MDF', 'stairbuilder' ),
-				'pine' => __( 'Pine', 'stairbuilder' ),
-				'oak'  => __( 'Oak', 'stairbuilder' ),
-				'ply'  => __( 'Plywood', 'stairbuilder' ),
+				'mdf'  => __( 'MDF', 'baltic-wp-stair-builder' ),
+				'pine' => __( 'Pine', 'baltic-wp-stair-builder' ),
+				'oak'  => __( 'Oak', 'baltic-wp-stair-builder' ),
+				'ply'  => __( 'Plywood', 'baltic-wp-stair-builder' ),
 			);
 		}
 
 		/** Material tags offered as quick-select buttons, in display order. */
 		private function bulk_materials() {
 			return array(
-				'oak'   => __( 'Oak', 'stairbuilder' ),
-				'pine'  => __( 'Pine', 'stairbuilder' ),
-				'mdf'   => __( 'MDF', 'stairbuilder' ),
-				'ply'   => __( 'Ply', 'stairbuilder' ),
-				'metal' => __( 'Metal', 'stairbuilder' ),
-				'glass' => __( 'Glass', 'stairbuilder' ),
+				'oak'   => __( 'Oak', 'baltic-wp-stair-builder' ),
+				'pine'  => __( 'Pine', 'baltic-wp-stair-builder' ),
+				'mdf'   => __( 'MDF', 'baltic-wp-stair-builder' ),
+				'ply'   => __( 'Ply', 'baltic-wp-stair-builder' ),
+				'metal' => __( 'Metal', 'baltic-wp-stair-builder' ),
+				'glass' => __( 'Glass', 'baltic-wp-stair-builder' ),
 			);
 		}
 
@@ -426,12 +426,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				if ( $n > 0 ) {
 					printf(
 						'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-						esc_html( sprintf( _n( '%1$s price updated by %2$s%%.', '%1$s prices updated by %2$s%%.', $n, 'stairbuilder' ), number_format_i18n( $n ), $pct ) )
+						/* translators: 1: number of prices updated, 2: percentage applied */
+						esc_html( sprintf( _n( '%1$s price updated by %2$s%%.', '%1$s prices updated by %2$s%%.', $n, 'baltic-wp-stair-builder' ), number_format_i18n( $n ), $pct ) )
 					);
 				}
 			}
 			if ( isset( $_GET['bulk-noop'] ) ) {
-				echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'No changes applied — enter a non-zero percentage and select at least one price.', 'stairbuilder' ) . '</p></div>';
+				echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'No changes applied — enter a non-zero percentage and select at least one price.', 'baltic-wp-stair-builder' ) . '</p></div>';
 			}
 
 			$rows = $this->get_adjustable_prices();
@@ -445,14 +446,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			$pricing_url = admin_url( 'admin.php?page=' . self::PAGE_SLUG );
 			?>
 			<div class="wrap stairbuilder-bulk-wrap">
-				<h1><?php esc_html_e( 'Bulk Price Update', 'stairbuilder' ); ?></h1>
+				<h1><?php esc_html_e( 'Bulk Price Update', 'baltic-wp-stair-builder' ); ?></h1>
 				<p class="description">
-					<?php esc_html_e( 'Apply a single percentage change to the component & material prices you select. Use the material buttons to tick a whole column (e.g. every Oak price), set the percentage, Preview, then Apply. Values are rounded to 2 decimal places. Blank prices are left untouched.', 'stairbuilder' ); ?>
-					<a href="<?php echo esc_url( $pricing_url ); ?>">&larr; <?php esc_html_e( 'Back to Stair Builder Pricing', 'stairbuilder' ); ?></a>
+					<?php esc_html_e( 'Apply a single percentage change to the component & material prices you select. Use the material buttons to tick a whole column (e.g. every Oak price), set the percentage, Preview, then Apply. Values are rounded to 2 decimal places. Blank prices are left untouched.', 'baltic-wp-stair-builder' ); ?>
+					<a href="<?php echo esc_url( $pricing_url ); ?>">&larr; <?php esc_html_e( 'Back to Stair Builder Pricing', 'baltic-wp-stair-builder' ); ?></a>
 				</p>
 
 				<?php if ( empty( $rows ) ) : ?>
-					<div class="notice notice-info inline"><p><?php esc_html_e( 'No adjustable prices found. Add some pricing under Stair Builder Pricing first.', 'stairbuilder' ); ?></p></div>
+					<div class="notice notice-info inline"><p><?php esc_html_e( 'No adjustable prices found. Add some pricing under Stair Builder Pricing first.', 'baltic-wp-stair-builder' ); ?></p></div>
 				<?php else : ?>
 
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="sb-bulk-form">
@@ -461,27 +462,27 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 
 					<div class="sb-bulk-controls">
 						<label class="sb-bulk-pct-label">
-							<?php esc_html_e( 'Percentage change', 'stairbuilder' ); ?>
+							<?php esc_html_e( 'Percentage change', 'baltic-wp-stair-builder' ); ?>
 							<input type="number" step="0.01" name="pct" id="sb-bulk-pct" class="small-text" placeholder="e.g. 5" />
 							<span>%</span>
 						</label>
-						<span class="sb-bulk-hint"><?php esc_html_e( 'Use a negative number to reduce (e.g. -2.5).', 'stairbuilder' ); ?></span>
+						<span class="sb-bulk-hint"><?php esc_html_e( 'Use a negative number to reduce (e.g. -2.5).', 'baltic-wp-stair-builder' ); ?></span>
 
 						<div class="sb-bulk-quickselect">
-							<span class="sb-bulk-qs-label"><?php esc_html_e( 'Toggle:', 'stairbuilder' ); ?></span>
+							<span class="sb-bulk-qs-label"><?php esc_html_e( 'Toggle:', 'baltic-wp-stair-builder' ); ?></span>
 							<?php foreach ( $this->bulk_materials() as $key => $label ) : ?>
 								<button type="button" class="button sb-bulk-mat" data-mat="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></button>
 							<?php endforeach; ?>
-							<button type="button" class="button sb-bulk-all"><?php esc_html_e( 'Select all', 'stairbuilder' ); ?></button>
-							<button type="button" class="button sb-bulk-none"><?php esc_html_e( 'Select none', 'stairbuilder' ); ?></button>
+							<button type="button" class="button sb-bulk-all"><?php esc_html_e( 'Select all', 'baltic-wp-stair-builder' ); ?></button>
+							<button type="button" class="button sb-bulk-none"><?php esc_html_e( 'Select none', 'baltic-wp-stair-builder' ); ?></button>
 						</div>
 					</div>
 
 					<?php $this->render_bulk_table( $grouped ); ?>
 
 					<p class="sb-bulk-actions">
-						<button type="button" class="button button-secondary" id="sb-bulk-preview"><?php esc_html_e( 'Preview', 'stairbuilder' ); ?></button>
-						<button type="submit" class="button button-primary" id="sb-bulk-apply"><?php esc_html_e( 'Apply &amp; Save', 'stairbuilder' ); ?></button>
+						<button type="button" class="button button-secondary" id="sb-bulk-preview"><?php esc_html_e( 'Preview', 'baltic-wp-stair-builder' ); ?></button>
+						<button type="submit" class="button button-primary" id="sb-bulk-apply"><?php esc_html_e( 'Apply &amp; Save', 'baltic-wp-stair-builder' ); ?></button>
 						<span class="sb-bulk-summary" id="sb-bulk-summary"></span>
 					</p>
 				</form>
@@ -504,10 +505,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				<thead>
 					<tr>
 						<th class="check-column"><input type="checkbox" id="sb-bulk-checkall" checked /></th>
-						<th><?php esc_html_e( 'Price', 'stairbuilder' ); ?></th>
-						<th><?php esc_html_e( 'Material', 'stairbuilder' ); ?></th>
-						<th class="sb-bulk-num"><?php esc_html_e( 'Current (£)', 'stairbuilder' ); ?></th>
-						<th class="sb-bulk-num"><?php esc_html_e( 'New (£)', 'stairbuilder' ); ?></th>
+						<th><?php esc_html_e( 'Price', 'baltic-wp-stair-builder' ); ?></th>
+						<th><?php esc_html_e( 'Material', 'baltic-wp-stair-builder' ); ?></th>
+						<th class="sb-bulk-num"><?php esc_html_e( 'Current (£)', 'baltic-wp-stair-builder' ); ?></th>
+						<th class="sb-bulk-num"><?php esc_html_e( 'New (£)', 'baltic-wp-stair-builder' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -549,7 +550,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		 */
 		public function handle_bulk_apply() {
 			if ( ! current_user_can( 'manage_options' ) ) {
-				wp_die( esc_html__( 'You do not have permission to do this.', 'stairbuilder' ) );
+				wp_die( esc_html__( 'You do not have permission to do this.', 'baltic-wp-stair-builder' ) );
 			}
 			check_admin_referer( self::BULK_NONCE );
 
@@ -629,8 +630,8 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			// sharing the slug) simply relabels the auto-generated child to "Pricing"
 			// rather than adding a duplicate entry.
 			$this->hook_pricing = add_menu_page(
-				__( 'Stair Builder Pricing', 'stairbuilder' ),
-				__( 'Stairbuilder', 'stairbuilder' ),
+				__( 'Stair Builder Pricing', 'baltic-wp-stair-builder' ),
+				__( 'Stairbuilder', 'baltic-wp-stair-builder' ),
 				'manage_options',
 				self::PAGE_SLUG,
 				array( $this, 'render_page' ),
@@ -639,16 +640,16 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			);
 			add_submenu_page(
 				self::PAGE_SLUG,
-				__( 'Stair Builder Pricing', 'stairbuilder' ),
-				__( 'Pricing', 'stairbuilder' ),
+				__( 'Stair Builder Pricing', 'baltic-wp-stair-builder' ),
+				__( 'Pricing', 'baltic-wp-stair-builder' ),
 				'manage_options',
 				self::PAGE_SLUG,
 				array( $this, 'render_page' )
 			);
 			$this->hook_bulk = add_submenu_page(
 				self::PAGE_SLUG,
-				__( 'Bulk Price Update', 'stairbuilder' ),
-				__( 'Bulk Price Update', 'stairbuilder' ),
+				__( 'Bulk Price Update', 'baltic-wp-stair-builder' ),
+				__( 'Bulk Price Update', 'baltic-wp-stair-builder' ),
 				'manage_options',
 				self::BULK_PAGE_SLUG,
 				array( $this, 'render_bulk_page' )
@@ -718,7 +719,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				);
 			}
 
-			echo '<div class="stairbuilder-field" data-field-id="' . esc_attr( $id ) . '"' . $wrapper_attrs . '>';
+			echo '<div class="stairbuilder-field" data-field-id="' . esc_attr( $id ) . '"' . $wrapper_attrs . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attribute fragment; every value is esc_attr()ed where $wrapper_attrs is built above.
 
 			switch ( $field['type'] ) {
 				case 'toggle':
@@ -802,8 +803,8 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				name="<?php echo esc_attr( $name ); ?>"
 				value="<?php echo esc_attr( $value ); ?>"
 				class="small-text"
-				placeholder="<?php esc_attr_e( 'Variation ID', 'stairbuilder' ); ?>" />
-			<p class="description"><?php esc_html_e( 'WooCommerce product (or variation) ID — overrides the direct price.', 'stairbuilder' ); ?></p>
+				placeholder="<?php esc_attr_e( 'Variation ID', 'baltic-wp-stair-builder' ); ?>" />
+			<p class="description"><?php esc_html_e( 'WooCommerce product (or variation) ID — overrides the direct price.', 'baltic-wp-stair-builder' ); ?></p>
 			<?php
 		}
 
@@ -882,8 +883,8 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				<div class="stairbuilder-image-preview">
 					<?php if ( $img_url ) : ?><img src="<?php echo esc_url( $img_url ); ?>" alt="" /><?php endif; ?>
 				</div>
-				<button type="button" class="button stairbuilder-image-select"><?php esc_html_e( 'Select image', 'stairbuilder' ); ?></button>
-				<button type="button" class="button-link stairbuilder-image-remove"<?php echo $att_id ? '' : ' style="display:none"'; ?>><?php esc_html_e( 'Remove', 'stairbuilder' ); ?></button>
+				<button type="button" class="button stairbuilder-image-select"><?php esc_html_e( 'Select image', 'baltic-wp-stair-builder' ); ?></button>
+				<button type="button" class="button-link stairbuilder-image-remove"<?php echo $att_id ? '' : ' style="display:none"'; ?>><?php esc_html_e( 'Remove', 'baltic-wp-stair-builder' ); ?></button>
 			</div>
 			<?php
 		}
@@ -954,7 +955,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			$selected = is_array( $value ) ? array_map( 'strval', $value ) : array();
 			echo '<div class="stairbuilder-multiselect">';
 			if ( empty( $choices ) ) {
-				echo '<span class="description">' . esc_html__( 'No options available yet.', 'stairbuilder' ) . '</span>';
+				echo '<span class="description">' . esc_html__( 'No options available yet.', 'baltic-wp-stair-builder' ) . '</span>';
 			}
 			foreach ( $choices as $cv => $cl ) {
 				$cv = (string) $cv;
@@ -1002,14 +1003,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 										class="widefat" />
 								</td>
 							<?php endforeach; ?>
-							<td><button type="button" class="button stairbuilder-repeater-remove" aria-label="<?php esc_attr_e( 'Remove row', 'stairbuilder' ); ?>">&times;</button></td>
+							<td><button type="button" class="button stairbuilder-repeater-remove" aria-label="<?php esc_attr_e( 'Remove row', 'baltic-wp-stair-builder' ); ?>">&times;</button></td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>
 				<tfoot>
 					<tr>
 						<td colspan="<?php echo count( $subfields ) + 1; ?>">
-							<button type="button" class="button stairbuilder-repeater-add"><?php esc_html_e( 'Add Row', 'stairbuilder' ); ?></button>
+							<button type="button" class="button stairbuilder-repeater-add"><?php esc_html_e( 'Add Row', 'baltic-wp-stair-builder' ); ?></button>
 						</td>
 					</tr>
 				</tfoot>
@@ -1054,7 +1055,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				<script type="text/html" class="stairbuilder-card-proto"><?php
 					$this->$row_cb( $name, '__i__', $subfields, array(), $lock_code );
 				?></script>
-				<button type="button" class="button button-secondary stairbuilder-card-add"><?php esc_html_e( 'Add Row', 'stairbuilder' ); ?></button>
+				<button type="button" class="button button-secondary stairbuilder-card-add"><?php esc_html_e( 'Add Row', 'baltic-wp-stair-builder' ); ?></button>
 			</div>
 			<?php
 		}
@@ -1105,7 +1106,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							<input type="text" name="<?php echo esc_attr( $fname ); ?>"
 								value="<?php echo esc_attr( $rv ); ?>"
 								class="widefat" readonly
-								title="<?php esc_attr_e( 'Locked after creation — rename the label instead. Delete and re-create to change the code.', 'stairbuilder' ); ?>" />
+								title="<?php esc_attr_e( 'Locked after creation — rename the label instead. Delete and re-create to change the code.', 'baltic-wp-stair-builder' ); ?>" />
 						<?php else :
 							// New rows (the __i__ prototype) pre-fill a sub-field 'default' so e.g.
 							// default_open_gap starts at 100. Existing rows keep their stored value —
@@ -1146,7 +1147,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					<?php foreach ( $note_fields as $sf ) { $render_field( $sf ); } ?>
 				</div>
 				<div class="stairbuilder-card-actions">
-					<button type="button" class="button stairbuilder-card-remove" aria-label="<?php esc_attr_e( 'Remove row', 'stairbuilder' ); ?>">&times;</button>
+					<button type="button" class="button stairbuilder-card-remove" aria-label="<?php esc_attr_e( 'Remove row', 'baltic-wp-stair-builder' ); ?>">&times;</button>
 				</div>
 			</div>
 			<?php
@@ -1184,16 +1185,16 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			// original stacked layout, kept as a fallback but no longer called.
 			$variant_col = function( $label, $price_key, $id_key, $flat = false ) use ( $fname, $val ) {
 				if ( $flat ) {
-					$base       = ( $label === '' ) ? __( 'Price', 'stairbuilder' ) : $label;
+					$base       = ( $label === '' ) ? __( 'Price', 'baltic-wp-stair-builder' ) : $label;
 					$price_lbl  = sprintf( '%s £', $base );
-					$id_lbl     = ( $label === '' ) ? __( 'Product ID', 'stairbuilder' ) : sprintf( '%s ID', $label );
+					$id_lbl     = ( $label === '' ) ? __( 'Product ID', 'baltic-wp-stair-builder' ) : sprintf( '%s ID', $label );
 					?>
 					<div class="stairbuilder-component-col stairbuilder-component-variant is-flat">
 						<label class="stairbuilder-card-label bd-variant-price"><?php echo esc_html( $price_lbl ); ?>
 							<input type="number" step="0.01" min="0" name="<?php echo esc_attr( $fname( $price_key ) ); ?>" value="<?php echo esc_attr( $val( $price_key ) ); ?>" class="widefat" />
 						</label>
 						<label class="stairbuilder-card-label bd-variant-id"><?php echo esc_html( $id_lbl ); ?>
-							<input type="number" step="1" min="0" name="<?php echo esc_attr( $fname( $id_key ) ); ?>" value="<?php echo esc_attr( $val( $id_key ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'Variation ID', 'stairbuilder' ); ?>" />
+							<input type="number" step="1" min="0" name="<?php echo esc_attr( $fname( $id_key ) ); ?>" value="<?php echo esc_attr( $val( $id_key ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'Variation ID', 'baltic-wp-stair-builder' ); ?>" />
 						</label>
 					</div>
 					<?php
@@ -1203,13 +1204,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				<div class="stairbuilder-component-col stairbuilder-component-variant">
 					<h4 class="stairbuilder-variant-title"><?php echo esc_html( $label ); ?></h4>
 					<div class="stairbuilder-field bd-variant-price">
-						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Price', 'stairbuilder' ); ?></label>
+						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Price', 'baltic-wp-stair-builder' ); ?></label>
 						<span class="stairbuilder-currency">£</span>
 						<input type="number" step="0.01" min="0" name="<?php echo esc_attr( $fname( $price_key ) ); ?>" value="<?php echo esc_attr( $val( $price_key ) ); ?>" class="regular-text" />
 					</div>
 					<div class="stairbuilder-field bd-variant-id">
-						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Product ID', 'stairbuilder' ); ?></label>
-						<input type="number" step="1" min="0" name="<?php echo esc_attr( $fname( $id_key ) ); ?>" value="<?php echo esc_attr( $val( $id_key ) ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Variation ID', 'stairbuilder' ); ?>" />
+						<label class="stairbuilder-variant-label"><?php esc_html_e( 'Product ID', 'baltic-wp-stair-builder' ); ?></label>
+						<input type="number" step="1" min="0" name="<?php echo esc_attr( $fname( $id_key ) ); ?>" value="<?php echo esc_attr( $val( $id_key ) ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Variation ID', 'baltic-wp-stair-builder' ); ?>" />
 					</div>
 				</div>
 				<?php
@@ -1223,7 +1224,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			?>
 			<div class="stairbuilder-component stairbuilder-card-row<?php echo $toggle_on ? ' is-product-id' : ''; ?><?php echo esc_attr( $mode_class ); ?>">
 				<div class="stairbuilder-component-col stairbuilder-component-header">
-					<label class="stairbuilder-card-label"><?php esc_html_e( 'Name', 'stairbuilder' ); ?>
+					<label class="stairbuilder-card-label"><?php esc_html_e( 'Name', 'baltic-wp-stair-builder' ); ?>
 						<input type="text" name="<?php echo esc_attr( $fname( 'name' ) ); ?>" value="<?php echo esc_attr( $val( 'name' ) ); ?>" class="widefat" />
 					</label>
 					<?php if ( $has_modes ) : ?>
@@ -1231,8 +1232,8 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						// stable key is preserved here and auto-slugs from Name when blank. ?>
 						<input type="hidden" name="<?php echo esc_attr( $fname( 'code' ) ); ?>" value="<?php echo esc_attr( $val( 'code' ) ); ?>" />
 					<?php else : ?>
-						<label class="stairbuilder-card-label"><?php esc_html_e( 'Code', 'stairbuilder' ); ?>
-							<input type="text" name="<?php echo esc_attr( $fname( 'code' ) ); ?>" value="<?php echo esc_attr( $val( 'code' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'auto from name', 'stairbuilder' ); ?>" />
+						<label class="stairbuilder-card-label"><?php esc_html_e( 'Code', 'baltic-wp-stair-builder' ); ?>
+							<input type="text" name="<?php echo esc_attr( $fname( 'code' ) ); ?>" value="<?php echo esc_attr( $val( 'code' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'auto from name', 'baltic-wp-stair-builder' ); ?>" />
 						</label>
 					<?php endif; ?>
 					<?php if ( $has_caps ) : ?>
@@ -1243,42 +1244,42 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						<input type="hidden" name="<?php echo esc_attr( $fname( 'caps_per_newel' ) ); ?>" value="1" />
 					<?php endif; ?>
 					<?php if ( $has_modes ) : ?>
-					<label class="stairbuilder-card-label stairbuilder-card-mode"><?php esc_html_e( 'Material Type', 'stairbuilder' ); ?>
+					<label class="stairbuilder-card-label stairbuilder-card-mode"><?php esc_html_e( 'Material Type', 'baltic-wp-stair-builder' ); ?>
 						<select class="bd-mode-select widefat" name="<?php echo esc_attr( $fname( 'material_mode' ) ); ?>">
-							<option value="wood_pine_oak" <?php selected( $mode, 'wood_pine_oak' ); ?>><?php esc_html_e( 'Wood (Pine / Oak)', 'stairbuilder' ); ?></option>
-							<option value="metal" <?php selected( $mode, 'metal' ); ?>><?php esc_html_e( 'Metal', 'stairbuilder' ); ?></option>
-							<option value="glass" <?php selected( $mode, 'glass' ); ?>><?php esc_html_e( 'Glass', 'stairbuilder' ); ?></option>
+							<option value="wood_pine_oak" <?php selected( $mode, 'wood_pine_oak' ); ?>><?php esc_html_e( 'Wood (Pine / Oak)', 'baltic-wp-stair-builder' ); ?></option>
+							<option value="metal" <?php selected( $mode, 'metal' ); ?>><?php esc_html_e( 'Metal', 'baltic-wp-stair-builder' ); ?></option>
+							<option value="glass" <?php selected( $mode, 'glass' ); ?>><?php esc_html_e( 'Glass', 'baltic-wp-stair-builder' ); ?></option>
 						</select>
 					</label>
 					<?php // Glass basis controls sit inline in the header; CSS shows them only in glass mode. ?>
-					<label class="stairbuilder-card-label bd-glass-inline"><?php esc_html_e( 'Glass Pricing', 'stairbuilder' ); ?>
+					<label class="stairbuilder-card-label bd-glass-inline"><?php esc_html_e( 'Glass Pricing', 'baltic-wp-stair-builder' ); ?>
 						<select class="bd-glass-unit widefat" name="<?php echo esc_attr( $fname( 'pricing_unit' ) ); ?>">
-							<option value="per_metre" <?php selected( $val( 'pricing_unit', 'per_metre' ), 'per_metre' ); ?>><?php esc_html_e( 'Per Linear Metre', 'stairbuilder' ); ?></option>
-							<option value="per_panel" <?php selected( $val( 'pricing_unit', 'per_metre' ), 'per_panel' ); ?>><?php esc_html_e( 'Per Panel', 'stairbuilder' ); ?></option>
+							<option value="per_metre" <?php selected( $val( 'pricing_unit', 'per_metre' ), 'per_metre' ); ?>><?php esc_html_e( 'Per Linear Metre', 'baltic-wp-stair-builder' ); ?></option>
+							<option value="per_panel" <?php selected( $val( 'pricing_unit', 'per_metre' ), 'per_panel' ); ?>><?php esc_html_e( 'Per Panel', 'baltic-wp-stair-builder' ); ?></option>
 						</select>
 					</label>
-					<label class="stairbuilder-card-label bd-glass-inline bd-glass-panel"><?php esc_html_e( 'Panel Width (mm)', 'stairbuilder' ); ?>
-						<input type="number" step="any" min="0" name="<?php echo esc_attr( $fname( 'panel_width_mm' ) ); ?>" value="<?php echo esc_attr( $val( 'panel_width_mm' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'e.g. 600', 'stairbuilder' ); ?>" />
+					<label class="stairbuilder-card-label bd-glass-inline bd-glass-panel"><?php esc_html_e( 'Panel Width (mm)', 'baltic-wp-stair-builder' ); ?>
+						<input type="number" step="any" min="0" name="<?php echo esc_attr( $fname( 'panel_width_mm' ) ); ?>" value="<?php echo esc_attr( $val( 'panel_width_mm' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'e.g. 600', 'baltic-wp-stair-builder' ); ?>" />
 					</label>
-					<label class="stairbuilder-card-label bd-glass-inline bd-glass-panel"><?php esc_html_e( 'Panel Gap (mm)', 'stairbuilder' ); ?>
-						<input type="number" step="any" min="0" name="<?php echo esc_attr( $fname( 'panel_gap_mm' ) ); ?>" value="<?php echo esc_attr( $val( 'panel_gap_mm' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'e.g. 20', 'stairbuilder' ); ?>" />
+					<label class="stairbuilder-card-label bd-glass-inline bd-glass-panel"><?php esc_html_e( 'Panel Gap (mm)', 'baltic-wp-stair-builder' ); ?>
+						<input type="number" step="any" min="0" name="<?php echo esc_attr( $fname( 'panel_gap_mm' ) ); ?>" value="<?php echo esc_attr( $val( 'panel_gap_mm' ) ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'e.g. 20', 'baltic-wp-stair-builder' ); ?>" />
 					</label>
 					<?php endif; ?>
 					<label class="stairbuilder-switch stairbuilder-card-switch">
 						<input type="hidden" name="<?php echo esc_attr( $fname( 'use_product_id' ) ); ?>" value="0" />
 						<input type="checkbox" class="bd-row-toggle" name="<?php echo esc_attr( $fname( 'use_product_id' ) ); ?>" value="1" <?php checked( $toggle_on ); ?> />
 						<span class="stairbuilder-switch-track"><span class="stairbuilder-switch-thumb"></span></span>
-						<span class="stairbuilder-switch-text"><?php esc_html_e( 'Use Product ID', 'stairbuilder' ); ?></span>
+						<span class="stairbuilder-switch-text"><?php esc_html_e( 'Use Product ID', 'baltic-wp-stair-builder' ); ?></span>
 					</label>
 				</div>
 
 				<?php if ( ! $has_modes ) : ?>
-					<?php $variant_col( __( 'Pine', 'stairbuilder' ), 'pine_price', 'pine_id', true ); ?>
-					<?php $variant_col( __( 'Oak', 'stairbuilder' ), 'oak_price', 'oak_id', true ); ?>
+					<?php $variant_col( __( 'Pine', 'baltic-wp-stair-builder' ), 'pine_price', 'pine_id', true ); ?>
+					<?php $variant_col( __( 'Oak', 'baltic-wp-stair-builder' ), 'oak_price', 'oak_id', true ); ?>
 				<?php else : ?>
 					<div class="bd-mode-block bd-mode-wood">
-						<?php $variant_col( __( 'Pine', 'stairbuilder' ), 'pine_price', 'pine_id', true ); ?>
-						<?php $variant_col( __( 'Oak', 'stairbuilder' ), 'oak_price', 'oak_id', true ); ?>
+						<?php $variant_col( __( 'Pine', 'baltic-wp-stair-builder' ), 'pine_price', 'pine_id', true ); ?>
+						<?php $variant_col( __( 'Oak', 'baltic-wp-stair-builder' ), 'oak_price', 'oak_id', true ); ?>
 					</div>
 					<div class="bd-mode-block bd-mode-metal">
 						<?php $variant_col( '', 'metal_price', 'metal_id', true ); ?>
@@ -1289,7 +1290,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				<?php endif; ?>
 
 				<div class="stairbuilder-card-actions">
-					<button type="button" class="button stairbuilder-card-remove" aria-label="<?php esc_attr_e( 'Remove row', 'stairbuilder' ); ?>">&times;</button>
+					<button type="button" class="button stairbuilder-card-remove" aria-label="<?php esc_attr_e( 'Remove row', 'baltic-wp-stair-builder' ); ?>">&times;</button>
 				</div>
 			</div>
 			<?php
@@ -1683,7 +1684,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						$label = isset( $labels[ $rep_id ] ) ? $labels[ $rep_id ] : $rep_id;
 						$out[] = sprintf(
 							/* translators: 1: construction type name, 2: repeater label (e.g. "riser types") */
-							esc_html__( '“%1$s” has no valid %2$s — it will not be offered on the form until at least one row is ticked as available for it.', 'stairbuilder' ),
+							esc_html__( '“%1$s” has no valid %2$s — it will not be offered on the form until at least one row is ticked as available for it.', 'baltic-wp-stair-builder' ),
 							$name,
 							$label
 						);
@@ -1715,7 +1716,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					$name  = ( isset( $ct['construction_name'] ) && '' !== $ct['construction_name'] ) ? (string) $ct['construction_name'] : ( isset( $ct['construction_code'] ) ? (string) $ct['construction_code'] : '' );
 					$out[] = sprintf(
 						/* translators: %s: construction type name */
-						esc_html__( '“%s” derives riser board height but has no default open-riser gap — the board-height spec will not show under No Building Regs until you set a gap (mm). The 100mm sphere rule is the usual value.', 'stairbuilder' ),
+						esc_html__( '“%s” derives riser board height but has no default open-riser gap — the board-height spec will not show under No Building Regs until you set a gap (mm). The 100mm sphere rule is the usual value.', 'baltic-wp-stair-builder' ),
 						$name
 					);
 				}
@@ -1728,7 +1729,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 				return;
 			}
 			if ( isset( $_GET['settings-updated'] ) ) {
-				add_settings_error( 'stairbuilder_messages', 'stairbuilder_saved', __( 'Settings saved.', 'stairbuilder' ), 'updated' );
+				add_settings_error( 'stairbuilder_messages', 'stairbuilder_saved', __( 'Settings saved.', 'baltic-wp-stair-builder' ), 'updated' );
 			}
 			settings_errors( 'stairbuilder_messages' );
 
@@ -1742,8 +1743,8 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			$groups = $this->get_tab_groups();
 			?>
 			<div class="wrap stairbuilder-pricing-wrap">
-				<h1 class="wp-heading-inline"><?php esc_html_e( 'Stair Builder Pricing', 'stairbuilder' ); ?></h1>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::BULK_PAGE_SLUG ) ); ?>" class="page-title-action"><?php esc_html_e( 'Bulk Price Update', 'stairbuilder' ); ?></a>
+				<h1 class="wp-heading-inline"><?php esc_html_e( 'Stair Builder Pricing', 'baltic-wp-stair-builder' ); ?></h1>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::BULK_PAGE_SLUG ) ); ?>" class="page-title-action"><?php esc_html_e( 'Bulk Price Update', 'baltic-wp-stair-builder' ); ?></a>
 				<hr class="wp-header-end" />
 
 				<form action="options.php" method="post">
@@ -1777,7 +1778,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 						</div>
 					<?php endforeach; ?>
 
-					<?php submit_button( __( 'Save Settings', 'stairbuilder' ) ); ?>
+					<?php submit_button( __( 'Save Settings', 'baltic-wp-stair-builder' ) ); ?>
 				</form>
 			</div>
 			<?php
@@ -1809,20 +1810,20 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			);
 			?>
 			<div class="stairbuilder-help">
-				<h2><?php esc_html_e( 'Staircase Form Shortcode', 'stairbuilder' ); ?></h2>
-				<p><?php esc_html_e( 'Place a configurator on any page or post with the shortcode below. Two attributes control it:', 'stairbuilder' ); ?></p>
+				<h2><?php esc_html_e( 'Staircase Form Shortcode', 'baltic-wp-stair-builder' ); ?></h2>
+				<p><?php esc_html_e( 'Place a configurator on any page or post with the shortcode below. Two attributes control it:', 'baltic-wp-stair-builder' ); ?></p>
 				<ul style="list-style:disc;margin-left:20px;">
-					<li><code>stair_type</code> — <?php esc_html_e( 'which flight: ', 'stairbuilder' ); ?><code>straight</code>, <code>quarter</code>, <code>half</code>. <?php esc_html_e( 'Defaults to', 'stairbuilder' ); ?> <code>straight</code> <?php esc_html_e( 'if omitted.', 'stairbuilder' ); ?></li>
-					<li><code>stair_config</code> <?php esc_html_e( '(optional) — pre-selects and locks the turn for fixed-configuration pages: ', 'stairbuilder' ); ?><code>landing</code>, <code>winder</code>, <code>double_quarter</code>.</li>
+					<li><code>stair_type</code> — <?php esc_html_e( 'which flight: ', 'baltic-wp-stair-builder' ); ?><code>straight</code>, <code>quarter</code>, <code>half</code>. <?php esc_html_e( 'Defaults to', 'baltic-wp-stair-builder' ); ?> <code>straight</code> <?php esc_html_e( 'if omitted.', 'baltic-wp-stair-builder' ); ?></li>
+					<li><code>stair_config</code> <?php esc_html_e( '(optional) — pre-selects and locks the turn for fixed-configuration pages: ', 'baltic-wp-stair-builder' ); ?><code>landing</code>, <code>winder</code>, <code>double_quarter</code>.</li>
 				</ul>
 
-				<h3><?php esc_html_e( 'Every variation', 'stairbuilder' ); ?></h3>
+				<h3><?php esc_html_e( 'Every variation', 'baltic-wp-stair-builder' ); ?></h3>
 				<table class="widefat striped" style="max-width:880px;">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Shortcode', 'stairbuilder' ); ?></th>
-							<th><?php esc_html_e( 'Page', 'stairbuilder' ); ?></th>
-							<th><?php esc_html_e( 'Behaviour', 'stairbuilder' ); ?></th>
+							<th><?php esc_html_e( 'Shortcode', 'baltic-wp-stair-builder' ); ?></th>
+							<th><?php esc_html_e( 'Page', 'baltic-wp-stair-builder' ); ?></th>
+							<th><?php esc_html_e( 'Behaviour', 'baltic-wp-stair-builder' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -1836,12 +1837,12 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					</tbody>
 				</table>
 
-				<h3><?php esc_html_e( 'Notes', 'stairbuilder' ); ?></h3>
+				<h3><?php esc_html_e( 'Notes', 'baltic-wp-stair-builder' ); ?></h3>
 				<ul style="list-style:disc;margin-left:20px;">
-					<li><?php esc_html_e( 'Locked configs (landing / double_quarter) pre-select the turn and disable the field, so the customer cannot change the staircase configuration on that page.', 'stairbuilder' ); ?></li>
-					<li><?php esc_html_e( 'Winder configs do NOT lock anything — the customer still chooses 2 or 3 winders. The stair_config value is recorded on the quote/PDF for identification only.', 'stairbuilder' ); ?></li>
-					<li><?php esc_html_e( 'stair_config only applies to quarter and half. It is ignored on straight, and any unknown value is ignored (falls back to the open form).', 'stairbuilder' ); ?></li>
-					<li><?php esc_html_e( 'The chosen type/config is shown on the generated PDF as the "Staircase Type" line.', 'stairbuilder' ); ?></li>
+					<li><?php esc_html_e( 'Locked configs (landing / double_quarter) pre-select the turn and disable the field, so the customer cannot change the staircase configuration on that page.', 'baltic-wp-stair-builder' ); ?></li>
+					<li><?php esc_html_e( 'Winder configs do NOT lock anything — the customer still chooses 2 or 3 winders. The stair_config value is recorded on the quote/PDF for identification only.', 'baltic-wp-stair-builder' ); ?></li>
+					<li><?php esc_html_e( 'stair_config only applies to quarter and half. It is ignored on straight, and any unknown value is ignored (falls back to the open form).', 'baltic-wp-stair-builder' ); ?></li>
+					<li><?php esc_html_e( 'The chosen type/config is shown on the generated PDF as the "Staircase Type" line.', 'baltic-wp-stair-builder' ); ?></li>
 				</ul>
 			</div>
 			<?php
@@ -2148,9 +2149,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							value="1"
 							<?php checked( $toggle_on ); ?> />
 						<span class="stairbuilder-switch-track"><span class="stairbuilder-switch-thumb"></span></span>
-						<span class="stairbuilder-switch-text"><?php esc_html_e( 'Use Product ID', 'stairbuilder' ); ?></span>
+						<span class="stairbuilder-switch-text"><?php esc_html_e( 'Use Product ID', 'baltic-wp-stair-builder' ); ?></span>
 					</label>
-					<p class="description"><?php esc_html_e( 'Add a price direct, or reference a WooCommerce product ID.', 'stairbuilder' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Add a price direct, or reference a WooCommerce product ID.', 'baltic-wp-stair-builder' ); ?></p>
 				</div>
 
 				<?php foreach ( $block['variants'] as $material => $pair ) :
@@ -2168,7 +2169,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							data-field-id="<?php echo esc_attr( $price_field['id'] ); ?>"
 							data-show-when="<?php echo esc_attr( $toggle['id'] ); ?>"
 							data-show-equals="0">
-							<label class="stairbuilder-variant-label" for="<?php echo esc_attr( $price_field['id'] ); ?>"><?php esc_html_e( 'Price', 'stairbuilder' ); ?></label>
+							<label class="stairbuilder-variant-label" for="<?php echo esc_attr( $price_field['id'] ); ?>"><?php esc_html_e( 'Price', 'baltic-wp-stair-builder' ); ?></label>
 							<span class="stairbuilder-currency">£</span>
 							<input type="number" step="0.01" min="0"
 								id="<?php echo esc_attr( $price_field['id'] ); ?>"
@@ -2181,13 +2182,13 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							data-field-id="<?php echo esc_attr( $id_field['id'] ); ?>"
 							data-show-when="<?php echo esc_attr( $toggle['id'] ); ?>"
 							data-show-equals="1">
-							<label class="stairbuilder-variant-label" for="<?php echo esc_attr( $id_field['id'] ); ?>"><?php esc_html_e( 'Product ID', 'stairbuilder' ); ?></label>
+							<label class="stairbuilder-variant-label" for="<?php echo esc_attr( $id_field['id'] ); ?>"><?php esc_html_e( 'Product ID', 'baltic-wp-stair-builder' ); ?></label>
 							<input type="number" step="1" min="0"
 								id="<?php echo esc_attr( $id_field['id'] ); ?>"
 								name="<?php echo esc_attr( $id_name ); ?>"
 								value="<?php echo esc_attr( $id_val ); ?>"
 								class="regular-text"
-								placeholder="<?php esc_attr_e( 'Variation ID', 'stairbuilder' ); ?>" />
+								placeholder="<?php esc_attr_e( 'Variation ID', 'baltic-wp-stair-builder' ); ?>" />
 						</div>
 					</div>
 				<?php endforeach; ?>

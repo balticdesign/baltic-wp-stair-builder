@@ -6,6 +6,9 @@ Description:	A Staircase Builder Solution
 Version:		2.37.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
+Text Domain:	baltic-wp-stair-builder
+Requires at least:	6.0
+Requires PHP:	8.0
 License:		GPL-2.0+
 License URI:	http://www.gnu.org/licenses/gpl-2.0.txt
 

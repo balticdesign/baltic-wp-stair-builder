@@ -46,8 +46,8 @@ class BD_Stair_Builder_Enquiries {
 	public function add_menu() {
 		$this->hook = add_submenu_page(
 			Stairbuilder_Pricing_Settings::PAGE_SLUG,
-			__( 'Enquiries', 'stairbuilder' ),
-			__( 'Enquiries', 'stairbuilder' ),
+			__( 'Enquiries', 'baltic-wp-stair-builder' ),
+			__( 'Enquiries', 'baltic-wp-stair-builder' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			array( $this, 'render_page' )
@@ -66,7 +66,7 @@ class BD_Stair_Builder_Enquiries {
 		add_screen_option(
 			'per_page',
 			array(
-				'label'   => __( 'Enquiries per page', 'stairbuilder' ),
+				'label'   => __( 'Enquiries per page', 'baltic-wp-stair-builder' ),
 				'default' => 20,
 				'option'  => self::PER_PAGE_OPTION,
 			)
@@ -154,14 +154,14 @@ class BD_Stair_Builder_Enquiries {
 		$table->prepare_items();
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Enquiries', 'stairbuilder' ); ?></h1>
-			<a href="<?php echo esc_url( $this->export_url() ); ?>" class="page-title-action"><?php esc_html_e( 'Export CSV', 'stairbuilder' ); ?></a>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Enquiries', 'baltic-wp-stair-builder' ); ?></h1>
+			<a href="<?php echo esc_url( $this->export_url() ); ?>" class="page-title-action"><?php esc_html_e( 'Export CSV', 'baltic-wp-stair-builder' ); ?></a>
 			<hr class="wp-header-end" />
 
 			<form method="get">
 				<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_SLUG ); ?>" />
 				<?php
-				$table->search_box( __( 'Search enquiries', 'stairbuilder' ), 'bd-enq-search' );
+				$table->search_box( __( 'Search enquiries', 'baltic-wp-stair-builder' ), 'bd-enq-search' );
 				$table->display();
 				?>
 			</form>
@@ -194,9 +194,9 @@ class BD_Stair_Builder_Enquiries {
 		if ( ! $lead ) {
 			?>
 			<div class="wrap">
-				<h1><?php esc_html_e( 'Enquiry', 'stairbuilder' ); ?></h1>
-				<div class="notice notice-error"><p><?php esc_html_e( 'That enquiry no longer exists.', 'stairbuilder' ); ?></p></div>
-				<p><a href="<?php echo esc_url( $this->list_url() ); ?>">&larr; <?php esc_html_e( 'Back to Enquiries', 'stairbuilder' ); ?></a></p>
+				<h1><?php esc_html_e( 'Enquiry', 'baltic-wp-stair-builder' ); ?></h1>
+				<div class="notice notice-error"><p><?php esc_html_e( 'That enquiry no longer exists.', 'baltic-wp-stair-builder' ); ?></p></div>
+				<p><a href="<?php echo esc_url( $this->list_url() ); ?>">&larr; <?php esc_html_e( 'Back to Enquiries', 'baltic-wp-stair-builder' ); ?></a></p>
 			</div>
 			<?php
 			return;
@@ -208,52 +208,52 @@ class BD_Stair_Builder_Enquiries {
 		?>
 		<div class="wrap bd-enq-detail">
 			<h1 class="wp-heading-inline">
-				<?php echo esc_html( '' !== trim( (string) $lead['name'] ) ? $lead['name'] : __( '(no name)', 'stairbuilder' ) ); ?>
+				<?php echo esc_html( '' !== trim( (string) $lead['name'] ) ? $lead['name'] : __( '(no name)', 'baltic-wp-stair-builder' ) ); ?>
 			</h1>
-			<a href="<?php echo esc_url( $this->list_url() ); ?>" class="page-title-action"><?php esc_html_e( 'Back to Enquiries', 'stairbuilder' ); ?></a>
+			<a href="<?php echo esc_url( $this->list_url() ); ?>" class="page-title-action"><?php esc_html_e( 'Back to Enquiries', 'baltic-wp-stair-builder' ); ?></a>
 			<hr class="wp-header-end" />
 
 			<div class="bd-enq-card">
-				<h2><?php esc_html_e( 'Contact', 'stairbuilder' ); ?></h2>
+				<h2><?php esc_html_e( 'Contact', 'baltic-wp-stair-builder' ); ?></h2>
 				<table>
-					<tr><th><?php esc_html_e( 'Name', 'stairbuilder' ); ?></th><td><?php echo esc_html( $lead['name'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Email', 'stairbuilder' ); ?></th><td>
+					<tr><th><?php esc_html_e( 'Name', 'baltic-wp-stair-builder' ); ?></th><td><?php echo esc_html( $lead['name'] ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Email', 'baltic-wp-stair-builder' ); ?></th><td>
 						<?php if ( '' !== trim( (string) $lead['email'] ) ) : ?>
 							<a href="mailto:<?php echo esc_attr( $lead['email'] ); ?>"><?php echo esc_html( $lead['email'] ); ?></a>
 						<?php else : ?>—<?php endif; ?>
 					</td></tr>
-					<tr><th><?php esc_html_e( 'Phone', 'stairbuilder' ); ?></th><td>
+					<tr><th><?php esc_html_e( 'Phone', 'baltic-wp-stair-builder' ); ?></th><td>
 						<?php if ( '' !== trim( (string) $lead['phone'] ) ) : ?>
 							<a href="tel:<?php echo esc_attr( preg_replace( '/[^0-9+]/', '', $lead['phone'] ) ); ?>"><?php echo esc_html( $lead['phone'] ); ?></a>
 						<?php else : ?>—<?php endif; ?>
 					</td></tr>
-					<tr><th><?php esc_html_e( 'Postcode', 'stairbuilder' ); ?></th><td><?php echo esc_html( $lead['postcode'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Received', 'stairbuilder' ); ?></th><td><?php echo esc_html( $ts ? date_i18n( 'j F Y, H:i', $ts ) : $lead['created_at'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Reference', 'stairbuilder' ); ?></th><td><?php echo esc_html( baltic_stair_lead_reference( $lead ) ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Postcode', 'baltic-wp-stair-builder' ); ?></th><td><?php echo esc_html( $lead['postcode'] ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Received', 'baltic-wp-stair-builder' ); ?></th><td><?php echo esc_html( $ts ? date_i18n( 'j F Y, H:i', $ts ) : $lead['created_at'] ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Reference', 'baltic-wp-stair-builder' ); ?></th><td><?php echo esc_html( baltic_stair_lead_reference( $lead ) ); ?></td></tr>
 				</table>
 			</div>
 
 			<div class="bd-enq-card">
-				<h2><?php esc_html_e( 'Pricing', 'stairbuilder' ); ?></h2>
+				<h2><?php esc_html_e( 'Pricing', 'baltic-wp-stair-builder' ); ?></h2>
 				<?php if ( $poa ) : ?>
 					<p class="bd-enq-poa-note">
-						<strong><?php esc_html_e( 'Price on application.', 'stairbuilder' ); ?></strong>
-						<?php esc_html_e( 'The customer was shown no figures — not on the quote page, not in the PDF, not in their email. The figures below are the configurator\'s internal calculation, for whoever prices this by hand.', 'stairbuilder' ); ?>
+						<strong><?php esc_html_e( 'Price on application.', 'baltic-wp-stair-builder' ); ?></strong>
+						<?php esc_html_e( 'The customer was shown no figures — not on the quote page, not in the PDF, not in their email. The figures below are the configurator\'s internal calculation, for whoever prices this by hand.', 'baltic-wp-stair-builder' ); ?>
 						<?php if ( ! empty( $fd['poa_reasons'] ) ) : ?>
-							<br><strong><?php esc_html_e( 'Reason(s):', 'stairbuilder' ); ?></strong>
+							<br><strong><?php esc_html_e( 'Reason(s):', 'baltic-wp-stair-builder' ); ?></strong>
 							<?php echo esc_html( str_replace( array( 'min_flight_width', 'floor_height_range' ), array( 'flight width below the configured minimum', 'floor-to-floor height outside the configured range' ), (string) $fd['poa_reasons'] ) ); ?>
 						<?php endif; ?>
 					</p>
 				<?php endif; ?>
 				<table>
-					<tr><th><?php esc_html_e( 'Subtotal', 'stairbuilder' ); ?></th><td><?php echo esc_html( '£' . number_format( (float) $lead['price'], 2 ) ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'VAT', 'stairbuilder' ); ?></th><td><?php echo esc_html( '£' . number_format( (float) $lead['vat'], 2 ) ); ?></td></tr>
-					<tr class="bd-enq-total"><th><?php esc_html_e( 'Total', 'stairbuilder' ); ?></th><td><?php echo esc_html( '£' . number_format( (float) $lead['total'], 2 ) ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'Subtotal', 'baltic-wp-stair-builder' ); ?></th><td><?php echo esc_html( '£' . number_format( (float) $lead['price'], 2 ) ); ?></td></tr>
+					<tr><th><?php esc_html_e( 'VAT', 'baltic-wp-stair-builder' ); ?></th><td><?php echo esc_html( '£' . number_format( (float) $lead['vat'], 2 ) ); ?></td></tr>
+					<tr class="bd-enq-total"><th><?php esc_html_e( 'Total', 'baltic-wp-stair-builder' ); ?></th><td><?php echo esc_html( '£' . number_format( (float) $lead['total'], 2 ) ); ?></td></tr>
 				</table>
 			</div>
 
 			<div class="bd-enq-card">
-				<h2><?php esc_html_e( 'Configuration', 'stairbuilder' ); ?></h2>
+				<h2><?php esc_html_e( 'Configuration', 'baltic-wp-stair-builder' ); ?></h2>
 				<table>
 					<?php
 					// additional_notes has its own card below, so keep it out of
@@ -265,7 +265,7 @@ class BD_Stair_Builder_Enquiries {
 
 					$type_label = bd_staircase_type_label( $fd );
 					if ( '' !== $type_label ) {
-						$this->row( __( 'Staircase Type', 'stairbuilder' ), $type_label );
+						$this->row( __( 'Staircase Type', 'baltic-wp-stair-builder' ), $type_label );
 					}
 					$consumed[] = 'stair_type';
 					$consumed[] = 'stair_config';
@@ -283,7 +283,7 @@ class BD_Stair_Builder_Enquiries {
 					// still surface, but raw in "Other submitted fields" as the stored
 					// code -- the workshop needs the wording, not `included`.
 					$consumed[] = 'tandg_landing';
-					$this->row( __( 'Landing Boards', 'stairbuilder' ), bd_tandg_landing_label( $fd['tandg_landing'] ?? '' ) );
+					$this->row( __( 'Landing Boards', 'baltic-wp-stair-builder' ), bd_tandg_landing_label( $fd['tandg_landing'] ?? '' ) );
 
 					// Featured step: the same decomposition the PDF applies, so a
 					// pre-v2.23.0 lead reads correctly here too.
@@ -295,7 +295,7 @@ class BD_Stair_Builder_Enquiries {
 					$consumed[] = 'left-featured-step';
 					$consumed[] = 'right-featured-step';
 					$consumed[] = 'featured_step';
-					$this->row( __( 'Featured Step', 'stairbuilder' ), bd_featured_step_label( $pair[0], $pair[1] ) );
+					$this->row( __( 'Featured Step', 'baltic-wp-stair-builder' ), bd_featured_step_label( $pair[0], $pair[1] ) );
 					?>
 				</table>
 
@@ -305,7 +305,7 @@ class BD_Stair_Builder_Enquiries {
 				$rest = array_diff_key( $fd, array_flip( $consumed ) );
 				if ( $rest ) :
 					?>
-					<h2><?php esc_html_e( 'Other submitted fields', 'stairbuilder' ); ?></h2>
+					<h2><?php esc_html_e( 'Other submitted fields', 'baltic-wp-stair-builder' ); ?></h2>
 					<table class="bd-enq-raw">
 						<?php foreach ( $rest as $key => $value ) : ?>
 							<tr>
@@ -326,25 +326,25 @@ class BD_Stair_Builder_Enquiries {
 			if ( '' !== $bd_notes ) :
 				?>
 				<div class="bd-enq-card">
-					<h2><?php esc_html_e( 'Additional notes from the customer', 'stairbuilder' ); ?></h2>
+					<h2><?php esc_html_e( 'Additional notes from the customer', 'baltic-wp-stair-builder' ); ?></h2>
 					<?php // Escaped, then line breaks restored. Never raw. ?>
 					<p class="bd-enq-notes"><?php echo nl2br( esc_html( $bd_notes ) ); ?></p>
 				</div>
 			<?php endif; ?>
 
 			<div class="bd-enq-card">
-				<h2><?php esc_html_e( 'Quote', 'stairbuilder' ); ?></h2>
+				<h2><?php esc_html_e( 'Quote', 'baltic-wp-stair-builder' ); ?></h2>
 				<table>
-					<tr><th><?php esc_html_e( 'PDF', 'stairbuilder' ); ?></th><td>
+					<tr><th><?php esc_html_e( 'PDF', 'baltic-wp-stair-builder' ); ?></th><td>
 						<?php if ( ! empty( $lead['pdf_path'] ) && file_exists( $lead['pdf_path'] ) ) : ?>
-							<a href="<?php echo esc_url( add_query_arg( array( 'action' => 'baltic_stair_download', 'token' => $lead['token'] ), admin_url( 'admin-post.php' ) ) ); ?>"><?php esc_html_e( 'Download PDF', 'stairbuilder' ); ?></a>
+							<a href="<?php echo esc_url( add_query_arg( array( 'action' => 'baltic_stair_download', 'token' => $lead['token'] ), admin_url( 'admin-post.php' ) ) ); ?>"><?php esc_html_e( 'Download PDF', 'baltic-wp-stair-builder' ); ?></a>
 						<?php else : ?>
-							<span class="bd-enq-muted"><?php esc_html_e( 'No PDF was generated for this enquiry.', 'stairbuilder' ); ?></span>
+							<span class="bd-enq-muted"><?php esc_html_e( 'No PDF was generated for this enquiry.', 'baltic-wp-stair-builder' ); ?></span>
 						<?php endif; ?>
 					</td></tr>
 					<?php if ( function_exists( 'baltic_stair_get_quote_view_url' ) ) : ?>
-						<tr><th><?php esc_html_e( 'Customer quote page', 'stairbuilder' ); ?></th><td>
-							<a href="<?php echo esc_url( baltic_stair_get_quote_view_url( $lead['token'] ) ); ?>"><?php esc_html_e( 'Open the page the customer sees', 'stairbuilder' ); ?></a>
+						<tr><th><?php esc_html_e( 'Customer quote page', 'baltic-wp-stair-builder' ); ?></th><td>
+							<a href="<?php echo esc_url( baltic_stair_get_quote_view_url( $lead['token'] ) ); ?>"><?php esc_html_e( 'Open the page the customer sees', 'baltic-wp-stair-builder' ); ?></a>
 						</td></tr>
 					<?php endif; ?>
 				</table>
@@ -424,8 +424,8 @@ class BD_Stair_Builder_Enquiries {
 			// wp_die( $message, $title, $args ) — a bare 403 here landed as the
 			// TITLE and the status quietly defaulted to 500.
 			wp_die(
-				esc_html__( 'You do not have permission to export enquiries.', 'stairbuilder' ),
-				esc_html__( 'Forbidden', 'stairbuilder' ),
+				esc_html__( 'You do not have permission to export enquiries.', 'baltic-wp-stair-builder' ),
+				esc_html__( 'Forbidden', 'baltic-wp-stair-builder' ),
 				array( 'response' => 403 )
 			);
 		}
@@ -448,8 +448,8 @@ class BD_Stair_Builder_Enquiries {
 		// front, and a wrong one truncates silently where none simply ends.
 		if ( ! baltic_stair_prepare_raw_response( 'admin_post_' . self::EXPORT_ACTION ) ) {
 			wp_die(
-				esc_html__( 'Export unavailable — the page had already started sending output.', 'stairbuilder' ),
-				esc_html__( 'Export unavailable', 'stairbuilder' ),
+				esc_html__( 'Export unavailable — the page had already started sending output.', 'baltic-wp-stair-builder' ),
+				esc_html__( 'Export unavailable', 'baltic-wp-stair-builder' ),
 				array( 'response' => 500 )
 			);
 		}
@@ -495,7 +495,7 @@ class BD_Stair_Builder_Enquiries {
 			);
 		}
 
-		fclose( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- closes the php://output stream used by fputcsv() for the CSV export; no filesystem involved.
 		exit;
 	}
 }

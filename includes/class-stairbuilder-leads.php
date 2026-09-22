@@ -153,7 +153,7 @@ class BD_Stair_Builder_Leads {
 	public static function get_by_token( $token ) {
 		global $wpdb;
 		$row = $wpdb->get_row(
-			$wpdb->prepare( 'SELECT * FROM ' . self::table_name() . ' WHERE token = %s LIMIT 1', $token ),
+			$wpdb->prepare( 'SELECT * FROM ' . self::table_name() . ' WHERE token = %s LIMIT 1', $token ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from self::table_name() (wpdb prefix + literal); every value goes through prepare().
 			ARRAY_A
 		);
 		if ( ! $row ) {
@@ -166,7 +166,7 @@ class BD_Stair_Builder_Leads {
 	public static function get( $lead_id ) {
 		global $wpdb;
 		$row = $wpdb->get_row(
-			$wpdb->prepare( 'SELECT * FROM ' . self::table_name() . ' WHERE id = %d LIMIT 1', (int) $lead_id ),
+			$wpdb->prepare( 'SELECT * FROM ' . self::table_name() . ' WHERE id = %d LIMIT 1', (int) $lead_id ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from self::table_name() (wpdb prefix + literal); every value goes through prepare().
 			ARRAY_A
 		);
 		if ( ! $row ) {
@@ -236,10 +236,10 @@ class BD_Stair_Builder_Leads {
 
 		$sql = 'SELECT COUNT(*) FROM ' . self::table_name() . ' WHERE ' . $where;
 		if ( $vals ) {
-			$sql = $wpdb->prepare( $sql, $vals );
+			$sql = $wpdb->prepare( $sql, $vals ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where is built from literals in build_where(); its values are the $vals prepared here.
 		}
 
-		return (int) $wpdb->get_var( $sql );
+		return (int) $wpdb->get_var( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above when it carries values; without values it is entirely literal.
 	}
 
 	/**
@@ -296,10 +296,10 @@ class BD_Stair_Builder_Leads {
 			. $limit;
 
 		if ( $vals ) {
-			$sql = $wpdb->prepare( $sql, $vals );
+			$sql = $wpdb->prepare( $sql, $vals ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where from literals (build_where), $orderby whitelisted via sortable_columns(), $order forced ASC/DESC; values are the $vals prepared here.
 		}
 
-		$rows = $wpdb->get_results( $sql, ARRAY_A );
+		$rows = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- see above; fully prepared or fully literal.
 		if ( ! is_array( $rows ) ) {
 			return array();
 		}

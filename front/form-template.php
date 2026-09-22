@@ -1,4 +1,8 @@
-<?php require_once  (plugin_dir_path( __FILE__ ) . '../includes/stairbuilder-prices.php');
+<?php
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+require_once plugin_dir_path( __FILE__ ) . '../includes/stairbuilder-prices.php';
 global $post;
 
 // Resolved by Stairbuilder_Plugin::generate_shortcode() before this template is included.
@@ -37,7 +41,7 @@ $bonuslogic = "";
 if($fields) {
 foreach ($fields as $field) {
   $value = stairbuilder_get_option($field);
-  $bonuslogic .= "<input type=\"hidden\" id=\"$field\" value=\"$value\">";
+  $bonuslogic .= '<input type="hidden" id="' . esc_attr( $field ) . '" value="' . esc_attr( $value ) . '">';
 }
 }
 
@@ -219,8 +223,8 @@ $sb_hide = function ( $on, $extra_class = '' ) {
             <label for="stair-width3"><?php echo $sb_is_half_landing ? 'Flight 2 Width' : 'Flight 3 Width'; ?> <span class="form-unit">(mm)</span></label>
             <input type="number" id="stair-width3" name="stair-width3" value="">
             <?php } ?>
-            <input type="hidden" id="widthmulti" value="<?php echo $width_mp; ?>">
-            <input type="hidden" id="setupfee" value="<?php echo $setup_fee; ?>">
+            <input type="hidden" id="widthmulti" value="<?php echo esc_attr( $width_mp ); ?>">
+            <input type="hidden" id="setupfee" value="<?php echo esc_attr( $setup_fee ); ?>">
         </div>
         </div>
         </div>
@@ -244,7 +248,7 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         // submitted -- the hidden input below carries it, because a disabled select
         // does not POST. treadit never reaches pricing; it feeds only the flight
         // allocators, so hiding the control moves no number. Winders keep theirs. ?>
-        <div<?php echo $sb_hide( $sb_is_landing, 'form-row' ); ?>>
+        <div<?php echo $sb_hide( $sb_is_landing, 'form-row' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attribute fragment; class is esc_attr()ed inside $sb_hide, the rest is static. ?>>
         <label for="treadit">Treads in Turn:</label>
         <select id="treadit" name="treadit"<?php disabled( $sb_lock_treadit ); ?>>
         <?php
@@ -296,8 +300,8 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         // row are hidden as a unit; hiding only the label would strand an editable field
         // with no heading above it. display:none does not stop a field POSTing, so the
         // value still reaches form_data and the PDF exactly as before. ?>
-        <h4<?php echo $sb_hide( $sb_is_half_landing ); ?>>Flight 2</h4>
-        <div<?php echo $sb_hide( $sb_is_half_landing, 'form-row' ); ?>>
+        <h4<?php echo $sb_hide( $sb_is_half_landing ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attribute fragment; class is esc_attr()ed inside $sb_hide, the rest is static. ?>>Flight 2</h4>
+        <div<?php echo $sb_hide( $sb_is_half_landing, 'form-row' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attribute fragment; class is esc_attr()ed inside $sb_hide, the rest is static. ?>>
         <label for="treadat">Treads after Turn:</label>
         <?php // Quarter turn: #treadat is the DERIVED flight (auto-filled, readonly) — it must
         // stay readonly (not disabled) so its value still POSTs into the lead + PDF.
@@ -307,7 +311,7 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         <?php if ($flight3) {?>
         <?php // Already hidden on half:landing (treadit = 4 leaves no second turn);
         // half:double_quarter locks it too and now hides it on the same grounds. ?>
-         <div<?php echo $sb_hide( $sb_hide_treadit2 || $sb_is_landing, 'form-row' ); ?>>
+         <div<?php echo $sb_hide( $sb_hide_treadit2 || $sb_is_landing, 'form-row' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attribute fragment; class is esc_attr()ed inside $sb_hide, the rest is static. ?>>
         <label for="treadit2">Treads in Turn2:</label>
         <select id="treadit2" name="treadit2"<?php disabled( $sb_lock_treadit2 ); ?>>
         <?php
@@ -484,7 +488,7 @@ $sb_hide = function ( $on, $extra_class = '' ) {
     <?php } ?>
       </select>
     </div>
-<?php echo $bonuslogic; ?>
+<?php echo $bonuslogic; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hidden-input fragment; id and value are esc_attr()ed where built above. ?>
 </div>
 </div>
     <?php // data-bd-tick-on-close: this section's completion tick means
@@ -659,8 +663,8 @@ $sb_hide = function ( $on, $extra_class = '' ) {
 <div class="form-row">
     <label for="bsr_material">Baserail Material</label>
       <select id="bsr_material" name="bsr_material" class="bd-mat-select">
-        <option value="pine:<?php echo $pine_baserail; ?>">Pine</option>
-        <option value="oak:<?php echo $oak_baserail; ?>">Oak</option>
+        <option value="pine:<?php echo esc_attr( $pine_baserail ); ?>">Pine</option>
+        <option value="oak:<?php echo esc_attr( $oak_baserail ); ?>">Oak</option>
       </select>
     </div>
 <div class="form-row">
@@ -703,16 +707,16 @@ $sb_hide = function ( $on, $extra_class = '' ) {
       <h5>Delivery Options</h5>
       <div class="delivery form-row rdbuttons">
           <input id="collected" type="radio" name="delivery" class="p radio__radio" value="collected" checked>
-          <label for="collected" class="d radio__label vertical-icon"><img src="<?php echo plugin_dir_url( __FILE__ ) . '../assets/images/collected.svg' ?>" alt="icon"> Collected </label>
+          <label for="collected" class="d radio__label vertical-icon"><img src="<?php echo esc_url( plugins_url( 'assets/images/collected.svg', dirname( __DIR__ ) . '/baltic-wp-stairbuilder.php' ) ); ?>" alt="icon"> Collected </label>
           <input id="delivery" type="radio" name="delivery" class="p radio__radio" value="kerbside">
-          <label for="delivery" class="d radio__label vertical-icon"><img src="<?php echo plugin_dir_url( __FILE__ ) . '../assets/images/delivery.svg' ?>" alt="icon"> Kerb Side Delivery </label>
+          <label for="delivery" class="d radio__label vertical-icon"><img src="<?php echo esc_url( plugins_url( 'assets/images/delivery.svg', dirname( __DIR__ ) . '/baltic-wp-stairbuilder.php' ) ); ?>" alt="icon"> Kerb Side Delivery </label>
       </div>
       <?php if ($two_man_delivery_enabled) { ?>
       <div class="ksd form-row">
       <h5>Extra Options:</h5>
       <div class="chkboxbttn">
-          <input id="duodeliv" type="checkbox" name="duodeliv" class="a chkbx" value="<?php echo $two_man_delivery_price; ?>">
-          <label for="duodeliv" class="p chkbx__label">2 man delivery @ £<?php echo $two_man_delivery_price; ?> extra</label>
+          <input id="duodeliv" type="checkbox" name="duodeliv" class="a chkbx" value="<?php echo esc_attr( $two_man_delivery_price ); ?>">
+          <label for="duodeliv" class="p chkbx__label">2 man delivery @ £<?php echo esc_attr( $two_man_delivery_price ); ?> extra</label>
       </div></div>
       <?php } ?>
       <div class="pcode rdbuttons form-row">
@@ -724,7 +728,7 @@ $sb_hide = function ( $on, $extra_class = '' ) {
           <input id="flatpkg" type="radio" name="package" class="d radio__radio" checked>
           <label for="flatpkg" class="p radio__label">Flat Packed </label>
           <?php if ($part_assembled_enabled) { ?>
-          <input id="asspkg" type="radio" name="package" class="d radio__radio" value="<?php echo $part_assembled_price; ?>">
+          <input id="asspkg" type="radio" name="package" class="d radio__radio" value="<?php echo esc_attr( $part_assembled_price ); ?>">
           <label for="asspkg" class="p radio__label">Part Assembled</label>
           <?php } ?>
       </div>
@@ -734,13 +738,13 @@ $sb_hide = function ( $on, $extra_class = '' ) {
       <div class="addon form-row rdbuttons">
         <?php if ($fixing_kit_enabled) { ?>
         <div class="chkboxbttn">
-          <input id="fixkit" type="checkbox" name="addon_fixkit" class="a chkbx" checked value="<?php echo $fixing_kit_price; ?>">
+          <input id="fixkit" type="checkbox" name="addon_fixkit" class="a chkbx" checked value="<?php echo esc_attr( $fixing_kit_price ); ?>">
           <label for="fixkit" class="p chkbx__label">Fixing Kit </label>
           </div>
         <?php } ?>
         <?php if ($extra_packaging_enabled) { ?>
           <div class="chkboxbttn">
-          <input id="xtrap" type="checkbox" name="addon_xtrap" class="a chkbx" value="<?php echo $extra_packaging_price; ?>">
+          <input id="xtrap" type="checkbox" name="addon_xtrap" class="a chkbx" value="<?php echo esc_attr( $extra_packaging_price ); ?>">
           <label for="xtrap" class="p chkbx__label">Extra Packaging </label>
           </div>
         <?php } ?>

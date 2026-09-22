@@ -551,15 +551,29 @@ function baltic_stair_generate_pdf( array $lead_data ) {
 		require_once plugin_dir_path( __FILE__ ) . '../vendor/autoload.php';
 	}
 
+	// mPDF's default tempDir is inside vendor/, which a plugin update wipes —
+	// the font-metric cache would rebuild on the first PDF after every update,
+	// or fail outright if vendor/ isn't writable. Keep it in uploads instead,
+	// under the already-protected quote-file root.
+	$temp_dir = baltic_stair_pdf_basedir() . 'mpdf-tmp';
+	if ( ! file_exists( $temp_dir ) ) {
+		wp_mkdir_p( $temp_dir );
+		baltic_stair_protect_pdf_dir();
+	}
+
 	// Zero page margins so the quote's header/footer bands run full-bleed.
 	// Setting them here (not via `@page { margin: 0 }` in the template) avoids an
 	// mPDF divide-by-zero in its nested-table column-width calc. Content columns
 	// carry their own padding, so nothing is jammed to the page edge.
+	// default_font pins the fallback to DejaVu Sans: ttfonts/ ships only the
+	// DejaVu Sans + Sans Condensed files, so nothing may resolve elsewhere.
 	$mpdf = new Mpdf\Mpdf( array(
 		'margin_left'   => 0,
 		'margin_right'  => 0,
 		'margin_top'    => 0,
 		'margin_bottom' => 0,
+		'default_font'  => 'dejavusans',
+		'tempDir'       => $temp_dir,
 	) );
 
 	$title   = 'Staircase Quote – Ref ' . baltic_stair_lead_reference( $lead_data );

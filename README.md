@@ -1,20 +1,28 @@
-# My Custom Functionality #
+# Baltic Stairbuilder — dev notes
 
-A basic plugin to load custom CSS and JS files in WordPress.
+Lead-gen staircase configurator plugin. Customers configure a staircase,
+get an indicative price, and submit their details; the plugin stores the
+lead, generates a PDF quote (mPDF) and emails both sides.
 
-## Installation ##
+This file is internal and never ships: release zips are cut by
+`bin/build-release.sh` via `git archive`, and `.gitattributes` excludes all
+`.md` files, `docs/`, `bin/`, `composer.*` and dot files.
 
-1. Click on the `Download ZIP` button at the right to download the plugin.
-2. Go to Plugins > Add New in your WordPress admin. Click on `Upload Plugin` and browse for the zip file.
-3. Activate the plugin.
+## Working on it
 
-## Usage ##
+- Local site: DDEV at `https://bd-pricing-builder.ddev.site` (PHP 8.3).
+- Project conventions and current direction: see `CLAUDE.md`.
+- Historical briefs and phase plans: `docs/briefs/`.
+- `vendor/` is committed (clients have no composer). `composer.json` pins
+  mpdf/mpdf 8.1.6 for reference; don't run `composer install` casually.
+- `vendor/mpdf/mpdf/ttfonts/` is pruned to DejaVu Sans (+ Condensed) only —
+  the PDF template uses DejaVu exclusively. Don't restore the full font set.
 
-1. Connect to your server using a FTP client and navigate to the plugin directory.
-2. Upload the files you want to use/load in the corresponding directories inside the `assets` directory.
-3. Edit `plugin.php` and use the commented sample code as an example to add enqueue or other site-specific code. While there you may also want to edit the plugin's header with your name, plugin and author URLs etc.
+## Releasing
 
-## Changelog ##
-
-### 1.0.0 ###
-* Initial Release
+1. Bump the version in the plugin header, `BALTIC_STAIRBUILDER_VERSION`
+   and the `readme.txt` Stable tag — all three must match.
+2. Commit, then run `bin/build-release.sh` (refuses a dirty tree).
+3. Upload `dist/baltic-wp-stair-builder-<version>.zip` through wp-admin.
+   Never deploy GitHub's "Download ZIP" — it installs under a `-main`
+   folder, which breaks the text domain and ships the whole repo.

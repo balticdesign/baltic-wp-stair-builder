@@ -25,3 +25,8 @@ vendor/**/.gitlab-ci.yml
 vendor/**/.editorconfig
 # Local reference files (not committed)
 _reference/
+# Release artefacts
+dist/
+
+# Archived briefs under docs/ are tracked; only root working briefs stay local
+!docs/briefs/BRIEF-*.md

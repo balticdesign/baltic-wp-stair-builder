@@ -1,0 +1,16 @@
+# Files excluded from the release zip built by bin/build-release.sh
+# (`git archive` honours export-ignore; untracked files never ship anyway).
+# `*.md` is deliberately unanchored: vendor/ carries READMEs and CHANGELOGs,
+# and the acceptance rule is that NO .md file ships to a client server.
+*.md                export-ignore
+# Unanchored like *.md: vendor packages carry their own composer.json and
+# docs/, and none of it is needed at runtime (the compiled autoloader never
+# reads composer.json).
+composer.json       export-ignore
+composer.lock       export-ignore
+docs                export-ignore
+/bin                export-ignore
+/.gitignore         export-ignore
+/.gitattributes     export-ignore
+/_reference         export-ignore
+/dist               export-ignore

@@ -1,0 +1,16 @@
+{
+    "name": "balticdesign/baltic-wp-stair-builder",
+    "description": "Baltic Stairbuilder — staircase configurator plugin. Dev-only manifest; vendor/ is committed and shipped in the release zip.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.0",
+        "mpdf/mpdf": "8.1.6"
+    },
+    "config": {
+        "platform": {
+            "php": "8.0.30"
+        },
+        "optimize-autoloader": true
+    }
+}

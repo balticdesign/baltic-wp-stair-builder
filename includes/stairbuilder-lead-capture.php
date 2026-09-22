@@ -20,13 +20,35 @@ if ( ! defined( 'BD_STAIR_NOTES_MAX' ) ) {
 
 /**
  * VAT rate used by the configurator. Reads `baltic_stair_vat_rate` option,
- * defaults to 20%. Replaces the old WC_Tax-backed [vat_rate] shortcode.
+ * defaults to 20%. Replaces the old WC_Tax-backed [vat_rate] shortcode; renamed [baltic_stair_vat_rate] in 2.37.0 so it cannot collide with the legacy GF stairbuilder on a licensee site.
  */
 function baltic_stair_get_vat_rate() {
 	$rate = get_option( 'baltic_stair_vat_rate', 20 );
 	return (float) $rate;
 }
-add_shortcode( 'vat_rate', 'baltic_stair_get_vat_rate' );
+add_shortcode( 'baltic_stair_vat_rate', 'baltic_stair_get_vat_rate' );
+
+/**
+ * AJAX: hand the front end a fresh `sb-ajax-nonce` (2.37.0).
+ *
+ * The configurator pages sit behind full-page caches (Kinsta serves logged-out
+ * HTML for hours), so the nonce baked in at render time can be stale by the
+ * time a visitor submits. formLogic.js calls this on page load and again —
+ * once — whenever a builder AJAX call comes back 403, then retries.
+ *
+ * Deliberately nonce-free: a logged-out nonce carries no session privilege,
+ * and requiring one here would recreate the exact staleness problem this
+ * endpoint exists to solve. It must never do more than mint the nonce.
+ */
+function baltic_stair_refresh_nonce() {
+	if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_baltic_stair_refresh_nonce' ) ) {
+		wp_die( '', '', array( 'response' => 500 ) );
+	}
+	nocache_headers();
+	wp_send_json_success( array( 'nonce' => wp_create_nonce( 'sb-ajax-nonce' ) ) );
+}
+add_action( 'wp_ajax_baltic_stair_refresh_nonce', 'baltic_stair_refresh_nonce' );
+add_action( 'wp_ajax_nopriv_baltic_stair_refresh_nonce', 'baltic_stair_refresh_nonce' );
 
 /**
  * Is this construction type priced on application?
@@ -299,7 +321,7 @@ function baltic_stair_submit_lead() {
 	if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_baltic_stair_submit_lead' ) ) {
 		wp_die( '', '', array( 'response' => 500 ) );
 	}
-	if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( $_POST['security'], 'sb-ajax-nonce' ) ) {
+	if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security'] ) ), 'sb-ajax-nonce' ) ) {
 		wp_send_json_error( array( 'message' => 'Nonce verification failed' ), 403 );
 	}
 
@@ -311,14 +333,17 @@ function baltic_stair_submit_lead() {
 		wp_send_json_error( array( 'message' => 'Name and a valid email are required.' ), 400 );
 	}
 
-	$custom_meta = isset( $_POST['custom_meta'] ) ? wp_unslash( $_POST['custom_meta'] ) : '';
+	// URL-encoded parse_str payload; sanitised FIELD BY FIELD after parsing.
+	// sanitize_text_field() on the whole string would corrupt the encoding.
+	$custom_meta = isset( $_POST['custom_meta'] ) ? wp_unslash( $_POST['custom_meta'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	parse_str( $custom_meta, $form_data );
 
 	// Availability revalidation (v2.16.0 Phase 2, §6.3). Price is client-side, so a
 	// tampered POST can carry an impossible construction+material combination. Reject
 	// it before the lead is written or a PDF generated — don't silently correct.
 	$bd_revalidate_err = bd_stairbuilder_revalidate_availability(
-		isset( $_POST['revalidate_meta'] ) ? wp_unslash( $_POST['revalidate_meta'] ) : ''
+		// Same parse_str-payload rule as custom_meta above.
+		isset( $_POST['revalidate_meta'] ) ? wp_unslash( $_POST['revalidate_meta'] ) : '' // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	);
 	if ( '' !== $bd_revalidate_err ) {
 		wp_send_json_error( array( 'message' => $bd_revalidate_err ), 422 );
@@ -399,7 +424,10 @@ function baltic_stair_submit_lead() {
 	// handler and passing it into create() — would change a method the brief
 	// protects, and would invert where a lead's identity comes from. So the
 	// canvas is written here and folded back into the stored row.
-	$canvas_dataurl = isset( $_POST['canvas_image'] ) ? $_POST['canvas_image'] : '';
+	// Deliberately NOT sanitize_text_field()ed: it is a base64 dataURL, and
+	// baltic_stair_save_canvas_image() validates it structurally (PNG prefix,
+	// strict decode, size cap, getimagesizefromstring) before anything is written.
+	$canvas_dataurl = isset( $_POST['canvas_image'] ) ? wp_unslash( $_POST['canvas_image'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	$canvas_path    = baltic_stair_save_canvas_image( $canvas_dataurl, $lead['token'] );
 	if ( $canvas_path ) {
 		$form_data['canvas_image_path'] = $canvas_path;
@@ -522,11 +550,30 @@ function baltic_stair_protect_pdf_dir() {
  * customer's drawing. One path to reason about now, not two.
  */
 function baltic_stair_save_canvas_image( $dataurl, $token ) {
-	if ( ! $dataurl ) {
+	if ( ! is_string( $dataurl ) || '' === $dataurl ) {
 		return null;
 	}
-	$bytes = base64_decode( preg_replace( '#^data:image/\w+;base64,#i', '', $dataurl ) );
-	if ( ! $bytes ) {
+
+	// The endpoint is nopriv, so treat the payload as hostile until proven a
+	// PNG. The form's canvas is fixed at 558×556 and every drawing we have on
+	// file decodes to under 30KB; 100KB (~3×) absorbs a busier configuration
+	// while refusing anything that could only be abuse. On failure the lead
+	// still stands — the PDF just goes out without the drawing.
+	if ( 0 !== strpos( $dataurl, 'data:image/png;base64,' ) ) {
+		return null;
+	}
+	$b64 = substr( $dataurl, strlen( 'data:image/png;base64,' ) );
+	// 4 base64 chars per 3 bytes: refuse before decoding so an oversized
+	// payload never costs the memory of decoding it.
+	if ( strlen( $b64 ) > 140000 ) { // ≈ 100KB decoded
+		return null;
+	}
+	$bytes = base64_decode( $b64, true );
+	if ( false === $bytes || '' === $bytes || strlen( $bytes ) > 102400 ) {
+		return null;
+	}
+	$info = function_exists( 'getimagesizefromstring' ) ? @getimagesizefromstring( $bytes ) : false;
+	if ( false === $info || IMAGETYPE_PNG !== $info[2] ) {
 		return null;
 	}
 
@@ -1020,6 +1067,18 @@ add_action( 'admin_post_nopriv_baltic_stair_download', 'baltic_stair_download_ha
 function baltic_stair_install_quote_page() {
 	$existing = (int) get_option( 'baltic_stair_quote_page_id' );
 	if ( $existing && get_post( $existing ) ) {
+		return;
+	}
+
+	// Adopt a page that is already at the slug before minting a new one —
+	// otherwise WP would quietly install ours as /staircase-quote-2/. SPD
+	// production already has a page at this slug carrying the shortcode
+	// (prepared ahead of the soft launch), and any site rebuilt from an
+	// export could be in the same position.
+	$bd_existing_page = get_page_by_path( 'staircase-quote', OBJECT, 'page' );
+	if ( $bd_existing_page instanceof WP_Post && 'publish' === $bd_existing_page->post_status
+		&& has_shortcode( (string) $bd_existing_page->post_content, 'baltic_stair_quote_view' ) ) {
+		update_option( 'baltic_stair_quote_page_id', (int) $bd_existing_page->ID );
 		return;
 	}
 

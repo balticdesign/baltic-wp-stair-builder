@@ -2,6 +2,42 @@
 // Baltic Stairbuilder - Form Logic
 // ==============================
 
+// ==============================
+// Stale-nonce protection (2.37.0)
+//
+// Configurator pages sit behind full-page caches, so the nonce localized into
+// stairBuilderVars at render time can be hours old. Two defences:
+//   1. bdRefreshNonce() replaces it with a fresh one as soon as the page runs.
+//   2. bdSbAjax() sends every builder AJAX call with the current nonce and,
+//      on a 403 (the server's stale-nonce signal), refreshes and retries ONCE.
+// ==============================
+function bdRefreshNonce() {
+  return jQuery.post(stairBuilderVars.ajax_url, { action: 'baltic_stair_refresh_nonce' })
+    .done(function (r) {
+      if (r && r.success && r.data && r.data.nonce) {
+        stairBuilderVars.nonce = r.data.nonce;
+      }
+    });
+}
+
+function bdSbAjax(opts, isRetry) {
+  const send = jQuery.extend({}, opts);
+  send.data = jQuery.extend({}, opts.data, { security: stairBuilderVars.nonce });
+  const userError = opts.error;
+  send.error = function (jqXHR, textStatus, errorThrown) {
+    if (!isRetry && jqXHR && jqXHR.status === 403) {
+      bdRefreshNonce().always(function () { bdSbAjax(opts, true); });
+      return;
+    }
+    if (typeof userError === 'function') {
+      userError.call(this, jqXHR, textStatus, errorThrown);
+    }
+  };
+  return jQuery.ajax(send);
+}
+
+jQuery(function () { bdRefreshNonce(); });
+
 /**
  * Helpers to extract product IDs for newels and caps based on selected options.
  */
@@ -58,13 +94,12 @@ function bdSetMaterialOptions(selectId, optionHtml) {
 }
 
 function updateNewelPosts(newelType, capType, hrType, spindleType) {
-  jQuery.ajax({
+  bdSbAjax({
     url: stairBuilderVars.ajax_url,
     type: 'POST',
     data: {
-      action: 'fetch_sp_prices',
-      newelType, capType, hrType, spindleType,
-      security: stairBuilderVars.nonce
+      action: 'baltic_stair_fetch_sp_prices',
+      newelType, capType, hrType, spindleType
     },
     dataType: 'json',
     success(response) {
@@ -86,13 +121,12 @@ function updateNewelPosts(newelType, capType, hrType, spindleType) {
 
 function getDeliveryPrice() {
   const postcode = jQuery('#postcode').val();
-  jQuery.ajax({
+  bdSbAjax({
     url: stairBuilderVars.ajax_url,
     method: 'POST',
     data: {
-      action: 'get_delivery_price',
-      postcode,
-      security: stairBuilderVars.nonce
+      action: 'baltic_stair_get_delivery_price',
+      postcode
     },
     success(response) {
       if (response.success) {
@@ -209,7 +243,7 @@ function submitStairLead() {
   const originalLabel = $btn.text();
   $btn.prop('disabled', true).text('Generating quote…');
 
-  jQuery.ajax({
+  bdSbAjax({
     url: stairBuilderVars.ajax_url,
     method: 'POST',
     data: {
@@ -220,8 +254,7 @@ function submitStairLead() {
       custom_meta: formData,
       revalidate_meta: revalidateMeta,
       canvas_image: dataUrl,
-      price, vat, total,
-      security: stairBuilderVars.nonce
+      price, vat, total
     },
     success(response) {
       if (response && response.success && response.data && response.data.redirect_url) {
@@ -245,15 +278,14 @@ function getFeaturedStepCosts() {
   // shapes, and this is the one place the two sides must agree.
   const variables = BuilderUtils.bdFeaturedStepPair(jQuery);
   const treadMaterial = BuilderUtils.getString('tread_material');
-  jQuery.ajax({
+  bdSbAjax({
     url: stairBuilderVars.ajax_url,
     method: 'POST',
     data: {
-      action: 'get_featured_step',
+      action: 'baltic_stair_get_featured_step',
       leftFeat: variables.fl,
       rightFeat: variables.fr,
-      tread_material: treadMaterial,
-      security: stairBuilderVars.nonce
+      tread_material: treadMaterial
     },
     success(response) {
       let responseObj = response;
@@ -550,7 +582,7 @@ function bdSyncHiddenNewelSpec() {
     const $match = $sel.find('option').filter(function () {
       return bdMaterialKey(this.value).toLowerCase() === stringerKey;
     }).first();
-    // No match (e.g. options not yet populated by the fetch_sp_prices AJAX)
+    // No match (e.g. options not yet populated by the baltic_stair_fetch_sp_prices AJAX)
     // leaves the select alone; the AJAX success re-runs this.
     if ($match.length && $sel.val() !== $match.val()) { $sel.val($match.val()); }
   }

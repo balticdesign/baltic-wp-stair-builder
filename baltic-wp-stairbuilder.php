@@ -32,13 +32,16 @@ define( 'BALTIC_STAIRBUILDER_VERSION', '2.37.0' );
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
 require_once plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-pricing-settings.php';
-require plugin_dir_path( __FILE__ ) . 'includes/class-baltic-cpt.php';
 require plugin_dir_path( __FILE__ ) . 'includes/class-stairbuilder-form.php';
 require plugin_dir_path( __FILE__ ) . 'includes/class-stairbuilder-leads.php';
 require plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-options.php';
 require plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-lead-capture.php';
 if ( is_admin() ) {
-	require plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-debug.php';
+	// Tools → Stairbuilder Debug only exists when the site opts in via
+	// wp-config.php: define( 'BALTIC_STAIRBUILDER_DEBUG', true );
+	if ( defined( 'BALTIC_STAIRBUILDER_DEBUG' ) && BALTIC_STAIRBUILDER_DEBUG ) {
+		require plugin_dir_path( __FILE__ ) . 'includes/stairbuilder-debug.php';
+	}
 	require plugin_dir_path( __FILE__ ) . 'includes/class-stairbuilder-enquiries.php';
 	new BD_Stair_Builder_Enquiries();
 }
@@ -47,8 +50,8 @@ if ( is_admin() ) {
 // this an already-active site would never receive a later column.
 add_action( 'admin_init', array( 'BD_Stair_Builder_Leads', 'maybe_upgrade' ) );
 
-add_action( 'wp_enqueue_scripts', 'custom_enqueue_files' );
-function custom_enqueue_files() {
+add_action( 'wp_enqueue_scripts', 'baltic_stair_enqueue_files' );
+function baltic_stair_enqueue_files() {
 
 	global $post;
 
@@ -296,9 +299,10 @@ function custom_enqueue_files() {
 
 	wp_add_inline_script( 'stairbuilder', 'var pluginDirUrl = "' . plugin_dir_url( __FILE__ ) . '";' );
 
-	// Diagnostics — only loaded when ?sb_debug=1 or SB_DEBUG constant is set in wp-config.
+	// Diagnostics — ?sb_debug=1 is admin-only (it dumps form/pricing state to
+	// the console on a public page), or the site can force it on via SB_DEBUG.
 	if (
-		( isset( $_GET['sb_debug'] ) && $_GET['sb_debug'] === '1' ) ||
+		( isset( $_GET['sb_debug'] ) && $_GET['sb_debug'] === '1' && current_user_can( 'manage_options' ) ) ||
 		( defined( 'SB_DEBUG' ) && SB_DEBUG )
 	) {
 		wp_enqueue_script(
@@ -311,7 +315,7 @@ function custom_enqueue_files() {
 	}
 }
 
-function on_plugin_activation() {
+function baltic_stair_on_plugin_activation() {
     // Creates the directory if missing and writes index.php + .htaccess into
     // it. Both are defence in depth only — the real protection is that quote
     // files live under an unguessable per-lead token directory.
@@ -320,4 +324,4 @@ function on_plugin_activation() {
     BD_Stair_Builder_Leads::install();
     baltic_stair_install_quote_page();
 }
-register_activation_hook(__FILE__, 'on_plugin_activation');
+register_activation_hook(__FILE__, 'baltic_stair_on_plugin_activation');

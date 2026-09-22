@@ -233,7 +233,7 @@ function calculateTotalPrice() {
   const $cap_cost = $caps * BuilderUtils.getNumber('cap_material');
   const $spindle_cost = BuilderUtils.getNumber('bal_material');
   // Balustrade material mode + glass basis ride on the selected #bal_material
-  // option's data-attrs (set server-side by getPriceAndID). Wood (or no attr)
+  // option's data-attrs (set server-side by baltic_stair_get_price_and_id). Wood (or no attr)
   // leaves the existing per-tread spindle count untouched.
   const $balOpt = jQuery('#bal_material option:selected');
   const spMode = ($balOpt.attr('data-material-mode') || 'wood').toLowerCase();

@@ -165,7 +165,7 @@ $cut_string_price = stairbuilder_get_option('cut_string_price');
 
 // NEWEL POSTS / CAPS / HANDRAILS / SPINDLES — admin-managed repeater rows.
 // Type selects only need name + code; price resolution stays server-side via
-// the fetch_sp_prices AJAX. Caps additionally need caps_per_newel, mapped into
+// the baltic_stair_fetch_sp_prices AJAX. Caps additionally need caps_per_newel, mapped into
 // the `value` slot so the front-end can build `{code}:{caps_per_newel}` options.
 $newel_type_options = bd_stairbuilder_normalise_repeater(
     stairbuilder_get_option( 'newel_types', array() ),

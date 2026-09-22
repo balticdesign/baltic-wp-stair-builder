@@ -799,7 +799,7 @@ $sb_hide = function ( $on, $extra_class = '' ) {
         <p class="bd-notes-count"><span id="additional_notes_count">0</span> / <?php echo (int) $bd_notes_max; ?></p>
       </div>
       <p class="contact-note"><small>We'll email your PDF quote to the address above and follow up to discuss your project.</small></p>
-      <input type="hidden" id="vatRate" value="<?php echo do_shortcode('[vat_rate]'); ?>">
+      <input type="hidden" id="vatRate" value="<?php echo do_shortcode('[baltic_stair_vat_rate]'); ?>">
     </div>
 </div>
 </div><!--- form-tabs -->

@@ -6,7 +6,7 @@
  * replaced by the lead-capture flow in stairbuilder-lead-capture.php; only
  * the price-lookup helpers and option-driven endpoints survive here.
  *
- * VAT shortcode `[vat_rate]` lives in stairbuilder-lead-capture.php.
+ * VAT shortcode `[baltic_stair_vat_rate]` lives in stairbuilder-lead-capture.php.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -47,7 +47,7 @@ function bd_sb_find_row($rows, $code) {
  * @param array|null $row Resolved repeater row.
  * @return string[] [pine <option>, oak <option>]
  */
-function getPriceAndID($row){
+function baltic_stair_get_price_and_id($row){
   $pine_id = $oak_id = null;
 
   if (!is_array($row)) {
@@ -117,15 +117,17 @@ function getPriceAndID($row){
   ];
 }
 
-function fetch_sp_prices() {
-  if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_fetch_sp_prices' ) ) {
+function baltic_stair_fetch_sp_prices() {
+  if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_baltic_stair_fetch_sp_prices' ) ) {
     wp_die( '', '', array( 'response' => 500 ) );
   }
   if (!isset($_POST['security'])) {
-    wp_send_json_error('Nonce not received');
+    wp_send_json_error('Nonce not received', 403);
   }
-  if (!wp_verify_nonce($_POST['security'], 'sb-ajax-nonce')) {
-    wp_send_json_error('Nonce verification failed');
+  if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['security'])), 'sb-ajax-nonce')) {
+    // 403 tells the front end this is a stale nonce (cached page) — it
+    // refreshes via baltic_stair_refresh_nonce and retries once.
+    wp_send_json_error('Nonce verification failed', 403);
   }
 
   $newelType   = isset($_POST['newelType'])   ? sanitize_text_field(wp_unslash($_POST['newelType']))   : '';
@@ -142,17 +144,17 @@ function fetch_sp_prices() {
   $spindle_rows  = stairbuilder_get_option('spindle_types', array());
 
   $form_options = array(
-    'newel_options'    => getPriceAndID(bd_sb_find_row($newel_rows, $newelType)),
-    'cap_options'      => getPriceAndID(bd_sb_find_row($cap_rows, $capType)),
-    'handrail_options' => getPriceAndID(bd_sb_find_row($handrail_rows, $hrType)),
-    'spindle_options'  => getPriceAndID(bd_sb_find_row($spindle_rows, $spindleType)),
+    'newel_options'    => baltic_stair_get_price_and_id(bd_sb_find_row($newel_rows, $newelType)),
+    'cap_options'      => baltic_stair_get_price_and_id(bd_sb_find_row($cap_rows, $capType)),
+    'handrail_options' => baltic_stair_get_price_and_id(bd_sb_find_row($handrail_rows, $hrType)),
+    'spindle_options'  => baltic_stair_get_price_and_id(bd_sb_find_row($spindle_rows, $spindleType)),
   );
 
   echo json_encode($form_options);
   wp_die();
 }
-add_action('wp_ajax_fetch_sp_prices', 'fetch_sp_prices');
-add_action('wp_ajax_nopriv_fetch_sp_prices', 'fetch_sp_prices');
+add_action('wp_ajax_baltic_stair_fetch_sp_prices', 'baltic_stair_fetch_sp_prices');
+add_action('wp_ajax_nopriv_baltic_stair_fetch_sp_prices', 'baltic_stair_fetch_sp_prices');
 
 /**
  * Front-end spindle catalogue, localised to JS (stairBuilderVars.spindles).
@@ -161,7 +163,7 @@ add_action('wp_ajax_nopriv_fetch_sp_prices', 'fetch_sp_prices');
  * Material-first: the customer picks Pine/Oak/Metal/Glass, then the Style list
  * filters to that material's rows. formLogic.js needs every row's mode + resolved
  * price client-side to do that instantly, so we resolve here (honouring the per-row
- * Use-Product-ID switch, exactly like getPriceAndID) and hand JS a flat array.
+ * Use-Product-ID switch, exactly like baltic_stair_get_price_and_id) and hand JS a flat array.
  *
  * @return array[] [{code,name,mode, pine?,oak?|metal?|glass?,pricing_unit?,panel_width?,panel_gap?}]
  */
@@ -208,7 +210,7 @@ function bd_stairbuilder_spindle_frontend_rows() {
   return $out;
 }
 
-function get_stepCost($featNumber, $material) {
+function baltic_stair_get_step_cost($featNumber, $material) {
   if ($featNumber == 0) {
     return 0;
   }
@@ -559,16 +561,16 @@ function bd_featured_step_total( $leftCost, $rightCost, $multiplier ) {
   return $sum * (float) $multiplier;
 }
 
-function get_featured_step() {
-  if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_get_featured_step' ) ) {
+function baltic_stair_get_featured_step() {
+  if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_baltic_stair_get_featured_step' ) ) {
     wp_die( '', '', array( 'response' => 500 ) );
   }
   $treadMaterial = isset( $_POST['tread_material'] ) ? sanitize_text_field( wp_unslash( $_POST['tread_material'] ) ) : '';
   $leftStep      = isset( $_POST['leftFeat'] ) ? (int) $_POST['leftFeat'] : 0;
   $rightStep     = isset( $_POST['rightFeat'] ) ? (int) $_POST['rightFeat'] : 0;
 
-  $leftCost  = get_stepCost($leftStep, $treadMaterial);
-  $rightCost = get_stepCost($rightStep, $treadMaterial);
+  $leftCost  = baltic_stair_get_step_cost($leftStep, $treadMaterial);
+  $rightCost = baltic_stair_get_step_cost($rightStep, $treadMaterial);
 
   // §5.6 — a selected treatment whose price field is empty or zero can't be
   // quoted. Rather than sending out a partial figure, the configuration takes
@@ -589,24 +591,29 @@ function get_featured_step() {
   echo json_encode($feat_options);
   wp_die();
 }
-add_action('wp_ajax_get_featured_step', 'get_featured_step');
-add_action('wp_ajax_nopriv_get_featured_step', 'get_featured_step');
+add_action('wp_ajax_baltic_stair_get_featured_step', 'baltic_stair_get_featured_step');
+add_action('wp_ajax_nopriv_baltic_stair_get_featured_step', 'baltic_stair_get_featured_step');
 
-add_action( 'wp_ajax_nopriv_get_delivery_price', 'get_delivery_price' );
-add_action( 'wp_ajax_get_delivery_price', 'get_delivery_price' );
+add_action( 'wp_ajax_nopriv_baltic_stair_get_delivery_price', 'baltic_stair_get_delivery_price' );
+add_action( 'wp_ajax_baltic_stair_get_delivery_price', 'baltic_stair_get_delivery_price' );
 
-function get_delivery_price() {
-  if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_get_delivery_price' ) ) {
+function baltic_stair_get_delivery_price() {
+  if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_baltic_stair_get_delivery_price' ) ) {
     wp_die( '', '', array( 'response' => 500 ) );
   }
   if (!isset($_POST['security'])) {
-    wp_send_json_error('Nonce not received');
+    wp_send_json_error('Nonce not received', 403);
   }
-  if (!wp_verify_nonce($_POST['security'], 'sb-ajax-nonce')) {
-    wp_send_json_error('Nonce verification failed');
+  if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['security'])), 'sb-ajax-nonce')) {
+    // 403 tells the front end this is a stale nonce (cached page) — it
+    // refreshes via baltic_stair_refresh_nonce and retries once.
+    wp_send_json_error('Nonce verification failed', 403);
   }
 
-  $postcode = strtoupper($_POST['postcode']);
+  if (!isset($_POST['postcode'])) {
+    wp_send_json_error('No postcode received');
+  }
+  $postcode = strtoupper(sanitize_text_field(wp_unslash($_POST['postcode'])));
   $greaterLondonPostcodesString = stairbuilder_get_option('greater_london_pcodes');
   $mainlandUKPostcodesString = stairbuilder_get_option('mainland_uk_pcodes');
   $greaterLondonDeliveryPrice = stairbuilder_get_option('greater_london_delivery_price');

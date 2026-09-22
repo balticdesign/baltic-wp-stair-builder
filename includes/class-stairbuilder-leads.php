@@ -239,7 +239,7 @@ class BD_Stair_Builder_Leads {
 			$sql = $wpdb->prepare( $sql, $vals ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where is built from literals in build_where(); its values are the $vals prepared here.
 		}
 
-		return (int) $wpdb->get_var( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above when it carries values; without values it is entirely literal.
+		return (int) $wpdb->get_var( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- prepared above when it carries values; without values it is entirely literal.
 	}
 
 	/**
@@ -299,7 +299,7 @@ class BD_Stair_Builder_Leads {
 			$sql = $wpdb->prepare( $sql, $vals ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where from literals (build_where), $orderby whitelisted via sortable_columns(), $order forced ASC/DESC; values are the $vals prepared here.
 		}
 
-		$rows = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- see above; fully prepared or fully literal.
+		$rows = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- see above; fully prepared or fully literal.
 		if ( ! is_array( $rows ) ) {
 			return array();
 		}

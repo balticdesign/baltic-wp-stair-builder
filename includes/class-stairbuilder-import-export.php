@@ -197,16 +197,16 @@ class BD_Stair_Builder_Import_Export {
 		return '';
 	}
 
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- every handler's first call, require_caps_and_nonce(), wp_verify_nonce()s before any input is touched; the sniff cannot see through the helper.
 	public function handle_upload() {
 		$this->require_caps_and_nonce( 'baltic_stair_settings_import_upload' );
 
-		if ( empty( $_FILES['sb_import_file'] ) || ! isset( $_FILES['sb_import_file']['tmp_name'] ) ) {
+		if ( empty( $_FILES['sb_import_file'] ) || ! isset( $_FILES['sb_import_file']['tmp_name'] ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- existence check only; the upload is structurally validated below.
 			$this->redirect_with_notice( 'no_file' );
 		}
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- structural
-		// validation below (size, extension, JSON shape, checksum) is the
-		// sanitisation; the payload never touches the DB unsanitised.
-		$file = $_FILES['sb_import_file'];
+		// Structural validation below (size, extension, JSON shape, checksum)
+		// is the sanitisation; the payload never touches the DB unsanitised.
+		$file = $_FILES['sb_import_file']; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( ! empty( $file['error'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
 			$this->redirect_with_notice( 'upload_error' );
@@ -431,7 +431,7 @@ class BD_Stair_Builder_Import_Export {
 			$this->redirect_with_notice( 'expired' );
 		}
 
-		$this->apply_payload( $payload, ! empty( $_POST['sb_keep_emails'] ) );
+		$this->apply_payload( $payload, ! empty( $_POST['sb_keep_emails'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified by require_caps_and_nonce() above.
 
 		// Done with the staged payload.
 		delete_transient( $this->transient_key() );

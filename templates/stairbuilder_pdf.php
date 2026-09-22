@@ -377,17 +377,17 @@ foreach ( $bd_sections as $bd_sec ) {
       <tr><td colspan="2" style="background: <?php echo esc_attr( $c_dark ); ?>; color: #C9BC93; padding: 22px 24px 12px; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">Indicative Quote</td></tr>
       <tr>
         <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: <?php echo esc_attr( $c_panel ); ?>;">Subtotal</td>
-        <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_price, 2 ) ); ?></td>
+        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark; the value is a literal or esc_html()ed. ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_price, 2 ) ); ?></td>
       </tr>
       <tr>
         <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: <?php echo esc_attr( $c_panel ); ?>;">VAT<?php echo ( ! $bd_poa && $bd_vat_pct ) ? ' (' . (int) $bd_vat_pct . '%)' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- integer-cast percentage. ?></td>
-        <td style="<?php echo $pb_cell; ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_vat, 2 ) ); ?></td>
+        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark; the value is a literal or esc_html()ed. ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_vat, 2 ) ); ?></td>
       </tr>
       <tr>
         <td style="<?php echo $pb_tot; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: #ffffff; font-weight: 500;">Total<?php echo $bd_poa ? '' : ' inc VAT'; ?></td>
         <?php // POA sets its own size: "Price on application" at the 22px used for
               // a currency figure would wrap out of the box. ?>
-        <td style="<?php echo $pb_tot; ?> width: 55%; color: #D3B96A; font-size: <?php echo $bd_poa ? '13px' : '22px'; ?>; font-weight: 600; text-align: right;"><?php echo $bd_poa ? 'Price on application' : '&pound;' . esc_html( number_format( $bd_total, 2 ) ); ?></td>
+        <td style="<?php echo $pb_tot; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark; the value is a literal or esc_html()ed. ?> width: 55%; color: #D3B96A; font-size: <?php echo $bd_poa ? '13px' : '22px'; ?>; font-weight: 600; text-align: right;"><?php echo $bd_poa ? 'Price on application' : '&pound;' . esc_html( number_format( $bd_total, 2 ) ); ?></td>
       </tr>
     </table>
 

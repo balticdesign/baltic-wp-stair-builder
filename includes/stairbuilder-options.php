@@ -565,6 +565,13 @@ function baltic_stair_get_featured_step() {
   if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_baltic_stair_get_featured_step' ) ) {
     wp_die( '', '', array( 'response' => 500 ) );
   }
+  if (!isset($_POST['security'])) {
+    wp_send_json_error('Nonce not received', 403);
+  }
+  if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['security'])), 'sb-ajax-nonce')) {
+    // 403 = stale-nonce signal; the front end refreshes and retries once.
+    wp_send_json_error('Nonce verification failed', 403);
+  }
   $treadMaterial = isset( $_POST['tread_material'] ) ? sanitize_text_field( wp_unslash( $_POST['tread_material'] ) ) : '';
   $leftStep      = isset( $_POST['leftFeat'] ) ? (int) $_POST['leftFeat'] : 0;
   $rightStep     = isset( $_POST['rightFeat'] ) ? (int) $_POST['rightFeat'] : 0;

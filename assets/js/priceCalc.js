@@ -220,11 +220,14 @@ function calculateTotalPrice() {
   if ($risers < 7) $setup_fee = parseFloat(jQuery('#setupfee').val());
 
   // === Newels/Caps/Spindles/Handrails/Baserails ===
-  // The newel-posts value carries only the OPTIONAL posts the customer selected.
-  // Every turn also structurally includes one mandatory box-corner post per box
-  // that joins two flights (straight 0, quarter 1, half 2) — drawn by default on
-  // the canvas. Add those so the price matches the drawing and the PDF quote
-  // (see the same +mandatory logic in templates/stairbuilder_pdf.php).
+  // The newel-posts value carries only the OPTIONAL posts the customer selected,
+  // uncapped (formLogic.js). Every turn also structurally includes one mandatory
+  // post at the INSIDE corner of each box that joins two flights (straight 0,
+  // quarter 1, half 2) — drawn unconditionally by Stairs.js. Add those so the
+  // price matches the drawing and the PDF quote (see the same +mandatory logic
+  // in templates/stairbuilder_pdf.php). The "Box Corner" checkboxes are NOT
+  // these posts: they are separate optional posts at the OUTER corners, drawn
+  // only when ticked, already counted once in the optional tally.
   const $stairType = jQuery('input[name="stair_type"]').val() || 'straight';
   const $mandatoryPosts = $stairType === 'half' ? 2 : ($stairType === 'quarter' ? 1 : 0);
   const $newel_amt = BuilderUtils.getNumber('newel-posts') + $mandatoryPosts;

@@ -542,14 +542,13 @@ $sb_hide = function ( $on, $extra_class = '' ) {
       // already read correctly under the new numbering, each naming the landing corner
       // nearest its flight.
       //
-      // #to-post2 is NOT RENDERED on half:landing. Internal flight 2 is collapsed to
-      // zero treads there — it IS the landing — so its "top" (turn 2) and its "bottom"
-      // (turn 1) are the same physical post. Two boxes meant a customer could tick both
-      // and pay for two newels and two caps where one post exists (SPD amend 10). The
-      // surviving box is #bo-post in the Turn 1 block below, labelled "Landing Middle",
-      // and halfTurn.js sets BOTH of this post's flags from it so the balustrade
-      // outcome is unchanged. Every other config keeps both boxes: flight 2 is real
-      // there and the two posts genuinely sit at opposite ends of it.
+      // #to-post2 IS rendered on half:landing but never usable there: halfTurn.js pins
+      // internal flight 2 to zero treads — it IS the landing — and bdUpdateMidFlightPosts
+      // hides and UNCHECKS both .bd-midflight-post boxes whenever #treadat is 0. Its
+      // "top" (turn 2) and its "bottom" (turn 1) are the same physical post, and two
+      // tickable boxes meant a customer could pay for two newels and two caps where one
+      // post exists (SPD amend 10). Every other config keeps both boxes usable: flight 2
+      // is real there and the two posts genuinely sit at opposite ends of it.
       //
       // v2.26.0 relabelled these to "Landing Middle (lower)/(upper)", presenting them
       // as two deliberately distinct posts. That was wrong; this supersedes it. ?>

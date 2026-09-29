@@ -527,9 +527,20 @@ function bdUpdatePostsBalUI() {
 // Newel posts, ballustrade, custom UI/logic
 jQuery('#posts :input').change(function () {
   bdUpdatePostsBalUI();
-  // Recalculate number of checked custom posts and update
+  // Recalculate number of checked custom posts and update. The tally is every
+  // ticked box in #custom, UNCAPPED: the natural ceiling is the number of
+  // checkboxes the stair type renders (mid-flight boxes are unchecked when
+  // hidden — bdUpdateMidFlightPosts). A fixed Math.min(…, 7) here truncated the
+  // half turn, whose ten boxes are all real optional posts (v2.38.3). Do not
+  // reintroduce a hardcoded cap.
+  //
+  // The mandatory inside-corner posts (one per box joining two flights, drawn
+  // unconditionally by Stairs.js) are NOT in this tally — priceCalc.js adds
+  // them (+1 quarter, +2 half). The #box-post/#box-post2 "Box Corner" ticks
+  // are DIFFERENT posts: the optional outer corners, drawn only when ticked,
+  // so they belong in this tally and are not a double charge.
   let numChecked = jQuery('#custom :checkbox:checked').length;
-  let customValue = 'custom:' + Math.min(numChecked, 7);
+  let customValue = 'custom:' + numChecked;
   jQuery('#newel-posts').find('option').filter(function () {
     return this.value.startsWith('custom:');
   }).val(customValue);

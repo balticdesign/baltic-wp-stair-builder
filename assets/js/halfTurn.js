@@ -169,12 +169,20 @@ function grabFormValues() {
   // #custom visibility is owned by formLogic.js (bdUpdatePostsBalUI) — the
   // shared P&B implementation. This function only READS the boxes.
   if (nposts === "custom") {
-    if (jQuery("#tl-post").is(":checked")) {
-      if (direction === 'left') tl = true; else tr = true;
-    }
-    if (jQuery("#tr-post").is(":checked")) {
-      if (direction === 'left') tr = true; else tl = true;
-    }
+    // Top Left/Right are the CUSTOMER's left and right while walking up the
+    // stairs — the same frame as the Bottom boxes (SPD amend, 29 Sept 2026).
+    // At the top of a half turn the walker faces back down flight 1's
+    // direction, so walker-left is the canvas RIGHT of flight 3: the divider
+    // side on a left-hand stair, the outer side on a right-hand one. Hence the
+    // cross-map on BOTH directions — #tl-post feeds tr (flight3Right) and
+    // #tr-post feeds tl (flight3Left). The old direction-conditional mapping
+    // made "Left" mean drawing-left, which is walker-RIGHT on a left-hand
+    // stair (right-hand stairs came out correct by coincidence). The quarter
+    // turn already follows the walking frame in both directions; straight
+    // flights need no mapping. tl/tr stay canvas-side variables, so the
+    // bal3_* rail pairings below are unaffected.
+    tr = jQuery("#tl-post").is(":checked");
+    tl = jQuery("#tr-post").is(":checked");
     bl = jQuery("#bl-post").is(":checked");
     br = jQuery("#br-post").is(":checked");
     f1to = jQuery("#to-post").is(":checked");

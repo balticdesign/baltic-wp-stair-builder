@@ -19,12 +19,24 @@ if ($stair_type === 'half') {
   $flight3 = true;
   $direction = true;
   $flight2 = true;
+  // BOTH base-uplift sets render on every half form (v2.39.0): the open half
+  // form lets the customer switch live between Half Landing (#treadit = 4)
+  // and the winder/landing combos, and bonuslogic() in halfTurn.js picks the
+  // set to price from that live value — half_landing_* for the true half
+  // landing, double_winder_* for everything else (double winder, double
+  // quarter landing, mixed combos). Hidden inputs are id-only, so the unused
+  // set never POSTs.
   $fields = [
     'half_landing_all_oak',
     'half_landing_oak_string',
     'half_landing_oak_tr',
     'half_landing_oak_tread',
-    'half_landing_no_oak'
+    'half_landing_no_oak',
+    'double_winder_all_oak',
+    'double_winder_oak_string',
+    'double_winder_oak_tr',
+    'double_winder_oak_tread',
+    'double_winder_no_oak'
   ];
 } else if ($stair_type === 'quarter'){
   $direction = true;

@@ -269,11 +269,18 @@ function bonuslogic() {
   const string_material = materials.stringer_material;
   const tread_material = materials.tread_material;
   const riser_material = materials.riser_material;
-  let no_oak_price = parseFloat(jQuery("#half_landing_no_oak").val()) || 0;
-  let oak_tread_price = parseFloat(jQuery("#half_landing_oak_tread").val()) || 0;
-  let oak_tread_riser_price = parseFloat(jQuery("#half_landing_oak_tr").val()) || 0;
-  let oak_string_price = parseFloat(jQuery("#half_landing_oak_string").val()) || 0;
-  let all_oak_price = parseFloat(jQuery("#half_landing_all_oak").val()) || 0;
+  // Base-uplift split (v2.39.0, SPD): the true half landing (#treadit 4, the
+  // config with landing boards) prices off the Half Landing admin tab; every
+  // other half turn — double winder, double quarter landing, mixed combos —
+  // off the pricier Double Winder tab. Keyed on the LIVE #treadit, not the
+  // shortcode config, because the open half form can switch between them.
+  // Both sets of hidden inputs are always rendered (form-template.php).
+  const prefix = (parseFloat(jQuery('#treadit').val()) === 4) ? 'half_landing' : 'double_winder';
+  let no_oak_price = parseFloat(jQuery('#' + prefix + '_no_oak').val()) || 0;
+  let oak_tread_price = parseFloat(jQuery('#' + prefix + '_oak_tread').val()) || 0;
+  let oak_tread_riser_price = parseFloat(jQuery('#' + prefix + '_oak_tr').val()) || 0;
+  let oak_string_price = parseFloat(jQuery('#' + prefix + '_oak_string').val()) || 0;
+  let all_oak_price = parseFloat(jQuery('#' + prefix + '_all_oak').val()) || 0;
   if (string_material === 'OAK' && tread_material === 'OAK' && riser_material === 'OAK') {
     return all_oak_price;
   } else if (tread_material === 'OAK' && riser_material === 'OAK') {

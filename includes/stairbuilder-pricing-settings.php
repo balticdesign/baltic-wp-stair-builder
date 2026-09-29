@@ -112,6 +112,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/** Option flag set to 1 after the v2.16 building-regs canonical seed. */
 		const BUILDING_REGS_SEED_FLAG = 'stairbuilder_building_regs_seeded_v216';
 
+		/** One-shot flag: Double Winder base uplifts seeded from Quarter Landing (v2.39.0). */
+		const DOUBLE_WINDER_SEED_FLAG = 'stairbuilder_double_winder_seeded_v239';
+
 		/** @var array Parsed schema (tabs + fields). */
 		private $schema;
 
@@ -129,6 +132,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			add_action( 'admin_init', array( $this, 'maybe_migrate_repeaters_v2' ), 30 );
 			add_action( 'admin_init', array( $this, 'maybe_backfill_balustrade_modes' ), 40 );
 			add_action( 'admin_init', array( $this, 'maybe_seed_building_regs' ), 50 );
+			add_action( 'admin_init', array( $this, 'maybe_seed_double_winder' ), 60 );
 			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 			add_action( 'admin_post_' . self::BULK_ACTION, array( $this, 'handle_bulk_apply' ) );
 		}
@@ -2785,6 +2789,38 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		/**
+		 * Seed the five Double Winder base uplifts from the Quarter Landing
+		 * values (v2.39.0, Dan's call 29 Sept 2026 — SPD then set the real
+		 * figures in the new tab). Before this tab existed every half-turn
+		 * config priced off the Half Landing panel; the split lets the true
+		 * half landing be cheaper than the winder/landing combos. Seed-if-
+		 * unset per key: a value an admin has already saved is never
+		 * clobbered. One-shot, flag-gated.
+		 */
+		public function maybe_seed_double_winder() {
+			if ( get_option( self::DOUBLE_WINDER_SEED_FLAG ) ) {
+				return;
+			}
+			$opts = get_option( self::OPTION_KEY, array() );
+			if ( ! is_array( $opts ) ) {
+				$opts = array();
+			}
+			$changed = false;
+			foreach ( array( 'all_oak', 'oak_string', 'oak_tr', 'oak_tread', 'no_oak' ) as $suffix ) {
+				$dw = 'double_winder_' . $suffix;
+				$ql = 'quarter_landing_' . $suffix;
+				if ( ! isset( $opts[ $dw ] ) && isset( $opts[ $ql ] ) ) {
+					$opts[ $dw ] = $opts[ $ql ];
+					$changed     = true;
+				}
+			}
+			if ( $changed ) {
+				update_option( self::OPTION_KEY, $opts );
+			}
+			update_option( self::DOUBLE_WINDER_SEED_FLAG, 1 );
+		}
+
+		/**
 		 * Canonical Approved Document K regime rows. Numeric columns left as ''
 		 * mean "no constraint". Labels are plain; the formal ADK classification
 		 * ("General Access" / "Utility") lives in the description. Escalation
@@ -3035,6 +3071,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'geometry_defaults',
 					'base_costs',
 					'quarter_landing',
+					'double_winder',
 					'half_landing',
 					'postcode_areas',
 					'delivery_options',
@@ -3751,6 +3788,50 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 							[
 								'id' => 'quarter_landing_no_oak',
 								'label' => 'Quarter Landing No Oak',
+								'type' => 'number',
+								'adjustable' => true,
+							],
+						],
+					],
+					// Double Winder — the five base uplifts for every half turn that is
+					// NOT the true half landing: double winder, double quarter landing
+					// and any mixed winder/landing combo the open half form allows
+					// (SPD, 29 Sept 2026 — the combos cost more than the half landing,
+					// which keeps its own cheaper panel below plus the T&G boards).
+					// Same structure as Quarter Landing; seeded once from its values
+					// by maybe_seed_double_winder(). halfTurn.js bonuslogic() picks
+					// this panel whenever the live #treadit is not 4 (Half Landing).
+					'double_winder' => [
+						'label' => 'Double Winder',
+						'fields' => [
+							[
+								'id' => 'double_winder_all_oak',
+								'label' => 'Double Winder All Oak',
+								'type' => 'number',
+								'adjustable' => true,
+								'description' => 'These five uplifts price the double winder, the double quarter landing and any mixed winder/landing half turn. The true Half Landing prices off its own tab.',
+							],
+							[
+								'id' => 'double_winder_oak_string',
+								'label' => 'Double Winder Oak String',
+								'type' => 'number',
+								'adjustable' => true,
+							],
+							[
+								'id' => 'double_winder_oak_tr',
+								'label' => 'Double Winder Oak Tread & Riser',
+								'type' => 'number',
+								'adjustable' => true,
+							],
+							[
+								'id' => 'double_winder_oak_tread',
+								'label' => 'Double Winder Oak Tread',
+								'type' => 'number',
+								'adjustable' => true,
+							],
+							[
+								'id' => 'double_winder_no_oak',
+								'label' => 'Double Winder No Oak',
 								'type' => 'number',
 								'adjustable' => true,
 							],

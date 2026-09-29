@@ -109,7 +109,7 @@ function bdActiveRegime($ = window.jQuery) {
 // to Doc K 42) — see getStaircaseConfig / bdRegimePitchLimit.
 function bdRegimeUnregulated(regime) {
   if (!regime) return true;
-  var keys = ['min_going', 'max_rise', 'min_rise', 'min_width', 'max_pitch', 'two_r_g_min', 'two_r_g_max', 'max_open_gap', 'max_risers_run'];
+  var keys = ['min_going', 'max_going', 'max_rise', 'min_rise', 'min_width', 'max_pitch', 'two_r_g_min', 'two_r_g_max', 'max_open_gap', 'max_risers_run'];
   for (var i = 0; i < keys.length; i++) {
     if (bdRegimeNum(regime[keys[i]]) !== null) return false;
   }

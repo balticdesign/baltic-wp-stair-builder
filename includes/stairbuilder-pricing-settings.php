@@ -115,6 +115,9 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		/** One-shot flag: Double Winder base uplifts seeded from Quarter Landing (v2.39.0). */
 		const DOUBLE_WINDER_SEED_FLAG = 'stairbuilder_double_winder_seeded_v239';
 
+		/** One-shot flag: max_going backfilled onto existing building-reg rows (v2.41.0). */
+		const MAX_GOING_SEED_FLAG = 'stairbuilder_max_going_seeded_v241';
+
 		/** @var array Parsed schema (tabs + fields). */
 		private $schema;
 
@@ -133,6 +136,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 			add_action( 'admin_init', array( $this, 'maybe_backfill_balustrade_modes' ), 40 );
 			add_action( 'admin_init', array( $this, 'maybe_seed_building_regs' ), 50 );
 			add_action( 'admin_init', array( $this, 'maybe_seed_double_winder' ), 60 );
+			add_action( 'admin_init', array( $this, 'maybe_seed_max_going' ), 70 );
 			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 			add_action( 'admin_post_' . self::BULK_ACTION, array( $this, 'handle_bulk_apply' ) );
 		}
@@ -2821,6 +2825,43 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 		}
 
 		/**
+		 * Backfill max_going onto existing building-reg rows (v2.41.0, Dan's
+		 * call 29 Sept 2026). ADK Table 1.1 sets going RANGES per category —
+		 * Private 220–300, Utility and General Access 250–400 — but the rows
+		 * only modelled the minimum. Seeded by regime code from the canonical
+		 * defaults, seed-if-empty per row: a max_going an admin has already
+		 * saved is never clobbered, and rows a licensee added themselves get
+		 * no value (empty = no constraint). One-shot, flag-gated.
+		 */
+		public function maybe_seed_max_going() {
+			if ( get_option( self::MAX_GOING_SEED_FLAG ) ) {
+				return;
+			}
+			$opts = get_option( self::OPTION_KEY, array() );
+			if ( is_array( $opts ) && ! empty( $opts['building_regs'] ) && is_array( $opts['building_regs'] ) ) {
+				$canon = array();
+				foreach ( self::default_building_regs() as $row ) {
+					$canon[ $row['building_reg_value'] ] = $row['max_going'];
+				}
+				$changed = false;
+				foreach ( $opts['building_regs'] as $i => $row ) {
+					if ( ! is_array( $row ) || ! empty( $row['max_going'] ) ) {
+						continue;
+					}
+					$code = isset( $row['building_reg_value'] ) ? (string) $row['building_reg_value'] : '';
+					if ( '' !== $code && isset( $canon[ $code ] ) && '' !== $canon[ $code ] ) {
+						$opts['building_regs'][ $i ]['max_going'] = $canon[ $code ];
+						$changed = true;
+					}
+				}
+				if ( $changed ) {
+					update_option( self::OPTION_KEY, $opts );
+				}
+			}
+			update_option( self::MAX_GOING_SEED_FLAG, 1 );
+		}
+
+		/**
 		 * Canonical Approved Document K regime rows. Numeric columns left as ''
 		 * mean "no constraint". Labels are plain; the formal ADK classification
 		 * ("General Access" / "Utility") lives in the description. Escalation
@@ -2834,6 +2875,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'building_reg_value'    => 'domestic-ew',
 					'description'           => 'Private dwellings (houses and flats).',
 					'min_going'             => 220,
+					'max_going'             => 300,
 					'max_rise'              => 220,
 					'min_rise'              => '',
 					'min_width'             => '',
@@ -2849,6 +2891,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'building_reg_value'    => 'commercial-general',
 					'description'           => 'Approved Document K “General Access” — retail, offices, schools and other public-circulation stairs.',
 					'min_going'             => 280,
+					'max_going'             => 400,
 					'max_rise'              => 170,
 					'min_rise'              => 150,
 					'min_width'             => '',
@@ -2866,6 +2909,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'building_reg_value'    => 'commercial-utility',
 					'description'           => 'Approved Document K “Utility” — maintenance access, secondary escape and staff-only stairs.',
 					'min_going'             => 250,
+					'max_going'             => 400,
 					'max_rise'              => 190,
 					'min_rise'              => 150,
 					'min_width'             => '',
@@ -2881,6 +2925,7 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 					'building_reg_value'    => 'none',
 					'description'           => 'Unregulated — no dimensional limits applied.',
 					'min_going'             => '',
+					'max_going'             => '',
 					'max_rise'              => '',
 					'min_rise'              => '',
 					'min_width'             => '',
@@ -3273,6 +3318,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 									['id' => 'building_reg_value', 'label' => 'Code / identifier', 'type' => 'text'],
 									['id' => 'description', 'label' => 'Customer description', 'type' => 'textarea'],
 									['id' => 'min_going', 'label' => 'Min going (mm)', 'type' => 'number'],
+									// v2.41.0 — ADK sets going RANGES per stair category
+									// (Table 1.1), but only the minimum was modelled. Soft
+									// layer like min_going: red field + on-exceed notice.
+									['id' => 'max_going', 'label' => 'Max going (mm)', 'type' => 'number'],
 									['id' => 'max_rise', 'label' => 'Max rise (mm)', 'type' => 'number'],
 									['id' => 'min_rise', 'label' => 'Min rise (mm)', 'type' => 'number'],
 									['id' => 'min_width', 'label' => 'Min width (mm)', 'type' => 'number'],

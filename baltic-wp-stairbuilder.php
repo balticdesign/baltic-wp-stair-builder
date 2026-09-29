@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.40.1
+Version:		2.41.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 Text Domain:	baltic-wp-stair-builder
@@ -30,7 +30,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.40.1' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.41.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -130,7 +130,7 @@ function baltic_stair_enqueue_files() {
 	// 'description' drives the regime helper line under the front-end Building Regs
 	// select (formLogic.applyRegimeDesc) — omitting it here is why it never showed.
 	// on_exceed_message drives the front-end exceed notice by the price total.
-	$bd_regs_cols   = array( 'description', 'min_going', 'max_rise', 'min_rise', 'min_width', 'max_pitch', 'two_r_g_min', 'two_r_g_max', 'max_open_gap', 'max_risers_run', 'on_exceed_message' );
+	$bd_regs_cols   = array( 'description', 'min_going', 'max_going', 'max_rise', 'min_rise', 'min_width', 'max_pitch', 'two_r_g_min', 'two_r_g_max', 'max_open_gap', 'max_risers_run', 'on_exceed_message' );
 	if ( is_array( $bd_regs_rows ) ) {
 		foreach ( $bd_regs_rows as $bd_reg ) {
 			if ( ! is_array( $bd_reg ) ) {

@@ -904,14 +904,18 @@ jQuery("input[name='delivery']").change(function () {
     function regimeLimits() {
       const regime = (window.BuilderUtils && BuilderUtils.bdActiveRegime) ? BuilderUtils.bdActiveRegime() : null;
       const rMinGoing = regime ? num(regime.min_going) : null;
+      const rMaxGoing = regime ? num(regime.max_going) : null;
       const rMinWidth = regime ? num(regime.min_width) : null;
       let effGoingMax = isNaN(goingMax) ? null : goingMax;
       if (effGoingMax !== null && rMinGoing !== null && rMinGoing > effGoingMax) effGoingMax = rMinGoing;
       let effWidthMax = isNaN(widthMax) ? null : widthMax;
       if (effWidthMax !== null && rMinWidth !== null && rMinWidth > effWidthMax) effWidthMax = rMinWidth;
       return {
+        // Soft going warn range: the regime's own min/max going where set
+        // (max_going added v2.41.0 — ADK going RANGES), else the global
+        // Construction Settings warning pair.
         warnMin: (rMinGoing !== null) ? rMinGoing : (isNaN(warnMin) ? null : warnMin),
-        warnMax: isNaN(warnMax) ? null : warnMax,
+        warnMax: (rMaxGoing !== null) ? rMaxGoing : (isNaN(warnMax) ? null : warnMax),
         goingMax: effGoingMax,
         minWidth: rMinWidth,
         widthMax: effWidthMax,
@@ -1123,6 +1127,7 @@ jQuery("input[name='delivery']").change(function () {
     var rgMin  = num(regime.two_r_g_min);
     var rgMax  = num(regime.two_r_g_max);
     var minGo  = num(regime.min_going);
+    var maxGo  = num(regime.max_going);
     var minWid = num(regime.min_width);
 
     var exceeded = false;
@@ -1137,8 +1142,11 @@ jQuery("input[name='delivery']").change(function () {
       var rg = (2 * rise) + going;
       if ((rgMin !== null && rg < rgMin) || (rgMax !== null && rg > rgMax)) exceeded = true;
     }
-    // 3. Going / width below the regime minimum.
+    // 3. Going outside the regime range / width below the regime minimum.
+    //    max_going added v2.41.0 — ADK sets going RANGES per category, but the
+    //    rows only carried the minimum until Dan spotted the gap (29 Sept 2026).
     if (!exceeded && minGo !== null && going !== null && going < minGo) exceeded = true;
+    if (!exceeded && maxGo !== null && going !== null && going > maxGo) exceeded = true;
     if (!exceeded && minWid !== null && width !== null && width < minWid) exceeded = true;
 
     if (exceeded) {

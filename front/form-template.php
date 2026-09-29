@@ -633,7 +633,13 @@ $sb_hide = function ( $on, $extra_class = '' ) {
       </select>
     </div>
     </div><!-- /.bd-newel-fields -->
-    <div class="form-row">
+    <?php // The balustrade question only exists once the customer has answered
+          // "Add Newel Posts?" with something other than None — balustrades run
+          // between posts, so without posts there is nothing to ask (SPD amend,
+          // 29 Sept 2026). Shown/hidden by bdUpdatePostsBalUI in formLogic.js,
+          // which also forces the answer back to No on hide so a hidden Yes
+          // can never keep pricing spindles. ?>
+    <div class="form-row bd-ball-question">
     <h4>Do you require Ballustrades?</h4>
     <div class="form-col">
     <label for="ballustrades-yes">Yes</label>

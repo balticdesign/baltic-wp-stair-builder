@@ -515,6 +515,19 @@ function bdUpdatePostsBalUI() {
     jQuery('#custom').hide();
     jQuery('#custom :input').prop('disabled', true);
   }
+  // The balustrade question itself only appears once "Add Newel Posts?" is
+  // answered with something other than None (SPD amend, 29 Sept 2026) —
+  // balustrades run between posts, so without posts there is nothing to ask.
+  // Like the mid-flight boxes, hiding must also RESET: the flight scripts and
+  // priceCalc read the ballustrades radio directly, so a hidden Yes would
+  // keep pricing spindles out of sight. Forcing No triggers the re-price and
+  // collapses #ball via the block below; the re-entrant change event
+  // terminates because Yes is no longer checked on the second pass.
+  const bdHasPosts = BuilderUtils.getString('newel-posts') !== 'none';
+  jQuery('.bd-ball-question').toggle(bdHasPosts);
+  if (!bdHasPosts && jQuery('#ballustrades-yes').is(':checked')) {
+    jQuery('#ballustrades-no').prop('checked', true).trigger('change');
+  }
   if (jQuery('#ballustrades-yes').is(':checked')) {
     jQuery('#ball').show();
     jQuery('#ball :input').prop('disabled', false);

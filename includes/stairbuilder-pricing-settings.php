@@ -3606,6 +3606,25 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'description' => 'Going above this turns red. Defaults to 250mm if left empty. Only used when the warning is on.',
 								'disable_when' => ['field' => 'going_regs_warning_enabled', 'equals' => false],
 							],
+							// HARD limits (SPD, 29 Sept 2026): every min/max below is a
+							// clamp — the form snaps the value back and shows a message,
+							// so an out-of-range figure is impossible to submit. The
+							// building-regs rows in Construction Types stay the SOFT
+							// layer: red field + warning only, value still allowed.
+							[
+								'id' => 'going_min',
+								'label' => 'Going — Hard Minimum (mm)',
+								'type' => 'number',
+								'placeholder' => 'No limit',
+								'description' => 'The front-end form will not allow a Going smaller than this — the value snaps up to the minimum when the customer leaves the field. Leave empty for no limit.',
+							],
+							[
+								'id' => 'going_min_message',
+								'label' => 'Going Minimum — Message',
+								'type' => 'text',
+								'placeholder' => 'Minimum going is {min}mm.',
+								'description' => 'Red message shown when someone goes below the Going minimum. Use {min} for the minimum value. Leave empty for a default message.',
+							],
 							[
 								'id' => 'going_max',
 								'label' => 'Going — Hard Maximum (mm)',
@@ -3634,40 +3653,47 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'placeholder' => 'Maximum width is {max}mm.',
 								'description' => 'Red message shown when someone exceeds the width maximum. Use {max} for the maximum value. Leave empty for a default message.',
 							],
+							// v2.40.0: these two rules are HARD clamps now, not Price on
+							// Application — the value snaps back and the message shows, so
+							// out-of-range figures can't be entered at all (SPD, 29 Sept
+							// 2026, supersedes BRIEF-02's POA behaviour). Field ids kept so
+							// configured values carry over; messages are optional with
+							// sensible defaults. The server-side POA resolution stays as a
+							// backstop for JS-less submissions only.
 							[
 								'id' => 'min_flight_width_mm',
-								'label' => 'Minimum Flight Width (mm)',
+								'label' => 'Flight Width — Hard Minimum (mm)',
 								'type' => 'number',
-								'placeholder' => 'Disabled',
-								'description' => 'A flight width below this switches the quote to Price on Application — the enquiry still submits, the customer just sees no figure. The landing depth on a half turn with no middle flight is not checked. Empty or 0 disables the rule. The message below must also be set for the rule to run.',
+								'placeholder' => 'No limit',
+								'description' => 'The form will not allow a flight width below this — the value snaps up to the minimum when the customer leaves the field. The landing depth on a half turn with no middle flight is not a flight width and is not clamped. Empty or 0 disables the limit.',
 							],
 							[
 								'id' => 'min_flight_width_message',
-								'label' => 'Minimum Flight Width — Message',
+								'label' => 'Flight Width Minimum — Message',
 								'type' => 'textarea',
-								'placeholder' => 'e.g. Widths under {min}mm are quoted individually — submit your enquiry and we will price it for you.',
-								'description' => 'Shown to the customer at the width field and in the price panel when a flight width is below the minimum. Use {min} for the minimum value. Empty disables the rule.',
+								'placeholder' => 'Minimum width is {min}mm.',
+								'description' => 'Red message shown at the width field when someone goes below the minimum. Use {min} for the minimum value. Leave empty for a default message.',
 							],
 							[
 								'id' => 'min_floor_height_mm',
-								'label' => 'Floor to Floor — Minimum (mm)',
+								'label' => 'Floor to Floor — Hard Minimum (mm)',
 								'type' => 'number',
-								'placeholder' => 'Disabled',
-								'description' => 'A floor-to-floor height below this switches the quote to Price on Application (enquiry still submits). Empty or 0 disables the lower bound. The range message below must also be set.',
+								'placeholder' => 'No limit',
+								'description' => 'The form will not allow a floor-to-floor height below this — the value snaps up when the customer leaves the field. Empty or 0 disables the lower bound.',
 							],
 							[
 								'id' => 'max_floor_height_mm',
-								'label' => 'Floor to Floor — Maximum (mm)',
+								'label' => 'Floor to Floor — Hard Maximum (mm)',
 								'type' => 'number',
-								'placeholder' => 'Disabled',
-								'description' => 'A floor-to-floor height above this switches the quote to Price on Application (enquiry still submits). Empty or 0 disables the upper bound. The range message below must also be set.',
+								'placeholder' => 'No limit',
+								'description' => 'The form will not allow a floor-to-floor height above this — the value snaps back down. Empty or 0 disables the upper bound.',
 							],
 							[
 								'id' => 'floor_height_range_message',
 								'label' => 'Floor to Floor Range — Message',
 								'type' => 'textarea',
-								'placeholder' => 'e.g. Heights outside {min}–{max}mm are quoted individually — submit your enquiry and we will price it for you.',
-								'description' => 'Shown to the customer at the floor height field and in the price panel when the height is outside the range. Use {min} and {max} for the bounds. Empty disables both bounds.',
+								'placeholder' => 'Floor to floor height must be between {min}mm and {max}mm.',
+								'description' => 'Red message shown at the floor height field when the value is clamped. Use {min} and {max} for the bounds. Leave empty for a default message.',
 							],
 						],
 					],

@@ -725,9 +725,18 @@ jQuery("input[name='delivery']").change(function () {
 });
 
 // ==============================
-// Construction limits: building-regs warning (Going turns red) + hard
-// maximums for Going and Width. All admin-configured via the "Construction
-// Settings" tab and passed through stairBuilderVars.construction.
+// Construction limits (v2.40.0 model, SPD 29 Sept 2026): every min/max in
+// the "Construction Settings" tab is a HARD clamp — the form snaps the value
+// back with a red message, so an out-of-range figure is impossible. The SOFT
+// layer (red field + warning, value still allowed) is the building-regs rows
+// from Construction Types, plus the legacy global Going warning pair kept as
+// their fallback. All passed through stairBuilderVars.construction.
+//
+// MINIMUMS clamp on 'change' (blur / spinner step), never on 'input' —
+// snapping mid-keystroke would fight a customer typing "800" past a 600
+// minimum one digit at a time. Maximums keep clamping on 'input' too, as
+// they always have: a value only crosses a maximum once it is already too
+// big, so there is no mid-typing false positive.
 // ==============================
 (function () {
   const cfg = (window.stairBuilderVars && stairBuilderVars.construction) || {};
@@ -738,6 +747,7 @@ jQuery("input[name='delivery']").change(function () {
     cfg.going_warning_enabled === '1';
   const warnMin  = parseFloat(cfg.going_warning_min);
   const warnMax  = parseFloat(cfg.going_warning_max);
+  const goingMin = parseFloat(cfg.going_min); // NaN => no hard limit
   const goingMax = parseFloat(cfg.going_max); // NaN => no hard limit
   const widthMax = parseFloat(cfg.width_max); // NaN => no hard limit
 
@@ -750,56 +760,51 @@ jQuery("input[name='delivery']").change(function () {
   const goingMsg = buildMsg(cfg.going_max_message, 'Maximum going is {max}mm.', goingMax);
   const widthMsg = buildMsg(cfg.width_max_message, 'Maximum width is {max}mm.', widthMax);
 
-  // ---- POA limit rules (BRIEF-02, v2.34.0) --------------------------------
-  // Minimum flight width and floor-to-floor range. Breaching one does NOT
-  // block the enquiry: the quote switches to Price on Application (the same
-  // POA path the construction types use), the configured message shows at the
-  // field and once in the price panel, and the lead still submits carrying
-  // the reasons. Each rule is INERT unless its threshold AND its message are
-  // both configured (SaaS safety — 0/empty disables). The value is never
-  // clamped: the customer typed it, so they are told, not corrected.
-  const minFlightW    = parseFloat(cfg.min_flight_width_mm);
-  const minFlightMsgR = String(cfg.min_flight_width_message || '').trim();
-  const minFloorH     = parseFloat(cfg.min_floor_height_mm);
-  const maxFloorH     = parseFloat(cfg.max_floor_height_mm);
-  const floorMsgR     = String(cfg.floor_height_range_message || '').trim();
+  // ---- Flight-width minimum + floor-to-floor range (hard since v2.40.0) ---
+  // These were POA rules under BRIEF-02: the value stood and the quote
+  // switched to Price on Application. Now they clamp like every other
+  // Construction Settings limit, so those out-of-range enquiries can no
+  // longer be submitted at all (SPD's call — supersedes the POA behaviour).
+  // Active whenever the threshold is set; messages fall back to defaults.
+  const minFlightW = parseFloat(cfg.min_flight_width_mm);
+  const minFloorH  = parseFloat(cfg.min_floor_height_mm);
+  const maxFloorH  = parseFloat(cfg.max_floor_height_mm);
 
-  const minWidthActive = isFinite(minFlightW) && minFlightW > 0 && minFlightMsgR !== '';
+  const minWidthActive = isFinite(minFlightW) && minFlightW > 0;
   const floorMinOn     = isFinite(minFloorH) && minFloorH > 0;
   const floorMaxOn     = isFinite(maxFloorH) && maxFloorH > 0;
-  const floorActive    = floorMsgR !== '' && (floorMinOn || floorMaxOn);
+  const floorActive    = floorMinOn || floorMaxOn;
 
   function subMinMax(text, minVal, maxVal) {
     return String(text)
       .replace(/\{min\}/g, isFinite(minVal) ? minVal : '')
       .replace(/\{max\}/g, isFinite(maxVal) ? maxVal : '');
   }
-  const minWidthMsg = subMinMax(minFlightMsgR, minFlightW, NaN);
-  const floorMsg    = subMinMax(floorMsgR, minFloorH, maxFloorH);
+  const minWidthMsg = subMinMax(
+    String(cfg.min_flight_width_message || '').trim() || 'Minimum width is {min}mm.',
+    minFlightW, NaN);
+  const floorDefaultMsg = (floorMinOn && floorMaxOn)
+    ? 'Floor to floor height must be between {min}mm and {max}mm.'
+    : (floorMinOn ? 'Minimum floor to floor height is {min}mm.'
+                  : 'Maximum floor to floor height is {max}mm.');
+  const floorMsg = subMinMax(
+    String(cfg.floor_height_range_message || '').trim() || floorDefaultMsg,
+    minFloorH, maxFloorH);
+  const goingMinMsg = subMinMax(
+    String(cfg.going_min_message || '').trim() || 'Minimum going is {min}mm.',
+    goingMin, NaN);
 
   function bdFloorHeightVal() {
     return parseFloat(String(jQuery('#floor-height').val() || '').replace(/,/g, ''));
   }
 
-  // The POA verdict, recomputed fresh from the DOM on every call — priceCalc's
-  // bdIsPoaSelected() calls this at the top of each calculation, so the
-  // verdict can never trail the inputs by an event whatever the handler
-  // binding order. The server re-resolves the same rules independently at
-  // lead capture (baltic_stair_limit_poa_reasons) — this is display, not trust.
-  window.bdComputePoaReasons = function () {
-    const reasons = [];
-    if (minWidthActive &&
-        BuilderUtils.bdGenuineFlightWidths(jQuery).some(function (w) { return w < minFlightW; })) {
-      reasons.push('min_flight_width');
-    }
-    if (floorActive) {
-      const h = bdFloorHeightVal();
-      if (!isNaN(h) && ((floorMinOn && h < minFloorH) || (floorMaxOn && h > maxFloorH))) {
-        reasons.push('floor_height_range');
-      }
-    }
-    return reasons;
-  };
+  // Kept for priceCalc's bdIsPoaSelected(): construction-type and featured-
+  // step POA still route through that function, but the limit rules no longer
+  // produce reasons — a breaching value can't exist in the form once clamped.
+  // The server-side baltic_stair_limit_poa_reasons() backstop still covers
+  // JS-less submissions, so a raw POST with a silly width becomes a POA lead
+  // rather than a wrongly priced one.
+  window.bdComputePoaReasons = function () { return []; };
 
   // Create a hidden red message element immediately after the given input.
   function makeMsgEl(afterInput) {
@@ -825,10 +830,9 @@ jQuery("input[name='delivery']").change(function () {
     });
     const $widthMsg = lastWidthEl ? makeMsgEl(lastWidthEl) : jQuery();
 
-    // ---- POA limit messages (BRIEF-02) ----
-    // Per-field: one element under each width input (only the offending,
-    // genuine fields show it) and one under floor height. Plus one line in
-    // the price panel — a field message is easy to miss on mobile.
+    // ---- Clamp message elements ----
+    // One under each width input (min-width clamp; only genuine flight
+    // widths ever show it) and one under floor height (range clamp).
     const bdMinWidthMsgEls = {};
     if (minWidthActive) {
       WIDTH_IDS.forEach(function (id) {
@@ -838,18 +842,6 @@ jQuery("input[name='delivery']").change(function () {
     }
     const bdFloorEl = document.getElementById('floor-height');
     const $bdFloorMsg = (floorActive && bdFloorEl) ? makeMsgEl(bdFloorEl) : jQuery();
-    let $bdPanelNote = jQuery();
-    if (minWidthActive || floorActive) {
-      const panelFoot = document.querySelector('.bd-panel-foot');
-      if (panelFoot) {
-        const note = document.createElement('p');
-        note.className = 'sb-limit-msg';
-        note.id = 'bd-poa-note';
-        note.style.cssText = 'display:none;color:#d63638;margin:6px 0 0;font-size:13px;font-weight:600;';
-        panelFoot.insertAdjacentElement('afterbegin', note);
-        $bdPanelNote = jQuery(note);
-      }
-    }
 
     // Whether this width input counts as a flight width right now — mirrors
     // BuilderUtils.bdGenuineFlightWidths so the message can't disagree with
@@ -866,34 +858,40 @@ jQuery("input[name='delivery']").change(function () {
       return false;
     }
 
-    function applyLimitMessages() {
-      const reasons = window.bdComputePoaReasons();
-      window.bdPoaReasons = reasons;
-      jQuery('#poa_reasons').val(reasons.join(','));
-      const panelParts = [];
-      if (minWidthActive) {
-        let any = false;
-        WIDTH_IDS.forEach(function (id) {
-          const $el = bdMinWidthMsgEls[id];
-          if (!$el) return;
-          const v = parseFloat(jQuery('#' + id).val());
-          const below = bdIsGenuineWidthId(id) && isFinite(v) && v < minFlightW;
-          if (below) { any = true; $el.text(minWidthMsg).show(); } else { $el.hide(); }
-        });
-        if (any) panelParts.push(minWidthMsg);
+    // ---- Hard minimum clamps (change/blur only — see block comment) ----
+    // Each returns true when it changed the value, so the caller can trigger
+    // the recompute chain for the corrected figure. Direct element bindings
+    // run before the flight scripts' delegated #stairbuild recalc handlers,
+    // so a clamped value is already in place when the price is read.
+    function clampWidthMin(input) {
+      if (!minWidthActive) return false;
+      const $w = jQuery(input);
+      const $el = bdMinWidthMsgEls[input.id];
+      const v = parseFloat($w.val());
+      if (bdIsGenuineWidthId(input.id) && isFinite(v) && v < minFlightW) {
+        $w.val(minFlightW);
+        if ($el) $el.text(minWidthMsg).show();
+        return true;
       }
-      if (floorActive) {
-        if (reasons.indexOf('floor_height_range') !== -1) {
-          $bdFloorMsg.text(floorMsg).show();
-          panelParts.push(floorMsg);
-        } else {
-          $bdFloorMsg.hide();
-        }
-      }
-      if (panelParts.length) { $bdPanelNote.text(panelParts.join(' ')).show(); }
-      else { $bdPanelNote.hide(); }
+      if ($el) $el.hide();
+      return false;
     }
-    window.bdApplyLimitMessages = applyLimitMessages;
+
+    function clampFloorHeight() {
+      if (!floorActive || !bdFloorEl) return false;
+      const h = bdFloorHeightVal();
+      if (isNaN(h)) { $bdFloorMsg.hide(); return false; }
+      let clamped = null;
+      if (floorMinOn && h < minFloorH) clamped = minFloorH;
+      else if (floorMaxOn && h > maxFloorH) clamped = maxFloorH;
+      if (clamped !== null) {
+        jQuery(bdFloorEl).val(clamped);
+        $bdFloorMsg.text(floorMsg).show();
+        return true;
+      }
+      $bdFloorMsg.hide();
+      return false;
+    }
 
     // v2.16.0 Phase 1: resolve the EFFECTIVE limits from the active regime,
     // falling back to the global Construction Settings. Recomputed each call so
@@ -920,15 +918,27 @@ jQuery("input[name='delivery']").change(function () {
       };
     }
 
-    function applyGoing() {
+    function applyGoing(clampMin) {
       const lim = regimeLimits();
       let v = parseFloat($going.val());
+      // Hard minimum (change/blur only — clampMin). If an admin sets the
+      // minimum above the effective maximum, the maximum wins: both clamps
+      // land on one value instead of fighting.
+      const effGoingMin = isNaN(goingMin) ? null
+        : (lim.goingMax !== null && goingMin > lim.goingMax ? lim.goingMax : goingMin);
+      let minHit = false;
+      if (clampMin && effGoingMin !== null && !isNaN(v) && v < effGoingMin) {
+        v = effGoingMin;
+        $going.val(effGoingMin);
+        $goingMsg.text(goingMinMsg).show();
+        minHit = true;
+      }
       // Hard maximum — clamp and show message.
       if (lim.goingMax !== null && !isNaN(v) && v > lim.goingMax) {
         v = lim.goingMax;
         $going.val(lim.goingMax);
         $goingMsg.text(buildMsg(cfg.going_max_message, 'Maximum going is {max}mm.', lim.goingMax)).show();
-      } else {
+      } else if (!minHit) {
         $goingMsg.hide();
       }
       // Soft building-regs warning — colour the field red, value still allowed.
@@ -938,10 +948,15 @@ jQuery("input[name='delivery']").change(function () {
       $going.css('color', outOfRange ? 'red' : 'inherit');
     }
 
-    function applyWidth(input) {
+    function applyWidth(input, clampMin) {
       const lim = regimeLimits();
       const $w = jQuery(input);
-      const v = parseFloat($w.val());
+      let v = parseFloat($w.val());
+      // Hard flight-width minimum (change/blur only). Min-above-max
+      // misconfiguration: the maximum wins, same rule as going.
+      if (clampMin && clampWidthMin(input)) {
+        v = parseFloat($w.val());
+      }
       if (lim.widthMax !== null && !isNaN(v) && v > lim.widthMax) {
         $w.val(lim.widthMax);
         $widthMsg.text(buildMsg(cfg.width_max_message, 'Maximum width is {max}mm.', lim.widthMax)).show();
@@ -953,11 +968,27 @@ jQuery("input[name='delivery']").change(function () {
       $w.css('color', belowMin ? 'red' : 'inherit');
     }
 
-    $going.on('input change', applyGoing);
+    // Maxima clamp as you type; minima only when the value is committed
+    // (change fires on blur and on spinner steps) — see the block comment.
+    $going.on('input', function () { applyGoing(false); });
+    $going.on('change', function () { applyGoing(true); });
     WIDTH_IDS.forEach(function (id) {
       const el = document.getElementById(id);
-      if (el) jQuery(el).on('input change', function () { applyWidth(this); });
+      if (!el) return;
+      jQuery(el).on('input', function () { applyWidth(this, false); });
+      jQuery(el).on('change', function () { applyWidth(this, true); });
     });
+    if (floorActive && bdFloorEl) {
+      jQuery(bdFloorEl).on('change', function () { clampFloorHeight(); });
+    }
+    // #treadat flips whether #stair-width2 is a flight width or the landing
+    // depth — re-run its min clamp (and clear a stale message) when it flips.
+    if (minWidthActive) {
+      jQuery(document).on('change', '#treadat', function () {
+        const w2 = document.getElementById('stair-width2');
+        if (w2 && clampWidthMin(w2)) jQuery(w2).trigger('change');
+      });
+    }
     // Regime description shown under the #building_regs select.
     function applyRegimeDesc() {
       const $d = jQuery('#building_regs_desc');
@@ -992,30 +1023,27 @@ jQuery("input[name='delivery']").change(function () {
       if (applyRegimeGoingDefault()) {
         $going.trigger('change');
       }
-      applyGoing();
+      applyGoing(true);
       WIDTH_IDS.forEach(function (id) {
         const el = document.getElementById(id);
-        if (el) applyWidth(el);
+        if (el) applyWidth(el, true);
       });
       applyRegimeDesc();
     });
 
-    // POA limit messages track every input that can change the verdict: the
-    // width fields, floor height, and #treadat (which flips whether
-    // #stair-width2 is a flight width or the landing depth). Delegated as a
-    // display refresh only — the POA verdict itself is recomputed inside the
-    // price calculation, so ordering doesn't matter here.
-    if (minWidthActive || floorActive) {
-      WIDTH_IDS.concat(['floor-height', 'treadat']).forEach(function (id) {
-        const el = document.getElementById(id);
-        if (el) jQuery(el).on('input change', applyLimitMessages);
-      });
-      applyLimitMessages();
-    }
-
-    // Initial pass (after the flight script has seeded default values).
+    // Initial pass (after the flight script has seeded default values). Runs
+    // the hard clamps too, in case a shipped default sits outside a
+    // configured limit — a clamp that fired re-triggers change so the flight
+    // scripts and price recompute off the corrected value.
     applyRegimeGoingDefault();
-    applyGoing();
+    const bdGoingBefore = $going.val();
+    applyGoing(true);
+    if ($going.val() !== bdGoingBefore) $going.trigger('change');
+    WIDTH_IDS.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el && clampWidthMin(el)) jQuery(el).trigger('change');
+    });
+    if (clampFloorHeight()) jQuery(bdFloorEl).trigger('change');
     applyRegimeDesc();
   });
 })();

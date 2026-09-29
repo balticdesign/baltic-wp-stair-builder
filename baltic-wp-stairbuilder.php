@@ -3,7 +3,7 @@
 Plugin Name:	Baltic Stairbuilder
 Plugin URI:		https://balticdesign.uk/
 Description:	A Staircase Builder Solution
-Version:		2.39.1
+Version:		2.40.0
 Author:			Dan Cotugno-Cregin
 Author URI:		https://balticdesign.uk/
 Text Domain:	baltic-wp-stair-builder
@@ -30,7 +30,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'BALTIC_STAIRBUILDER_VERSION', '2.39.1' );
+define( 'BALTIC_STAIRBUILDER_VERSION', '2.40.0' );
 
 require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 // Pricing settings first — defines stairbuilder_get_option() used by other modules.
@@ -196,6 +196,8 @@ function baltic_stair_enqueue_files() {
 			'going_warning_min'     => ( $cs_min_raw === null || $cs_min_raw === '' ) ? 220 : (float) $cs_min_raw,
 			'going_warning_max'     => ( $cs_max_raw === null || $cs_max_raw === '' ) ? 250 : (float) $cs_max_raw,
 			// Empty string = no hard limit (JS parseFloat('') is NaN).
+			'going_min'             => stairbuilder_get_option( 'going_min', '' ),
+			'going_min_message'     => stairbuilder_get_option( 'going_min_message', '' ),
 			'going_max'             => stairbuilder_get_option( 'going_max', '' ),
 			'going_max_message'     => stairbuilder_get_option( 'going_max_message', '' ),
 			'width_max'             => stairbuilder_get_option( 'width_max', '' ),
@@ -208,9 +210,10 @@ function baltic_stair_enqueue_files() {
 			'extra_wide_multiplier_threshold_mm' => ( '' === ( $bd_ewt = stairbuilder_get_option( 'extra_wide_multiplier_threshold_mm', '' ) ) ) ? 1000 : (float) $bd_ewt,
 			'wide_flight_surcharge_threshold_mm' => stairbuilder_get_option( 'wide_flight_surcharge_threshold_mm', '' ),
 			'wide_flight_surcharge_amount'       => stairbuilder_get_option( 'wide_flight_surcharge_amount', '' ),
-			// POA limit rules (v2.34.0, BRIEF-02 amends #4/#5). Inert unless the
-			// threshold AND its message are both set. The server re-resolves these
-			// independently at lead capture — see baltic_stair_limit_poa_reasons().
+			// HARD clamp rules since v2.40.0 (were POA under BRIEF-02): active
+			// whenever the threshold is set, message optional (JS supplies a
+			// default). baltic_stair_limit_poa_reasons() still re-resolves them
+			// at lead capture as a backstop for JS-less submissions.
 			'min_flight_width_mm'        => stairbuilder_get_option( 'min_flight_width_mm', '' ),
 			'min_flight_width_message'   => stairbuilder_get_option( 'min_flight_width_message', '' ),
 			'min_floor_height_mm'        => stairbuilder_get_option( 'min_floor_height_mm', '' ),

@@ -292,15 +292,17 @@
         return join([
           kv('Floor Height', mm('floor-height')),
           kv('Going', mm('going')),
-          kv('Width', mm('stair-width')),
-          kv('Turn', txt('sc-direction'))
+          kv('Width', mm('stair-width'))
         ]);
       }
     },
     tits: {
       done: function () { return txt('treadbt') !== ''; },
       summary: function () {
+        // Turn Left/Right leads: the Direction select moved from Measurements
+        // to the top of this section (SPD amend, 29 Sept 2026).
         return join([
+          kv('Turn', txt('sc-direction')),
           kv('Before', txt('treadbt')),
           txtVisible('treadit'),
           kv('After', txtVisible('treadat')),
@@ -358,9 +360,12 @@
       }
     },
     contact: {
-      done: function () { return txt('contact_name') && txt('contact_email'); },
+      // First name + Surname replaced the single Name box (SPD amend,
+      // 29 Sept 2026); the summary shows them joined, as the lead stores them.
+      done: function () { return txt('contact_first_name') && txt('contact_surname') && txt('contact_email'); },
       summary: function () {
-        return join([txt('contact_name'), txt('contact_email'), txt('contact_phone')]);
+        var fullName = [txt('contact_first_name'), txt('contact_surname')].filter(Boolean).join(' ');
+        return join([fullName, txt('contact_email'), txt('contact_phone')]);
       }
     }
   };

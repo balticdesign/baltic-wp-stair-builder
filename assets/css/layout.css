@@ -548,8 +548,11 @@ body.admin-bar { --wp-admin-bar-height: 32px; }
   min-width: 0;                     /* let the column shrink; selects clip natively */
 }
 /* .form-row select is already width:100%; restate it against the narrower
-   column so a long option can't set the track width. */
-.bd-stairbuilder-layout #stairbuild .bd-field-pair select { width: 100%; }
+   column so a long option can't set the track width. Inputs likewise (the
+   First name / Surname pair) — a text input's default size attribute would
+   otherwise overflow the column. */
+.bd-stairbuilder-layout #stairbuild .bd-field-pair select,
+.bd-stairbuilder-layout #stairbuild .bd-field-pair input { width: 100%; box-sizing: border-box; }
 
 /* Form-row labels: full-width, capitalised. */
 .bd-stairbuilder-layout #stairbuild .form-row label {

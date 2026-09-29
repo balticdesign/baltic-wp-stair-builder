@@ -173,15 +173,9 @@ $sb_hide = function ( $on, $extra_class = '' ) {
     <svg class="sec-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
   </button>
     <div id="msrm" class="tab-content">
- <?php if ($direction) {?>
-    <div class="form-row">
-            <label for="sc-direction">Direction:</label>
-            <select id="sc-direction" name="sc-direction">
-            <option value="left">Left</option>
-            <option value="right">Right</option>
-            </select>
-        </div>
-        <?php } ?>
+        <?php // Direction moved to the top of the Sections tab (SPD amend,
+              // 29 Sept 2026) — it describes the turn, so it sits with the
+              // flight/turn controls, not the measurements. ?>
         <div class="form-row">
             <label for="floor-height">Floor Height <span class="form-unit">(mm)</span> <span class="form-sub">(Floor to Floor)</span></label>
             <input type="number" id="floor-height" name="floor-height" value="">
@@ -248,6 +242,20 @@ $sb_hide = function ( $on, $extra_class = '' ) {
     <svg class="sec-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
   </button>
     <div id="tits" class="tab-content">
+    <?php // Direction lives here, above the flights (moved from Measurements,
+          // SPD amend 29 Sept 2026). $direction and $flight2 are set by the
+          // same stair types (quarter/half), so this renders exactly where it
+          // used to for the same configs. layout.js's tits summary carries
+          // the "Turn Left/Right" line that msrm used to show. ?>
+    <?php if ($direction) {?>
+    <div class="form-row">
+            <label for="sc-direction">Direction:</label>
+            <select id="sc-direction" name="sc-direction">
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+            </select>
+        </div>
+        <?php } ?>
           <div class="form-row">
             <h4>Flight 1</h4>
         <label for="treadbt">Treads before Turn:</label>
@@ -795,9 +803,22 @@ $sb_hide = function ( $on, $extra_class = '' ) {
           <input type="text" id="postcode" name="postcode" placeholder="Your postcode" required>
         </div>
       <?php endif; ?>
+      <?php // First name + Surname on one row (SPD amend, 29 Sept 2026),
+            // replacing the single Name box. FRONT-END SPLIT ONLY: submit
+            // (formLogic.js submitStairLead) joins them back into the
+            // contact_name the AJAX handler, storage, PDF, enquiries and
+            // emails already use, so old and new leads keep one shape. ?>
       <div class="form-row">
-        <label for="contact_name">Name *</label>
-        <input type="text" id="contact_name" name="contact_name" required>
+      <div class="bd-field-pair">
+        <div class="bd-field">
+        <label for="contact_first_name">First name *</label>
+        <input type="text" id="contact_first_name" name="contact_first_name" required>
+        </div>
+        <div class="bd-field">
+        <label for="contact_surname">Surname *</label>
+        <input type="text" id="contact_surname" name="contact_surname" required>
+        </div>
+      </div>
       </div>
       <div class="form-row">
         <label for="contact_email">Email *</label>

@@ -149,7 +149,12 @@ function readPriceFromDOM(selector) {
 }
 
 function submitStairLead() {
-  const name = (jQuery('#contact_name').val() || '').trim();
+  // First name + Surname are separate boxes on the form (SPD amend, 29 Sept
+  // 2026) but ONE contact_name value everywhere behind it — the AJAX handler,
+  // storage, PDF, enquiries and emails all keep the single field, so old and
+  // new leads share a shape.
+  const name = ((jQuery('#contact_first_name').val() || '').trim() + ' '
+    + (jQuery('#contact_surname').val() || '').trim()).trim();
   const email = (jQuery('#contact_email').val() || '').trim();
   const phone = (jQuery('#contact_phone').val() || '').trim();
   const $err = jQuery('#sb-submit-error');
@@ -199,7 +204,8 @@ function submitStairLead() {
   }
 
   const formDataArray = jQuery('#stairbuild').serializeArray()
-    .filter(f => f.name !== 'contact_name' && f.name !== 'contact_email' && f.name !== 'contact_phone');
+    .filter(f => ['contact_name', 'contact_first_name', 'contact_surname',
+      'contact_email', 'contact_phone'].indexOf(f.name) === -1);
 
   // Un-stripped copy of the fields server-side availability revalidation needs
   // (v2.16.0 Phase 2). Captured BEFORE the colon-strip below, so material values

@@ -143,12 +143,15 @@ function baltic_stair_lead_reference( $lead ) {
 /**
  * POA limit reasons for a submitted configuration (BRIEF-02, v2.34.0).
  *
- * Mirrors the front-end checks in formLogic.js (bdComputePoaReasons) but reads
- * the SETTINGS and the SUBMITTED form data directly — the client's own
- * `poa_reasons` field is stored as information, never trusted for the verdict.
- * Each rule is inert unless its threshold AND its customer message are both
- * configured, exactly like the front end, so the two can't disagree about
- * whether a rule is on.
+ * Since v2.40.0 the front end CLAMPS these limits (formLogic.js), so a
+ * browser submission can never breach them — this survives purely as the
+ * backstop for JS-less POSTs, flagging the lead POA instead of storing a
+ * wrongly priced one. Reads the SETTINGS and the SUBMITTED form data
+ * directly — the client's own `poa_reasons` field is stored as information,
+ * never trusted for the verdict. Each rule is active whenever its THRESHOLD
+ * is set (v2.40.1) — messages are display-only and optional now, so an
+ * admin clearing one to get the default clamp wording must not silently
+ * disarm the backstop.
  *
  * Width set mirrors BuilderUtils.bdGenuineFlightWidths: `stair-width` always;
  * `stair-width2` only while a middle flight exists (on a half turn with
@@ -165,9 +168,8 @@ function baltic_stair_limit_poa_reasons( $form_data ) {
 	}
 	$type = isset( $form_data['stair_type'] ) ? (string) $form_data['stair_type'] : 'straight';
 
-	$min_w     = (float) stairbuilder_get_option( 'min_flight_width_mm', 0 );
-	$min_w_msg = trim( (string) stairbuilder_get_option( 'min_flight_width_message', '' ) );
-	if ( $min_w > 0 && '' !== $min_w_msg ) {
+	$min_w = (float) stairbuilder_get_option( 'min_flight_width_mm', 0 );
+	if ( $min_w > 0 ) {
 		$widths = array();
 		if ( isset( $form_data['stair-width'] ) && is_numeric( $form_data['stair-width'] ) ) {
 			$widths[] = (float) $form_data['stair-width'];
@@ -188,10 +190,9 @@ function baltic_stair_limit_poa_reasons( $form_data ) {
 		}
 	}
 
-	$min_h   = (float) stairbuilder_get_option( 'min_floor_height_mm', 0 );
-	$max_h   = (float) stairbuilder_get_option( 'max_floor_height_mm', 0 );
-	$h_msg   = trim( (string) stairbuilder_get_option( 'floor_height_range_message', '' ) );
-	if ( '' !== $h_msg && ( $min_h > 0 || $max_h > 0 ) && isset( $form_data['floor-height'] ) ) {
+	$min_h = (float) stairbuilder_get_option( 'min_floor_height_mm', 0 );
+	$max_h = (float) stairbuilder_get_option( 'max_floor_height_mm', 0 );
+	if ( ( $min_h > 0 || $max_h > 0 ) && isset( $form_data['floor-height'] ) ) {
 		$h = (float) str_replace( ',', '', (string) $form_data['floor-height'] );
 		if ( $h > 0 && ( ( $min_h > 0 && $h < $min_h ) || ( $max_h > 0 && $h > $max_h ) ) ) {
 			$reasons[] = 'floor_height_range';

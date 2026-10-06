@@ -9,10 +9,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   $title   — heading
  *   $content — assoc array merging form fields + contact info + price totals
  *
- * Layout follows _reference/quote_2_mpdf.html (Claude Design), rebuilt for
- * mPDF (table/float layout, no flexbox). Brand colours, logo and the four
- * header/footer strings come from the Brand Colours → "Quote PDF" settings
- * group; contact detail lives in those four fields, not hard-coded here.
+ * Layout follows better_stair_builder_pdf.png (Dan's v2.43.0 mockup; previously
+ * _reference/quote_2_mpdf.html), rebuilt for mPDF (table layout, no flexbox).
+ * Brand colours, logo, the two top-strip strings and the optional contact
+ * names come from the Brand Colours → "Quote PDF" settings group; contact
+ * detail lives in those fields, not hard-coded here. The footer band was
+ * removed in v2.43.0.
  * Font: the design's Jost falls back to DejaVu Sans (mPDF core) — bundle Jost
  * in mPDF's font config later for the exact typeface.
  */
@@ -43,8 +45,6 @@ $c_panel  = $bd_col( 'pdf_panel',  '#EBE8E0' ); // hairlines / light panels
 
 $hdr_l = $bd_opt( 'pdf_header_left', '' );
 $hdr_r = $bd_opt( 'pdf_header_right', '' );
-$ftr_l = $bd_opt( 'pdf_footer_left', '' );
-$ftr_r = $bd_opt( 'pdf_footer_right', '' );
 
 $logo_id  = absint( $bd_opt( 'pdf_logo', 0 ) );
 $logo_src = '';
@@ -186,17 +186,19 @@ $bd_sectlabel = function ( $text ) {
   .band { width: 100%; border-collapse: collapse; }
   .band td { vertical-align: middle; }
   .topstrip td { background: <?php echo esc_attr( $c_accent ); ?>; color: #ffffff; padding: 9px 40px; font-size: 12.5px; letter-spacing: 0.4px; }
-  .masthead td { background: <?php echo esc_attr( $c_dark ); ?>; color: #ffffff; padding: 24px 40px; }
-  .status td { background: <?php echo esc_attr( $c_accent ); ?>; color: #ffffff; padding: 10px 40px; font-size: 14px; letter-spacing: 1.2px; text-transform: uppercase; text-align: center; font-weight: 500; }
-  .footer td { background: <?php echo esc_attr( $c_dark ); ?>; color: <?php echo esc_attr( $c_panel ); ?>; padding: 14px 40px; font-size: 11.5px; letter-spacing: 0.5px; }
+  .masthead td { background: <?php echo esc_attr( $c_dark ); ?>; color: #ffffff; padding: 20px 40px; }
+  .status td { background: <?php echo esc_attr( $c_accent ); ?>; color: #ffffff; padding: 9px 40px; font-size: 14px; letter-spacing: 1.2px; text-transform: uppercase; text-align: center; font-weight: 500; }
 
-  /* Section heading on a <td> (mPDF drops div margins in cells). The 18px top
-     padding is the reliable inter-section spacer — do not depend on .block. */
-  .sectlabel-td { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: <?php echo esc_attr( $c_accent ); ?>; border-bottom: 2px solid <?php echo esc_attr( $c_accent ); ?>; padding: 18px 0 8px; }
+  /* Section heading on a <td> (mPDF drops div margins in cells). The 14px top
+     padding is the reliable inter-section spacer — do not depend on .block.
+     (18px until v2.43.0; tightened with the row padding below so the densest
+     config — a winder, both spec columns full — keeps single-page headroom
+     for a short customer-notes band. Measured, not assumed.) */
+  .sectlabel-td { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: <?php echo esc_attr( $c_accent ); ?>; border-bottom: 2px solid <?php echo esc_attr( $c_accent ); ?>; padding: 14px 0 8px; }
   /* page-break-inside:avoid keeps a section whole if an extreme config spills to
      page 2 (mPDF honours it on tables) instead of splitting mid-table. */
   .spec { width: 100%; border-collapse: collapse; font-size: 13.5px; page-break-inside: avoid; }
-  .spec td { padding: 7px 0; border-bottom: 1px solid <?php echo esc_attr( $c_panel ); ?>; }
+  .spec td { padding: 6px 0; border-bottom: 1px solid <?php echo esc_attr( $c_panel ); ?>; }
   .spec tr:last-child td { border-bottom: none; }
   .spec .k { color: <?php echo esc_attr( $c_muted ); ?>; }
   .spec .v { text-align: right; font-weight: 500; }
@@ -209,9 +211,25 @@ $bd_sectlabel = function ( $text ) {
   .notes p { margin: 0; font-size: 13px; line-height: 1.55; color: <?php echo esc_attr( $c_muted ); ?>; }
 </style>
 
-<?php if ( $hdr_l !== '' || $hdr_r !== '' ) : ?>
+<?php
+// Optional "and ask for {names}" clause (v2.43.0). The names are a setting with
+// an empty default — never hard-coded staff names in a licensed template. When
+// set, the clause is inserted before the first "|" of the left strip text so
+// `Call {phone} | {hours}` reads `Call {phone} and ask for {names} | {hours}`;
+// with no "|" it is appended. Empty names leave the strip exactly as typed.
+$bd_strip_l = $hdr_l;
+$bd_names   = trim( (string) $bd_opt( 'pdf_contact_names', '' ) );
+if ( $hdr_l !== '' && $bd_names !== '' ) {
+    $bd_ask  = ' and ask for ' . $bd_names;
+    $bd_pipe = strpos( $hdr_l, '|' );
+    $bd_strip_l = ( false !== $bd_pipe )
+        ? rtrim( substr( $hdr_l, 0, $bd_pipe ) ) . $bd_ask . ' ' . substr( $hdr_l, $bd_pipe )
+        : rtrim( $hdr_l ) . $bd_ask;
+}
+?>
+<?php if ( $bd_strip_l !== '' || $hdr_r !== '' ) : ?>
 <table class="band topstrip"><tr>
-  <td><?php echo esc_html( $hdr_l ); ?></td>
+  <td><?php echo esc_html( $bd_strip_l ); ?></td>
   <td style="text-align: right;"><?php echo esc_html( $hdr_r ); ?></td>
 </tr></table>
 <?php endif; ?>
@@ -365,7 +383,12 @@ foreach ( $bd_sections as $bd_sec ) {
  * mm so the plan box width is a known number (40px ≈ 10.6mm, 14px ≈ 3.7mm).
  */
 $plan_box_w_mm = 134 - 10.6 - 3.7; // left column content width = 119.7mm
-$plan_box_h_mm = 95;
+/* Box height (layout refresh, v2.43.0): sized so the box bottom lines up with
+ * the bottom of the quote box in the right column (5-row Your Details table +
+ * quote box) — MEASURED from rendered output, not derived; note Table A's
+ * autosize renders declared mm at ~0.93, so this figure is deliberately larger
+ * than the target. Re-measure if the sidebar gains or loses rows. */
+$plan_box_h_mm = 106.5;
 
 // Plan box backdrop: the canvas background the drawing was made on, so the
 // box reads as the drawing's own paper. 'transparent', blank or invalid
@@ -378,11 +401,17 @@ $bd_plan_dims = ! empty( $content['canvas_image_path'] )
     ? baltic_stair_pdf_plan_dims( $content['canvas_image_path'], $plan_box_w_mm, $plan_box_h_mm )
     : null;
 ?>
-<!-- Table A: plan (left) + price / customer sidebar (right) -->
+<!-- Table A: plan (left) + customer details / price sidebar (right).
+     Layout refresh (v2.43.0, better_stair_builder_pdf.png): Your Details moved
+     ABOVE the quote box, Project Delivery folded in as an ordinary row (bordered
+     badge removed), the static disclaimer moved INTO the quote box (its small
+     "Indicative Quote" heading removed), and the customer notes moved out to a
+     full-width band below this table. Top padding halved (30px -> 6px plus the
+     sectlabel's own 18px) per the mockup's tighter banner gap. -->
 <table autosize="1" style="width: 100%; border-collapse: collapse;">
 <tr>
   <!-- LEFT: staircase plan only -->
-  <td style="width: 134mm; vertical-align: top; padding: 30px 3.7mm 10px 10.6mm;">
+  <td style="width: 134mm; vertical-align: top; padding: 6px 3.7mm 10px 10.6mm;">
     <?php echo $bd_sectlabel( 'Staircase Plan' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML fragment; esc_html() runs inside $bd_sectlabel. ?>
     <div class="block" style="margin-top: 8px;">
       <?php // Fixed-size plan box: a flat single-cell table (mPDF drops cells in
@@ -402,96 +431,108 @@ $bd_plan_dims = ! empty( $content['canvas_image_path'] )
     </div>
   </td>
 
-  <!-- RIGHT: price + customer -->
-  <td style="width: 76mm; vertical-align: top; padding: 30px 10.6mm 26px 3.7mm;">
-
-    <?php
-    // Flat 2-column table (not a nested one) so mPDF renders every cell — deeply
-    // nested tables drop cells here. Dark fill is on each <td>, which mPDF paints
-    // reliably, so the whole box reads as one charcoal block.
-    $pb_cell = 'background: ' . $c_dark . '; padding: 9px 24px; border-bottom: 1px solid #4A4741; font-size: 14px;';
-    $pb_tot  = 'background: ' . $c_dark . '; padding: 14px 24px 22px; font-size: 14px; white-space: nowrap;';
-    ?>
-    <table class="block pricebox" style="width: 100%; border-collapse: collapse;">
-      <tr><td colspan="2" style="background: <?php echo esc_attr( $c_dark ); ?>; color: #C9BC93; padding: 22px 24px 12px; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">Indicative Quote</td></tr>
-      <tr>
-        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: <?php echo esc_attr( $c_panel ); ?>;">Subtotal</td>
-        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark; the value is a literal or esc_html()ed. ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_price, 2 ) ); ?></td>
-      </tr>
-      <tr>
-        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: <?php echo esc_attr( $c_panel ); ?>;">VAT<?php echo ( ! $bd_poa && $bd_vat_pct ) ? ' (' . (int) $bd_vat_pct . '%)' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- integer-cast percentage. ?></td>
-        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark; the value is a literal or esc_html()ed. ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_vat, 2 ) ); ?></td>
-      </tr>
-      <tr>
-        <td style="<?php echo $pb_tot; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: #ffffff; font-weight: 500;">Total<?php echo $bd_poa ? '' : ' inc VAT'; ?></td>
-        <?php // POA sets its own size: "Price on application" at the 22px used for
-              // a currency figure would wrap out of the box. ?>
-        <td style="<?php echo $pb_tot; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark; the value is a literal or esc_html()ed. ?> width: 55%; color: #D3B96A; font-size: <?php echo $bd_poa ? '13px' : '22px'; ?>; font-weight: 600; text-align: right;"><?php echo $bd_poa ? 'Price on application' : '&pound;' . esc_html( number_format( $bd_total, 2 ) ); ?></td>
-      </tr>
-    </table>
-
-    <?php if ( ! empty( $content['project_delivery_date'] ) ) : ?>
-    <table class="block badge" style="width: 100%; border-collapse: collapse;"><tr>
-      <td style="border: 1px solid <?php echo esc_attr( $c_accent ); ?>; padding: 12px 16px;">
-        <table style="width: 100%; border-collapse: collapse;"><tr>
-          <td style="width: 28px; font-size: 20px; color: <?php echo esc_attr( $c_accent ); ?>; vertical-align: middle;">&#10003;</td>
-          <td style="vertical-align: middle;">
-            <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.5px;">Project Delivery</div>
-            <div style="font-size: 13px; color: <?php echo esc_attr( $c_muted ); ?>;"><?php echo esc_html( $content['project_delivery_date'] ); ?></div>
-          </td>
-        </tr></table>
-      </td>
-    </tr></table>
-    <?php endif; ?>
+  <!-- RIGHT: customer details, then price -->
+  <td style="width: 76mm; vertical-align: top; padding: 6px 10.6mm 26px 3.7mm;">
 
     <?php echo $bd_sectlabel( 'Your Details' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML fragment; esc_html() runs inside $bd_sectlabel. ?>
-    <div class="block">
+    <div class="block" style="margin-top: 8px;">
       <table class="spec">
         <?php
         $bd_row( 'Name', $content['name'] ?? '' );
         $bd_row( 'Email', $content['email'] ?? '' );
         $bd_row( 'Phone', $content['phone'] ?? '' );
         $bd_row( 'Postcode', $content['postcode'] ?? '' );
+        // Ordinary row since v2.43.0 — was a bordered badge with a tick below
+        // the price box. Same skip-when-empty rule as every other row.
+        $bd_row( 'Project Delivery', $content['project_delivery_date'] ?? '' );
         ?>
       </table>
     </div>
 
     <?php
-    // Customer's own notes (v2.25.0). Its own labelled block, and the block is
-    // omitted entirely when there are none rather than printing an empty
-    // heading. Escaped then line-broken — this is the only genuinely free-form
-    // customer text in the plugin, so it is treated as hostile here as well as
-    // on the admin screen and in the email.
-    $bd_cust_notes = trim( (string) ( $content['additional_notes'] ?? '' ) );
-    if ( $bd_cust_notes !== '' ) : ?>
-    <table class="block notes" style="width: 100%; border-collapse: collapse;"><tr>
-      <td style="background: <?php echo esc_attr( $c_panel ); ?>; border-left: 3px solid <?php echo esc_attr( $c_accent ); ?>; padding: 14px 16px;">
-        <div class="lbl">Your Notes</div>
-        <p><?php echo nl2br( esc_html( $bd_cust_notes ) ); ?></p>
-      </td>
-    </tr></table>
-    <?php endif; ?>
-
-    <table class="block notes" style="width: 100%; border-collapse: collapse;"><tr>
-      <td style="background: <?php echo esc_attr( $c_panel ); ?>; border-left: 3px solid <?php echo esc_attr( $c_accent ); ?>; padding: 14px 16px;">
-        <div class="lbl">Notes</div>
-        <p>This is an indicative quote based on the configuration submitted. Final pricing is subject to a follow-up consultation.</p>
-      </td>
-    </tr></table>
+    // Flat 2-column table (not a nested one) so mPDF renders every cell — deeply
+    // nested tables drop cells here. Dark fill is on each <td>, which mPDF paints
+    // reliably, so the whole box reads as one charcoal block. The label/value
+    // divider is a border-left on each value cell; row dividers are the shared
+    // border-bottom (mockup: thin rules both ways).
+    $pb_cell = 'background: ' . $c_dark . '; padding: 12px 18px; border-bottom: 1px solid #4A4741; font-size: 14px;';
+    $pb_div  = 'border-left: 1px solid #4A4741;';
+    $pb_tot  = 'background: ' . $c_dark . '; padding: 14px 18px 18px; font-size: 14px; white-space: nowrap;';
+    ?>
+    <table class="block pricebox" style="width: 100%; border-collapse: collapse; margin-top: 6px;">
+      <?php // Disclaimer opens the box full-width (moved here from the sidebar
+            // "Notes" panel, v2.43.0; the "Indicative Quote" mini-heading it
+            // replaces is gone — the gold banner above already says it). ?>
+      <tr><td colspan="2" style="background: <?php echo esc_attr( $c_dark ); ?>; color: #ffffff; padding: 16px 18px 14px; font-size: 13px; line-height: 1.5; border-bottom: 1px solid #4A4741;">This is an indicative quote based on the configuration submitted. Final pricing is subject to a follow-up consultation.</td></tr>
+      <tr>
+        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: <?php echo esc_attr( $c_panel ); ?>;">Subtotal</td>
+        <td style="<?php echo $pb_cell . $pb_div; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark; the value is a literal or esc_html()ed. ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_price, 2 ) ); ?></td>
+      </tr>
+      <tr>
+        <td style="<?php echo $pb_cell; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: <?php echo esc_attr( $c_panel ); ?>;">VAT<?php echo ( ! $bd_poa && $bd_vat_pct ) ? ' (' . (int) $bd_vat_pct . '%)' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- integer-cast percentage. ?></td>
+        <td style="<?php echo $pb_cell . $pb_div; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark; the value is a literal or esc_html()ed. ?> width: 55%; color: #ffffff; text-align: right;"><?php echo $bd_poa ? '&mdash;' : '&pound;' . esc_html( number_format( $bd_vat, 2 ) ); ?></td>
+      </tr>
+      <tr>
+        <td style="<?php echo $pb_tot; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark. ?> width: 45%; color: #ffffff; font-weight: 500;">Total<?php echo $bd_poa ? '' : ' inc VAT'; ?></td>
+        <?php // POA sets its own size: "Price on application" at the 22px used for
+              // a currency figure would wrap out of the box. ?>
+        <td style="<?php echo $pb_tot . $pb_div; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static CSS built above from the hex-validated $c_dark; the value is a literal or esc_html()ed. ?> width: 55%; color: #D3B96A; font-size: <?php echo $bd_poa ? '13px' : '22px'; ?>; font-weight: 600; text-align: right;"><?php echo $bd_poa ? 'Price on application' : '&pound;' . esc_html( number_format( $bd_total, 2 ) ); ?></td>
+      </tr>
+    </table>
 
   </td>
 </tr>
 </table>
 
+<?php
+// Customer's own notes (v2.25.0; full-width band since v2.43.0 — was a sidebar
+// box). Omitted entirely when there are none rather than printing an empty
+// panel. Escaped then line-broken — this is the only genuinely free-form
+// customer text in the plugin, so it is treated as hostile here as well as
+// on the admin screen and in the email. The static disclaimer that used to
+// share this styling now lives inside the quote box above.
+//
+// Placement (Dan, 2026-10-06): SHORT notes sit here, between the top section
+// and the spec tables, as in the mockup. LONG notes move BELOW the spec tables
+// instead — the spec band is one unsplittable table row (two full-height tds),
+// so a tall notes band here shoves the entire band to page 2 with most of
+// page 1 left blank; at the bottom, only the notes themselves flow onto a
+// second page and page 1 stays complete. Thresholds are measured against the
+// densest config (winder, both spec columns full), not derived from styling.
+$bd_cust_notes = trim( (string) ( $content['additional_notes'] ?? '' ) );
+$bd_notes_long = ( strlen( $bd_cust_notes ) > 280 ) || ( substr_count( $bd_cust_notes, "\n" ) > 3 );
+$bd_notes_band = '';
+if ( $bd_cust_notes !== '' ) {
+    $bd_notes_band =
+        '<table style="width: 100%; border-collapse: collapse;"><tr>'
+        . '<td style="padding: 10px 10.6mm 0;">'
+        . '<table class="notes" style="width: 100%; border-collapse: collapse;"><tr>'
+        . '<td style="background: ' . esc_attr( $c_panel ) . '; border-left: 3px solid ' . esc_attr( $c_accent ) . '; padding: 14px 20px;">'
+        . '<div style="font-size: 16px; font-weight: 600; margin-bottom: 6px; color: ' . esc_attr( $c_dark ) . ';">Notes</div>'
+        . '<p>' . nl2br( esc_html( $bd_cust_notes ) ) . '</p>'
+        . '</td></tr></table></td></tr></table>';
+}
+if ( $bd_notes_band !== '' && ! $bd_notes_long ) {
+    echo $bd_notes_band; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built above; the note text is esc_html()ed.
+}
+?>
+
 <!-- Table B: full-width, two balanced columns of spec sections -->
 <table style="width: 100%; border-collapse: collapse;">
 <tr>
-  <td style="width: 50%; vertical-align: top; padding: 12px 14px 26px 40px;"><?php echo $bd_colA; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- column of sections; every value passed through esc_html() in $bd_row/$bd_sectlabel where built. ?></td>
-  <td style="width: 50%; vertical-align: top; padding: 12px 40px 26px 14px;"><?php echo $bd_colB; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- column of sections; every value passed through esc_html() in $bd_row/$bd_sectlabel where built. ?></td>
+  <td style="width: 50%; vertical-align: top; padding: 6px 14px 12px 40px;"><?php echo $bd_colA; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- column of sections; every value passed through esc_html() in $bd_row/$bd_sectlabel where built. ?></td>
+  <td style="width: 50%; vertical-align: top; padding: 6px 40px 12px 14px;"><?php echo $bd_colB; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- column of sections; every value passed through esc_html() in $bd_row/$bd_sectlabel where built. ?></td>
 </tr>
 </table>
 
-<table class="band footer"><tr>
-  <td><?php echo esc_html( $ftr_l !== '' ? $ftr_l : $company ); ?> &mdash; Quote Ref <?php echo esc_html( $ref ); ?></td>
-  <td style="text-align: right;"><?php echo esc_html( $ftr_r ); ?></td>
-</tr></table>
+<?php
+// Long customer notes land here, after the spec tables — see the placement
+// note above the band builder.
+if ( $bd_notes_band !== '' && $bd_notes_long ) {
+    echo $bd_notes_band; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built above; the note text is esc_html()ed.
+}
+?>
+
+<?php // Footer band removed (v2.43.0): it repeated the header's reference,
+      // phone and website and cost printer ink. No page margin was reserved
+      // for it (mPDF margins are all 0), so nothing else to reclaim. ?>

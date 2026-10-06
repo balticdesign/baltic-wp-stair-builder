@@ -4231,7 +4231,14 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'id' => 'pdf_header_left',
 								'label' => 'PDF — Top strip (left)',
 								'type' => 'text',
-								'placeholder' => 'e.g. Call today on 0191 341 0077',
+								'placeholder' => 'e.g. Call 0191 341 0077 | Mon–Fri, 9.30am–5.00pm',
+							],
+							[
+								'id' => 'pdf_contact_names',
+								'label' => 'PDF — Top strip contact names',
+								'type' => 'text',
+								'placeholder' => 'e.g. Andy or Daniel',
+								'description' => 'When set, the top strip inserts “and ask for {names}” before the first “|” of the left text (or at its end if there is no “|”). Leave empty to omit the clause entirely.',
 							],
 							[
 								'id' => 'pdf_header_right',
@@ -4239,18 +4246,10 @@ if ( ! class_exists( 'Stairbuilder_Pricing_Settings' ) ) {
 								'type' => 'text',
 								'placeholder' => 'e.g. yourdomain.co.uk',
 							],
-							[
-								'id' => 'pdf_footer_left',
-								'label' => 'PDF — Footer (left)',
-								'type' => 'text',
-								'placeholder' => 'e.g. Your Company Ltd',
-							],
-							[
-								'id' => 'pdf_footer_right',
-								'label' => 'PDF — Footer (right)',
-								'type' => 'text',
-								'placeholder' => 'e.g. 0191 341 0077 · yourdomain.co.uk',
-							],
+							// pdf_footer_left / pdf_footer_right removed (v2.43.0): the PDF
+							// footer band is gone (it repeated the header), so settings that
+							// no longer do anything would only mislead a licensee. Stored
+							// values are left in place in case the band ever returns.
 						],
 					],
 					// Documentation-only tab (no saved fields) — rendered by the

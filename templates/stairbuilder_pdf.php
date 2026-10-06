@@ -267,11 +267,17 @@ $bd_row( 'Going', ( $content['going'] ?? '' ) !== '' ? $content['going'] . 'mm' 
 $bd_sections[] = array( 'Staircase Essentials', ob_get_clean() );
 
 ob_start();
+// Material rows: prefer the `<field>_label` frozen into form_data at submit
+// time (v2.42.0, bd_stairbuilder_resolve_material_labels) — material codes are
+// non-unique (two pine treads at different thicknesses), so bd_code_label()
+// alone returns the FIRST row with the code, not the one the customer chose.
+// The code lookup remains the fallback for leads captured before the labels
+// were stored.
 $bd_row( 'Construction Type', $bd_code_label( 'construction_types', $content['construction_type'] ?? '', 'construction_code', 'construction_name' ) );
-$bd_row( 'Tread Profile', $bd_code_label( 'tread_profiles', $content['tread-profile'] ?? '', 'tread_profile_code', 'tread_profile_name' ) );
-$bd_row( 'String Material', $bd_code_label( 'stringer_types', $content['stringer_material'] ?? '', 'stringer_code', 'stringer_name' ) );
-$bd_row( 'Tread Material', $bd_code_label( 'tread_types', $content['tread_material'] ?? '', 'tread_code', 'tread_name' ) );
-$bd_row( 'Riser Material', $bd_code_label( 'riser_types', $content['riser_material'] ?? '', 'riser_code', 'riser_name' ) );
+$bd_row( 'Tread Profile', ( $content['tread-profile_label'] ?? '' ) !== '' ? $content['tread-profile_label'] : $bd_code_label( 'tread_profiles', $content['tread-profile'] ?? '', 'tread_profile_code', 'tread_profile_name' ) );
+$bd_row( 'String Material', ( $content['stringer_material_label'] ?? '' ) !== '' ? $content['stringer_material_label'] : $bd_code_label( 'stringer_types', $content['stringer_material'] ?? '', 'stringer_code', 'stringer_name' ) );
+$bd_row( 'Tread Material', ( $content['tread_material_label'] ?? '' ) !== '' ? $content['tread_material_label'] : $bd_code_label( 'tread_types', $content['tread_material'] ?? '', 'tread_code', 'tread_name' ) );
+$bd_row( 'Riser Material', ( $content['riser_material_label'] ?? '' ) !== '' ? $content['riser_material_label'] : $bd_code_label( 'riser_types', $content['riser_material'] ?? '', 'riser_code', 'riser_name' ) );
 $bd_row( 'Turn 1', $bd_turn1 );
 $bd_row_count( 'Treads before Turn', $content['treadbt'] ?? '' );
 // half:landing hides "Treads after Turn" and "Turn 2" (BRIEF-04 amend #9):

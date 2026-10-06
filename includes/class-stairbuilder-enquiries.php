@@ -273,10 +273,15 @@ class BD_Stair_Builder_Enquiries {
 					foreach ( $this->spec_map() as $spec ) {
 						list( $label, $key, $repeater, $code_key, $name_key ) = $spec;
 						$consumed[] = $key;
+						$consumed[] = $key . '_label';
 						if ( ! isset( $fd[ $key ] ) || '' === (string) $fd[ $key ] ) {
 							continue;
 						}
-						$this->row( $label, bd_code_label( $repeater, $fd[ $key ], $code_key, $name_key ) );
+						// Prefer the display label frozen at submit time (v2.42.0) — material
+						// codes are non-unique, so the code lookup below can only return the
+						// first row with that code. Fallback covers pre-label leads.
+						$stored_label = isset( $fd[ $key . '_label' ] ) ? trim( (string) $fd[ $key . '_label' ] ) : '';
+						$this->row( $label, '' !== $stored_label ? $stored_label : bd_code_label( $repeater, $fd[ $key ], $code_key, $name_key ) );
 					}
 
 					// T&G landing selection (half:landing only). Without this it would

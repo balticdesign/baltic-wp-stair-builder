@@ -318,6 +318,79 @@ function bd_stairbuilder_revalidate_availability( $revalidate_raw ) {
 	return '';
 }
 
+/**
+ * Resolve the EXACT admin-row display label for each material field, from the
+ * un-stripped `code:price` pairs in revalidate_meta.
+ *
+ * Why this exists: material codes are deliberately non-unique — SPD's live data
+ * has two `pine` and two `oak` tread rows (25mm/30mm) and three of each on
+ * risers — because the quick-set buttons and the oak-bonus logic key on the
+ * bare code. form_data stores only the stripped code, so bd_code_label() can
+ * only ever return the FIRST row with that code, and the PDF printed
+ * "Solid Pine (25mm)" whatever pine the customer picked. The price half of the
+ * pair is the row discriminator the revalidation above already relies on, so
+ * resolve the label here, once, at submit time, and persist it with the lead
+ * (as `<field>_label` in form_data). That also freezes the label the customer
+ * actually saw: a later admin rename can't silently rewrite an issued quote.
+ *
+ * Row selection mirrors bd_stairbuilder_revalidate_availability(): prefer the
+ * code+price match, fall back to code-only (identical to today's behaviour —
+ * never worse). Returns only fields that resolved to a non-empty name; callers
+ * fall back to bd_code_label() for anything absent, which also covers leads
+ * from clients that posted no revalidate_meta.
+ *
+ * @param string $revalidate_raw URL-encoded un-stripped payload (revalidate_meta).
+ * @return array field name => display label.
+ */
+function bd_stairbuilder_resolve_material_labels( $revalidate_raw ) {
+	if ( ! is_string( $revalidate_raw ) || '' === $revalidate_raw ) {
+		return array();
+	}
+	parse_str( $revalidate_raw, $rv );
+
+	// field name → [ repeater option key, code sub-field, price sub-field, name sub-field ].
+	$map = array(
+		'stringer_material' => array( 'stringer_types', 'stringer_code', 'stringer_value', 'stringer_name' ),
+		'tread_material'    => array( 'tread_types', 'tread_code', 'tread_value', 'tread_name' ),
+		'riser_material'    => array( 'riser_types', 'riser_code', 'riser_value', 'riser_name' ),
+		'tread-profile'     => array( 'tread_profiles', 'tread_profile_code', 'tread_profile_value', 'tread_profile_name' ),
+	);
+
+	$labels = array();
+	foreach ( $map as $field => $spec ) {
+		if ( ! isset( $rv[ $field ] ) || '' === $rv[ $field ] ) {
+			continue;
+		}
+		list( $repeater, $code_key, $value_key, $name_key ) = $spec;
+		$submitted = (string) $rv[ $field ];
+		$sub_code  = $submitted;
+		$sub_price = null;
+		if ( false !== strpos( $submitted, ':' ) ) {
+			list( $sub_code, $sub_price ) = explode( ':', $submitted, 2 );
+		}
+
+		$code_match       = null;
+		$code_price_match = null;
+		foreach ( (array) stairbuilder_get_option( $repeater, array() ) as $r ) {
+			if ( ! is_array( $r ) || ! isset( $r[ $code_key ] ) || (string) $r[ $code_key ] !== (string) $sub_code ) {
+				continue;
+			}
+			if ( null === $code_match ) {
+				$code_match = $r;
+			}
+			if ( null === $code_price_match && null !== $sub_price && isset( $r[ $value_key ] ) && (string) $r[ $value_key ] === (string) $sub_price ) {
+				$code_price_match = $r;
+			}
+		}
+		$row = ( null !== $code_price_match ) ? $code_price_match : $code_match;
+		if ( null !== $row && ! empty( $row[ $name_key ] ) ) {
+			$labels[ $field ] = sanitize_text_field( (string) $row[ $name_key ] );
+		}
+	}
+
+	return $labels;
+}
+
 function baltic_stair_submit_lead() {
 	if ( ! baltic_stair_prepare_raw_response( 'wp_ajax_baltic_stair_submit_lead' ) ) {
 		wp_die( '', '', array( 'response' => 500 ) );
@@ -342,12 +415,19 @@ function baltic_stair_submit_lead() {
 	// Availability revalidation (v2.16.0 Phase 2, §6.3). Price is client-side, so a
 	// tampered POST can carry an impossible construction+material combination. Reject
 	// it before the lead is written or a PDF generated — don't silently correct.
-	$bd_revalidate_err = bd_stairbuilder_revalidate_availability(
-		// Same parse_str-payload rule as custom_meta above.
-		isset( $_POST['revalidate_meta'] ) ? wp_unslash( $_POST['revalidate_meta'] ) : '' // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-	);
+	// Same parse_str-payload rule as custom_meta above.
+	$bd_revalidate_raw = isset( $_POST['revalidate_meta'] ) ? wp_unslash( $_POST['revalidate_meta'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+	$bd_revalidate_err = bd_stairbuilder_revalidate_availability( $bd_revalidate_raw );
 	if ( '' !== $bd_revalidate_err ) {
 		wp_send_json_error( array( 'message' => $bd_revalidate_err ), 422 );
+	}
+
+	// Material display labels, resolved row-exactly (code+price) from the same
+	// payload and frozen into form_data — see bd_stairbuilder_resolve_material_labels().
+	// The PDF and the Enquiries detail prefer these over bd_code_label(), which
+	// cannot tell two same-code rows (Solid Pine 25mm vs 30mm) apart.
+	foreach ( bd_stairbuilder_resolve_material_labels( $bd_revalidate_raw ) as $bd_mat_field => $bd_mat_label ) {
+		$form_data[ $bd_mat_field . '_label' ] = $bd_mat_label;
 	}
 
 	$price = isset( $_POST['price'] ) ? (float) $_POST['price'] : 0;

@@ -81,6 +81,19 @@ function bdApplyPoaDisplay() {
 }
 
 function calculateTotalPrice() {
+  // Resolve the #risers dropdown for the CURRENT going/height BEFORE reading the
+  // form. This handler is bound directly on each input, so it fires before the
+  // flight scripts' delegated onLoad handler repopulates the dropdown — without
+  // this, changing floor height (or going) priced the riser count that was valid
+  // for the PREVIOUS height, and the quote only corrected itself when the user
+  // touched the dropdown. Mirrors the resolve-first call in straightFlight.js
+  // onLoad; getStaircaseConfig keeps a still-valid selection, else falls back to
+  // the lowest valid config, and .val() fires no change event so no recursion.
+  getStaircaseConfig(
+    parseFloat(jQuery("#going").val()) || 240,
+    parseFloat((jQuery("#floor-height").val() || '2600').replace(/,/g, ''))
+  );
+
   // Use stair-specific grabFormValues if available, otherwise fallback
   const formValues =
     typeof window.grabFormValues === "function"
